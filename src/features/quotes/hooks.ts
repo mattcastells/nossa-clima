@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addQuoteMaterialItem,
   addQuoteServiceItem,
+  deleteOldQuotes,
   deleteQuoteMaterialItem,
   deleteQuoteServiceItem,
   duplicateQuoteMaterialItem,
@@ -114,3 +115,14 @@ export const useSuggestedMaterialPrice = (itemId: string, marginPercent?: number
     queryFn: () => getSuggestedMaterialPrice(itemId, marginPercent, sourceStoreId),
     enabled: Boolean(itemId),
   });
+
+export const useDeleteOldQuotes = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (olderThanDays: number) => deleteOldQuotes(olderThanDays),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['quote-detail'] });
+    },
+  });
+};

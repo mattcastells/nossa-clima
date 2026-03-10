@@ -32,6 +32,7 @@ Copy-Item .env.example .env
 
 - `supabase/migrations/202603100001_initial_schema.sql`
 - `supabase/migrations/202603100002_quotes_services.sql`
+- `supabase/migrations/202603100003_appointments.sql`
 
 5. (Opcional) Cargar datos de ejemplo:
 

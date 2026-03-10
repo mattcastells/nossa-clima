@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { View } from 'react-native';
-import { Button, SegmentedButtons, TextInput } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { Button, TextInput } from 'react-native-paper';
 
 import { QuoteFormValues, quoteSchema } from './schemas';
 
@@ -22,58 +22,90 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar pres
       client_name: defaultValues?.client_name ?? '',
       client_phone: defaultValues?.client_phone ?? '',
       title: defaultValues?.title ?? '',
-      description: defaultValues?.description ?? '',
       notes: defaultValues?.notes ?? '',
-      status: defaultValues?.status ?? 'draft',
     },
   });
 
   return (
-    <View style={{ gap: 8 }}>
+    <View style={styles.form}>
       <Controller
         control={control}
         name="client_name"
-        render={({ field }) => <TextInput mode="outlined" label="Cliente" value={field.value} onChangeText={field.onChange} />}
+        render={({ field }) => (
+          <TextInput
+            mode="outlined"
+            label="Cliente"
+            value={field.value}
+            onChangeText={field.onChange}
+            outlineStyle={styles.inputOutline}
+          />
+        )}
       />
       <Controller
         control={control}
         name="client_phone"
-        render={({ field }) => <TextInput mode="outlined" label="Teléfono" value={field.value} onChangeText={field.onChange} />}
+        render={({ field }) => (
+          <TextInput
+            mode="outlined"
+            label="Telefono"
+            value={field.value ?? ''}
+            onChangeText={field.onChange}
+            outlineStyle={styles.inputOutline}
+          />
+        )}
       />
       <Controller
         control={control}
         name="title"
-        render={({ field }) => <TextInput mode="outlined" label="Título" value={field.value} onChangeText={field.onChange} />}
-      />
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => <TextInput mode="outlined" label="Descripción" value={field.value} onChangeText={field.onChange} />}
+        render={({ field }) => (
+          <TextInput
+            mode="outlined"
+            label="Titulo"
+            value={field.value}
+            onChangeText={field.onChange}
+            outlineStyle={styles.inputOutline}
+          />
+        )}
       />
       <Controller
         control={control}
         name="notes"
-        render={({ field }) => <TextInput mode="outlined" label="Notas" value={field.value} onChangeText={field.onChange} />}
-      />
-      <Controller
-        control={control}
-        name="status"
         render={({ field }) => (
-          <SegmentedButtons
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: 'draft', label: 'Borrador' },
-              { value: 'sent', label: 'Enviado' },
-              { value: 'approved', label: 'Aprobado' },
-              { value: 'rejected', label: 'Rechazado' },
-            ]}
+          <TextInput
+            mode="outlined"
+            label="Notas"
+            value={field.value ?? ''}
+            onChangeText={field.onChange}
+            multiline
+            numberOfLines={3}
+            outlineStyle={styles.inputOutline}
           />
         )}
       />
-      <Button mode="contained" loading={isSubmitting} onPress={handleSubmit(onSubmit)}>
+      <Button
+        mode="contained"
+        loading={isSubmitting}
+        onPress={handleSubmit(onSubmit)}
+        style={styles.submitButton}
+        contentStyle={styles.submitButtonContent}
+      >
         {buttonLabel}
       </Button>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  form: {
+    gap: 14,
+  },
+  inputOutline: {
+    borderRadius: 10,
+  },
+  submitButton: {
+    borderRadius: 10,
+  },
+  submitButtonContent: {
+    minHeight: 42,
+  },
+});

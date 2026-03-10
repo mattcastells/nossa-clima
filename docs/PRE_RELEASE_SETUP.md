@@ -41,6 +41,11 @@ Estas variables son públicas del cliente móvil (anon key), no usar service rol
 ## Base de datos (migrations + seed)
 Aplicar migraciones en orden desde `supabase/migrations/`.
 
+Orden actual:
+- `202603100001_initial_schema.sql`
+- `202603100002_quotes_services.sql`
+- `202603100003_appointments.sql`
+
 Seed de prueba E2E:
 - `supabase/seed/seed.sql`
 

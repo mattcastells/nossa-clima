@@ -14,7 +14,7 @@ export default function RootLayout() {
     <PaperProvider theme={appTheme}>
       <QueryClientProvider client={queryClient}>
         {authLoading ? (
-          <AppScreen title="Precios Técnicos">
+          <AppScreen title="Precios Técnicos" showBackButton={false}>
             <Text>Cargando sesión...</Text>
           </AppScreen>
         ) : (

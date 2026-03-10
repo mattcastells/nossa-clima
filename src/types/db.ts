@@ -1,6 +1,7 @@
 export type ItemType = 'product' | 'tool' | 'material' | 'other';
 export type PriceSourceType = 'purchase' | 'manual_update' | 'quote' | 'other';
 export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
+export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export interface Profile {
   id: string;
@@ -115,4 +116,18 @@ export interface StoreItemPrice {
 export interface LatestStoreItemPrice extends StoreItemPrice {
   store_name: string;
   item_name: string;
+}
+
+export interface Appointment {
+  id: string;
+  user_id: string;
+  title: string;
+  notes: string | null;
+  scheduled_for: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  status: AppointmentStatus;
+  store_id: string | null;
+  created_at: string;
+  updated_at: string;
 }

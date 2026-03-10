@@ -28,7 +28,7 @@ export const StoreForm = ({ defaultValues, onSubmit }: Props) => {
   });
 
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 12 }}>
       <Controller
         control={control}
         name="name"
@@ -53,7 +53,7 @@ export const StoreForm = ({ defaultValues, onSubmit }: Props) => {
         control={control}
         name="is_active"
         render={({ field }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
             <Text>Activa</Text>
             <Switch value={field.value} onValueChange={field.onChange} />
           </View>

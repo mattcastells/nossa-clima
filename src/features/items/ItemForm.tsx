@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Switch, View } from 'react-native';
-import { Button, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { Button, Menu, Text, TextInput } from 'react-native-paper';
 
 import { ItemFormValues, itemSchema } from './schemas';
 
@@ -9,6 +10,13 @@ interface Props {
   defaultValues?: Partial<ItemFormValues>;
   onSubmit: (values: ItemFormValues) => Promise<void>;
 }
+
+const ITEM_TYPE_OPTIONS: Array<{ value: ItemFormValues['item_type']; label: string }> = [
+  { value: 'product', label: 'Producto' },
+  { value: 'tool', label: 'Herramienta' },
+  { value: 'material', label: 'Material' },
+  { value: 'other', label: 'Otro' },
+];
 
 export const ItemForm = ({ defaultValues, onSubmit }: Props) => {
   const {
@@ -29,58 +37,115 @@ export const ItemForm = ({ defaultValues, onSubmit }: Props) => {
     },
   });
 
+  const [itemTypeMenuVisible, setItemTypeMenuVisible] = useState(false);
+
   return (
-    <View style={{ gap: 8 }}>
+    <View style={styles.form}>
       <Controller
         control={control}
         name="name"
-        render={({ field }) => <TextInput mode="outlined" label="Nombre" value={field.value} onChangeText={field.onChange} />}
+        render={({ field }) => (
+          <TextInput mode="outlined" label="Nombre" value={field.value} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
+        )}
       />
       <Controller
         control={control}
         name="item_type"
-        render={({ field }) => (
-          <SegmentedButtons
-            value={field.value}
-            onValueChange={field.onChange}
-            buttons={[
-              { value: 'product', label: 'Producto' },
-              { value: 'tool', label: 'Herramienta' },
-              { value: 'material', label: 'Material' },
-              { value: 'other', label: 'Otro' },
-            ]}
-          />
-        )}
+        render={({ field }) => {
+          const selectedOption =
+            ITEM_TYPE_OPTIONS.find((option) => option.value === field.value) ??
+            ({
+              value: 'product',
+              label: 'Producto',
+            } as const);
+          return (
+            <View style={styles.fieldGroup}>
+              <Text variant="labelMedium">Tipo de item</Text>
+              <Menu
+                visible={itemTypeMenuVisible}
+                onDismiss={() => setItemTypeMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="outlined"
+                    icon="chevron-down"
+                    onPress={() => setItemTypeMenuVisible(true)}
+                    style={styles.selectButton}
+                    contentStyle={styles.selectButtonContent}
+                  >
+                    {selectedOption.label}
+                  </Button>
+                }
+              >
+                {ITEM_TYPE_OPTIONS.map((option) => (
+                  <Menu.Item
+                    key={option.value}
+                    title={option.label}
+                    onPress={() => {
+                      field.onChange(option.value);
+                      setItemTypeMenuVisible(false);
+                    }}
+                  />
+                ))}
+              </Menu>
+            </View>
+          );
+        }}
       />
       <Controller
         control={control}
         name="category"
-        render={({ field }) => <TextInput mode="outlined" label="Categoría" value={field.value} onChangeText={field.onChange} />}
+        render={({ field }) => (
+          <TextInput mode="outlined" label="Categoria" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
+        )}
       />
       <Controller
         control={control}
         name="unit"
-        render={({ field }) => <TextInput mode="outlined" label="Unidad" value={field.value} onChangeText={field.onChange} />}
+        render={({ field }) => (
+          <TextInput mode="outlined" label="Unidad" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
+        )}
       />
       <Controller
         control={control}
         name="brand"
-        render={({ field }) => <TextInput mode="outlined" label="Marca" value={field.value} onChangeText={field.onChange} />}
-      />
-      <Controller
-        control={control}
-        name="is_active"
         render={({ field }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text>Activo</Text>
-            <Switch value={field.value} onValueChange={field.onChange} />
-          </View>
+          <TextInput mode="outlined" label="Marca" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
         )}
       />
-      {errors.name && <Text style={{ color: '#B00020' }}>{errors.name.message}</Text>}
-      <Button mode="contained" loading={isSubmitting} onPress={handleSubmit(onSubmit)}>
+      {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+      <Button mode="contained" loading={isSubmitting} onPress={handleSubmit(onSubmit)} style={styles.submitButton} contentStyle={styles.submitButtonContent}>
         Guardar
       </Button>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  form: {
+    gap: 14,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  inputOutline: {
+    borderRadius: 10,
+  },
+  selectButton: {
+    borderRadius: 10,
+    alignItems: 'flex-start',
+  },
+  selectButtonContent: {
+    minHeight: 46,
+    justifyContent: 'flex-start',
+  },
+  submitButton: {
+    borderRadius: 10,
+    marginTop: 2,
+  },
+  submitButtonContent: {
+    minHeight: 42,
+  },
+  errorText: {
+    color: '#B00020',
+  },
+});

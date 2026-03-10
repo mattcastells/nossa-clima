@@ -28,8 +28,8 @@ export const QuoteTotalsSummary = ({ subtotalMaterials, subtotalServices, total 
 
 const styles = StyleSheet.create({
   container: {
-    padding: 12,
-    gap: 8,
-    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    borderRadius: 10,
   },
 });

@@ -6,9 +6,7 @@ export const quoteSchema = z.object({
   client_name: z.string().trim().min(1, 'El cliente es obligatorio'),
   client_phone: optionalTrimmedText,
   title: z.string().trim().min(1, 'El título es obligatorio'),
-  description: optionalTrimmedText,
   notes: optionalTrimmedText,
-  status: z.enum(['draft', 'sent', 'approved', 'rejected']).default('draft'),
 });
 
 export const quoteMaterialItemSchema = z.object({

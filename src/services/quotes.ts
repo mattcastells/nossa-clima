@@ -12,6 +12,11 @@ export interface SuggestedMaterialPrice {
   suggestedUnitPrice: number;
 }
 
+export interface DeleteOldQuotesResult {
+  deletedCount: number;
+  cutoffIso: string;
+}
+
 export type QuoteMaterialItemInput = Omit<
   QuoteMaterialItem,
   'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'total_price'
@@ -61,6 +66,21 @@ export const upsertQuote = async (payload: Partial<Quote> & Pick<Quote, 'client_
   const { data, error } = await supabase.from('quotes').upsert(payload).select().single();
   if (error) throw error;
   return data;
+};
+
+export const deleteOldQuotes = async (olderThanDays: number): Promise<DeleteOldQuotesResult> => {
+  const safeDays = Math.max(1, Math.floor(olderThanDays));
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - safeDays);
+  const cutoffIso = cutoffDate.toISOString();
+
+  const { data, error } = await supabase.from('quotes').delete().lt('created_at', cutoffIso).select('id');
+  if (error) throw error;
+
+  return {
+    deletedCount: data?.length ?? 0,
+    cutoffIso,
+  };
 };
 
 const getItemAndValidate = async (itemId: string): Promise<Item> => {

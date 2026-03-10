@@ -2,6 +2,7 @@ import { Card, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
+import { WorkCalendarCard } from '@/features/appointments/WorkCalendarCard';
 import { useDashboardSummary } from '@/features/dashboard/hooks';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 
@@ -28,6 +29,7 @@ export default function DashboardScreen() {
             </Card>
           ))}
           {data.latestPrices.length === 0 && <Text>No hay precios cargados aún. Registrá uno para iniciar el historial.</Text>}
+          <WorkCalendarCard />
         </>
       )}
     </AppScreen>
