@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Precios Técnicos",
+    "slug": "precios-tecnicos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "preciostecnicos",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
