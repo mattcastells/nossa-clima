@@ -3,12 +3,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addQuoteMaterialItem,
   addQuoteServiceItem,
+  deleteQuoteMaterialItem,
+  deleteQuoteServiceItem,
+  duplicateQuoteMaterialItem,
+  duplicateQuoteServiceItem,
   getQuoteDetail,
   getSuggestedMaterialPrice,
   listQuotes,
+  type QuoteMaterialItemInput,
+  type QuoteMaterialItemUpdate,
+  type QuoteServiceItemInput,
+  type QuoteServiceItemUpdate,
+  updateQuoteMaterialItem,
+  updateQuoteServiceItem,
   upsertQuote,
 } from '@/services/quotes';
-import type { Quote, QuoteMaterialItem, QuoteServiceItem, QuoteStatus } from '@/types/db';
+import type { Quote, QuoteStatus } from '@/types/db';
+
+const invalidateQuoteCaches = (queryClient: ReturnType<typeof useQueryClient>, quoteId: string) => {
+  queryClient.invalidateQueries({ queryKey: ['quote-detail', quoteId] });
+  queryClient.invalidateQueries({ queryKey: ['quotes'] });
+};
 
 export const useQuotes = (status?: QuoteStatus | 'all') =>
   useQuery({ queryKey: ['quotes', status ?? 'all'], queryFn: () => listQuotes(status) });
@@ -24,34 +39,72 @@ export const useSaveQuote = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: Partial<Quote> & Pick<Quote, 'client_name' | 'title'>) => upsertQuote(payload),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['quotes'] });
-      queryClient.invalidateQueries({ queryKey: ['quote-detail', data.id] });
-    },
+    onSuccess: (data) => invalidateQuoteCaches(queryClient, data.id),
   });
 };
 
 export const useAddQuoteMaterialItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<QuoteMaterialItem, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'total_price'>) =>
-      addQuoteMaterialItem(payload),
-    onSuccess: (line) => {
-      queryClient.invalidateQueries({ queryKey: ['quote-detail', line.quote_id] });
-      queryClient.invalidateQueries({ queryKey: ['quotes'] });
-    },
+    mutationFn: (payload: QuoteMaterialItemInput) => addQuoteMaterialItem(payload),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useUpdateQuoteMaterialItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, payload }: { itemId: string; payload: QuoteMaterialItemUpdate }) =>
+      updateQuoteMaterialItem(itemId, payload),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useDeleteQuoteMaterialItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => deleteQuoteMaterialItem(itemId),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useDuplicateQuoteMaterialItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => duplicateQuoteMaterialItem(itemId),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
   });
 };
 
 export const useAddQuoteServiceItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<QuoteServiceItem, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'service_name_snapshot' | 'total_price'>) =>
-      addQuoteServiceItem(payload),
-    onSuccess: (line) => {
-      queryClient.invalidateQueries({ queryKey: ['quote-detail', line.quote_id] });
-      queryClient.invalidateQueries({ queryKey: ['quotes'] });
-    },
+    mutationFn: (payload: QuoteServiceItemInput) => addQuoteServiceItem(payload),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useUpdateQuoteServiceItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, payload }: { itemId: string; payload: QuoteServiceItemUpdate }) => updateQuoteServiceItem(itemId, payload),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useDeleteQuoteServiceItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => deleteQuoteServiceItem(itemId),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useDuplicateQuoteServiceItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => duplicateQuoteServiceItem(itemId),
+    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
   });
 };
 

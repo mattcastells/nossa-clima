@@ -6,6 +6,7 @@ import { Button, Card, Searchbar, Text } from 'react-native-paper';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useServices } from '@/features/services/hooks';
+import { formatCurrencyArs } from '@/lib/format';
 
 export default function ServicesScreen() {
   const { data, isLoading, error } = useServices();
@@ -31,12 +32,12 @@ export default function ServicesScreen() {
             <Card style={{ marginBottom: 8 }}>
               <Card.Title
                 title={item.name}
-                subtitle={`${item.category ?? 'Sin categoría'} · $${item.base_price} · ${item.is_active ? 'Activo' : 'Archivado'}`}
+                subtitle={`${item.category ?? 'Sin categoría'} · ${formatCurrencyArs(item.base_price)} · ${item.is_active ? 'Activo' : 'Archivado'}`}
               />
             </Card>
           </Link>
         )}
-        ListEmptyComponent={<Text>Sin servicios registrados.</Text>}
+        ListEmptyComponent={<Text>Sin servicios registrados. Creá un servicio para usarlo en presupuestos.</Text>}
       />
     </AppScreen>
   );

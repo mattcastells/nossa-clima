@@ -1,21 +1,30 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { View } from 'react-native';
-import { Button, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { FlatList, View } from 'react-native';
+import { Button, Card, Searchbar, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems } from '@/features/items/hooks';
 import { useAddQuoteMaterialItem, useSuggestedMaterialPrice } from '@/features/quotes/hooks';
 import { QuoteMaterialItemFormValues, quoteMaterialItemSchema } from '@/features/quotes/schemas';
 import { useStores } from '@/features/stores/hooks';
+import { formatCurrencyArs } from '@/lib/format';
+import { toUserErrorMessage } from '@/lib/errors';
 
 export default function AddMaterialToQuotePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: items } = useItems();
-  const { data: stores } = useStores();
+  const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
+  const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
   const add = useAddQuoteMaterialItem();
+
+  const combinedError = itemsError ? new Error(itemsError.message) : storesError ? new Error(storesError.message) : null;
+
+  const [search, setSearch] = useState('');
+  const [snack, setSnack] = useState<string | null>(null);
 
   const { control, handleSubmit, watch, setValue } = useForm<QuoteMaterialItemFormValues>({
     resolver: zodResolver(quoteMaterialItemSchema),
@@ -37,22 +46,52 @@ export default function AddMaterialToQuotePage() {
   const quantity = watch('quantity');
   const unitPrice = watch('unit_price');
 
+  const filteredItems = useMemo(
+    () =>
+      (items ?? [])
+        .filter((i) => i.is_active)
+        .filter((i) => {
+          const q = search.toLowerCase();
+          return i.name.toLowerCase().includes(q) || (i.category ?? '').toLowerCase().includes(q) || (i.brand ?? '').toLowerCase().includes(q);
+        }),
+    [items, search],
+  );
+
+  const selectedItem = filteredItems.find((i) => i.id === selectedItemId) ?? (items ?? []).find((i) => i.id === selectedItemId);
+
   const suggestion = useSuggestedMaterialPrice(selectedItemId, marginPercent, sourceStoreId);
 
   return (
     <AppScreen title="Agregar material">
+      <LoadingOrError isLoading={itemsLoading || storesLoading} error={combinedError} />
       <View style={{ gap: 8 }}>
-        <Controller
-          control={control}
-          name="item_id"
-          render={({ field }) => (
-            <SegmentedButtons
-              value={field.value}
-              onValueChange={field.onChange}
-              buttons={(items ?? []).filter((i) => i.is_active).map((i) => ({ value: i.id, label: i.name }))}
-            />
+        <Searchbar placeholder="Buscar ítem por nombre/categoría/marca" value={search} onChangeText={setSearch} />
+
+        <FlatList
+          data={filteredItems}
+          keyExtractor={(item) => item.id}
+          style={{ maxHeight: 240 }}
+          renderItem={({ item }) => (
+            <Card
+              onPress={() => {
+                setValue('item_id', item.id);
+                if (item.unit) {
+                  setValue('unit', item.unit);
+                }
+              }}
+              style={{ marginBottom: 6, borderWidth: selectedItemId === item.id ? 2 : 0 }}
+            >
+              <Card.Content>
+                <Text variant="titleMedium">{item.name}</Text>
+                <Text>{item.category ?? 'Sin categoría'} · {item.brand ?? 'Sin marca'} · {item.unit ?? 'Sin unidad'}</Text>
+              </Card.Content>
+            </Card>
           )}
+          ListEmptyComponent={<Text>No hay ítems activos que coincidan con la búsqueda.</Text>}
         />
+
+        <Text>Seleccionado: {selectedItem?.name ?? 'Ninguno'}</Text>
+
         <Controller
           control={control}
           name="source_store_id"
@@ -87,15 +126,10 @@ export default function AddMaterialToQuotePage() {
             />
           )}
         />
-        <Button
-          mode="outlined"
-          onPress={() => {
-            setValue('unit_price', suggestion.data?.suggestedUnitPrice ?? 0);
-          }}
-        >
+        <Button mode="outlined" onPress={() => setValue('unit_price', suggestion.data?.suggestedUnitPrice ?? 0)}>
           Usar precio sugerido
         </Button>
-        <Text>Costo base detectado: ${suggestion.data?.baseCost ?? 0}</Text>
+        <Text>Costo base detectado: {formatCurrencyArs(suggestion.data?.baseCost ?? 0)}</Text>
         <Controller
           control={control}
           name="unit_price"
@@ -115,18 +149,28 @@ export default function AddMaterialToQuotePage() {
           render={({ field }) => <TextInput mode="outlined" label="Notas" value={field.value} onChangeText={field.onChange} />}
         />
 
-        <Text variant="titleMedium">Total estimado: ${(Number(quantity) || 0) * (Number(unitPrice) || 0)}</Text>
+        <Text variant="titleMedium">Total estimado: {formatCurrencyArs((Number(quantity) || 0) * (Number(unitPrice) || 0))}</Text>
 
         <Button
           mode="contained"
+          loading={add.isPending}
           onPress={handleSubmit(async (values) => {
-            await add.mutateAsync(values);
-            router.back();
+            try {
+              await add.mutateAsync(values);
+              setSnack('Material agregado');
+              router.back();
+            } catch (mutationError) {
+              setSnack(toUserErrorMessage(mutationError, 'No se pudo agregar el material'));
+            }
           })}
         >
           Agregar material
         </Button>
       </View>
+
+      <Snackbar visible={Boolean(snack)} onDismiss={() => setSnack(null)}>
+        {snack}
+      </Snackbar>
     </AppScreen>
   );
 }

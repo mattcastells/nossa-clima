@@ -12,6 +12,20 @@ export interface SuggestedMaterialPrice {
   suggestedUnitPrice: number;
 }
 
+export type QuoteMaterialItemInput = Omit<
+  QuoteMaterialItem,
+  'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'total_price'
+>;
+
+export type QuoteServiceItemInput = Omit<
+  QuoteServiceItem,
+  'id' | 'user_id' | 'created_at' | 'updated_at' | 'service_name_snapshot' | 'total_price'
+>;
+
+export type QuoteMaterialItemUpdate = Partial<Pick<QuoteMaterialItem, 'quantity' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>>;
+
+export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'notes'>>;
+
 export const listQuotes = async (status?: QuoteStatus | 'all'): Promise<Quote[]> => {
   let query = supabase.from('quotes').select('*').order('created_at', { ascending: false });
   if (status && status !== 'all') {
@@ -100,9 +114,7 @@ export const getSuggestedMaterialPrice = async (
   return { baseCost, suggestedUnitPrice };
 };
 
-export const addQuoteMaterialItem = async (
-  payload: Omit<QuoteMaterialItem, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'total_price'>,
-): Promise<QuoteMaterialItem> => {
+export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Promise<QuoteMaterialItem> => {
   const item = await getItemAndValidate(payload.item_id);
 
   const { data, error } = await supabase
@@ -114,9 +126,37 @@ export const addQuoteMaterialItem = async (
   return data;
 };
 
-export const addQuoteServiceItem = async (
-  payload: Omit<QuoteServiceItem, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'service_name_snapshot' | 'total_price'>,
-): Promise<QuoteServiceItem> => {
+export const updateQuoteMaterialItem = async (itemId: string, payload: QuoteMaterialItemUpdate): Promise<QuoteMaterialItem> => {
+  const { data, error } = await supabase.from('quote_material_items').update(payload).eq('id', itemId).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteQuoteMaterialItem = async (itemId: string): Promise<{ quote_id: string }> => {
+  const { data, error } = await supabase.from('quote_material_items').delete().eq('id', itemId).select('quote_id').single();
+  if (error) throw error;
+  return data;
+};
+
+export const duplicateQuoteMaterialItem = async (itemId: string): Promise<QuoteMaterialItem> => {
+  const { data: existing, error: existingError } = await supabase.from('quote_material_items').select('*').eq('id', itemId).single();
+  if (existingError) throw existingError;
+
+  const payload: QuoteMaterialItemInput = {
+    quote_id: existing.quote_id,
+    item_id: existing.item_id,
+    quantity: existing.quantity,
+    unit: existing.unit,
+    unit_price: existing.unit_price,
+    margin_percent: existing.margin_percent,
+    source_store_id: existing.source_store_id,
+    notes: existing.notes,
+  };
+
+  return addQuoteMaterialItem(payload);
+};
+
+export const addQuoteServiceItem = async (payload: QuoteServiceItemInput): Promise<QuoteServiceItem> => {
   const service = await getServiceAndValidate(payload.service_id);
 
   const { data, error } = await supabase
@@ -126,4 +166,31 @@ export const addQuoteServiceItem = async (
     .single();
   if (error) throw error;
   return data;
+};
+
+export const updateQuoteServiceItem = async (itemId: string, payload: QuoteServiceItemUpdate): Promise<QuoteServiceItem> => {
+  const { data, error } = await supabase.from('quote_service_items').update(payload).eq('id', itemId).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteQuoteServiceItem = async (itemId: string): Promise<{ quote_id: string }> => {
+  const { data, error } = await supabase.from('quote_service_items').delete().eq('id', itemId).select('quote_id').single();
+  if (error) throw error;
+  return data;
+};
+
+export const duplicateQuoteServiceItem = async (itemId: string): Promise<QuoteServiceItem> => {
+  const { data: existing, error: existingError } = await supabase.from('quote_service_items').select('*').eq('id', itemId).single();
+  if (existingError) throw existingError;
+
+  const payload: QuoteServiceItemInput = {
+    quote_id: existing.quote_id,
+    service_id: existing.service_id,
+    quantity: existing.quantity,
+    unit_price: existing.unit_price,
+    notes: existing.notes,
+  };
+
+  return addQuoteServiceItem(payload);
 };

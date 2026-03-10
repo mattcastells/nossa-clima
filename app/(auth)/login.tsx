@@ -1,13 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Button, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { LoginFormValues, loginSchema } from '@/features/auth/schemas';
 import { signIn } from '@/features/auth/service';
+import { toUserErrorMessage } from '@/lib/errors';
 
 export default function LoginScreen() {
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -56,13 +60,22 @@ export default function LoginScreen() {
       <Button
         mode="contained"
         loading={isSubmitting}
+        disabled={isSubmitting}
         onPress={handleSubmit(async (values) => {
-          await signIn(values.email, values.password);
-          router.replace('/(tabs)');
+          try {
+            await signIn(values.email, values.password);
+            router.replace('/(tabs)');
+          } catch (error) {
+            setAuthError(toUserErrorMessage(error, 'No se pudo iniciar sesión.'));
+          }
         })}
       >
         Ingresar
       </Button>
+
+      <Snackbar visible={Boolean(authError)} onDismiss={() => setAuthError(null)} duration={3000}>
+        {authError}
+      </Snackbar>
     </View>
   );
 }

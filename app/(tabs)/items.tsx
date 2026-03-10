@@ -25,7 +25,7 @@ export default function ItemsScreen() {
             </Card>
           </Link>
         )}
-        ListEmptyComponent={<Text>Sin ítems registrados.</Text>}
+        ListEmptyComponent={<Text>Sin ítems registrados. Creá un ítem para poder registrar precios y presupuestos.</Text>}
       />
     </AppScreen>
   );

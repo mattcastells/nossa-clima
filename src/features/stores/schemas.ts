@@ -1,11 +1,13 @@
 import { z } from 'zod';
 
+const optionalTrimmedText = z.string().trim().optional();
+
 export const storeSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio'),
-  description: z.string().optional(),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  notes: z.string().optional(),
+  name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  description: optionalTrimmedText,
+  address: optionalTrimmedText,
+  phone: optionalTrimmedText,
+  notes: optionalTrimmedText,
   is_active: z.boolean().default(true),
 });
 

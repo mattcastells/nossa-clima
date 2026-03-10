@@ -5,6 +5,7 @@ import { Button, Card, SegmentedButtons, Text } from 'react-native-paper';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useQuotes } from '@/features/quotes/hooks';
+import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 import type { QuoteStatus } from '@/types/db';
 import { useState } from 'react';
 
@@ -38,15 +39,15 @@ export default function QuotesScreen() {
               <Card.Content>
                 <Text variant="titleMedium">{item.client_name}</Text>
                 <Text>{item.title}</Text>
-                <Text>{item.status.toUpperCase()} · ${item.total}</Text>
-                <Text>{new Date(item.created_at).toLocaleDateString()}</Text>
+                <Text>{item.status.toUpperCase()} · {formatCurrencyArs(item.total)}</Text>
+                <Text>{formatDateAr(item.created_at)}</Text>
               </Card.Content>
             </Card>
           </Link>
         )}
         ListEmptyComponent={
           <View>
-            <Text>No hay presupuestos para este filtro.</Text>
+            <Text>No hay presupuestos para este filtro. Creá uno nuevo para comenzar.</Text>
           </View>
         }
       />

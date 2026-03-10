@@ -1,21 +1,25 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { View } from 'react-native';
-import { Button, SegmentedButtons, TextInput } from 'react-native-paper';
+import { Button, SegmentedButtons, Snackbar, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems } from '@/features/items/hooks';
 import { useCreatePrice } from '@/features/prices/hooks';
 import { PriceFormValues, priceSchema } from '@/features/prices/schemas';
 import { useStores } from '@/features/stores/hooks';
+import { toUserErrorMessage } from '@/lib/errors';
 
 export default function NewPricePage() {
-  const { data: stores } = useStores();
-  const { data: items } = useItems();
+  const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
+  const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
   const createPrice = useCreatePrice();
+  const [message, setMessage] = useState<string | null>(null);
 
-  const { control, handleSubmit, watch } = useForm<PriceFormValues>({
+  const { control, handleSubmit } = useForm<PriceFormValues>({
     resolver: zodResolver(priceSchema),
     defaultValues: {
       store_id: '',
@@ -29,8 +33,11 @@ export default function NewPricePage() {
     },
   });
 
+  const combinedError = storesError ? new Error(storesError.message) : itemsError ? new Error(itemsError.message) : null;
+
   return (
     <AppScreen title="Registrar precio">
+      <LoadingOrError isLoading={storesLoading || itemsLoading} error={combinedError} />
       <View style={{ gap: 8 }}>
         <Controller
           control={control}
@@ -92,14 +99,24 @@ export default function NewPricePage() {
         />
         <Button
           mode="contained"
+          loading={createPrice.isPending}
+          disabled={createPrice.isPending}
           onPress={handleSubmit(async (values) => {
-            await createPrice.mutateAsync({ ...values, observed_at: new Date(values.observed_at).toISOString() });
-            router.back();
+            try {
+              await createPrice.mutateAsync({ ...values, observed_at: new Date(values.observed_at).toISOString() });
+              router.back();
+            } catch (error) {
+              setMessage(toUserErrorMessage(error, 'No se pudo registrar el precio.'));
+            }
           })}
         >
           Guardar precio
         </Button>
       </View>
+
+      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
+        {message}
+      </Snackbar>
     </AppScreen>
   );
 }

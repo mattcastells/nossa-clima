@@ -25,7 +25,7 @@ export default function StoresScreen() {
             </Card>
           </Link>
         )}
-        ListEmptyComponent={<Text>Sin tiendas registradas.</Text>}
+        ListEmptyComponent={<Text>Sin tiendas registradas. Cargá tu primera tienda para registrar precios.</Text>}
       />
     </AppScreen>
   );

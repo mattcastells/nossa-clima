@@ -5,6 +5,7 @@ import { Button, Card, Text } from 'react-native-paper';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useLatestPrices } from '@/features/prices/hooks';
+import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 
 export default function PricesScreen() {
   const { data, isLoading, error } = useLatestPrices();
@@ -23,12 +24,12 @@ export default function PricesScreen() {
             <Card style={{ marginBottom: 8 }}>
               <Card.Title
                 title={`${item.item_name} en ${item.store_name}`}
-                subtitle={`$${item.price} · ${new Date(item.observed_at).toLocaleDateString()}`}
+                subtitle={`${formatCurrencyArs(item.price)} · ${formatDateAr(item.observed_at)}`}
               />
             </Card>
           </Link>
         )}
-        ListEmptyComponent={<Text>Sin precios registrados.</Text>}
+        ListEmptyComponent={<Text>Sin precios registrados. Registrá el primer precio para comenzar.</Text>}
       />
       <Link href="/prices/comparison" asChild>
         <Button mode="outlined">Comparar por ítem</Button>
