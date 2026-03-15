@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Appointment } from '@/types/db';
+import type { Appointment, Quote } from '@/types/db';
 import { isMissingAppointmentQuoteLinkError } from './supabaseCompatibility';
 
 export type AppointmentInput = Omit<Appointment, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
@@ -9,10 +9,13 @@ export type LinkAppointmentToQuoteInput = {
   title: string;
   notes?: string | null;
 };
+export type AppointmentListItem = Appointment & {
+  quote: Pick<Quote, 'id' | 'client_name' | 'title' | 'notes'> | null;
+};
 
 const missingQuoteIdColumnMessage = 'Falta aplicar la migracion 202603100004 para poder programar trabajos.';
 
-export const listAppointmentsInRange = async (dateFrom: string, dateTo: string): Promise<Appointment[]> => {
+export const listAppointmentsInRange = async (dateFrom: string, dateTo: string): Promise<AppointmentListItem[]> => {
   const { data, error } = await supabase
     .from('appointments')
     .select('*')
@@ -21,7 +24,27 @@ export const listAppointmentsInRange = async (dateFrom: string, dateTo: string):
     .order('scheduled_for')
     .order('starts_at');
   if (error) throw error;
-  return data;
+  if (!data?.length) return [];
+
+  const quoteIds = Array.from(new Set(data.map((appointment) => appointment.quote_id).filter(Boolean))) as string[];
+
+  if (quoteIds.length === 0) {
+    return data.map((appointment) => ({ ...appointment, quote: null }));
+  }
+
+  const { data: quotes, error: quotesError } = await supabase
+    .from('quotes')
+    .select('id, client_name, title, notes')
+    .in('id', quoteIds);
+
+  if (quotesError) throw quotesError;
+
+  const quotesById = new Map((quotes ?? []).map((quote) => [quote.id, quote]));
+
+  return data.map((appointment) => ({
+    ...appointment,
+    quote: appointment.quote_id ? quotesById.get(appointment.quote_id) ?? null : null,
+  }));
 };
 
 export const createAppointment = async (payload: AppointmentInput): Promise<Appointment> => {

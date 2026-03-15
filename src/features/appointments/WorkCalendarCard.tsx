@@ -5,6 +5,7 @@ import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { useAppointmentsInMonth, useCreateAppointment, useDeleteAppointment } from '@/features/appointments/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
+import { formatDateAr, formatTimeShort } from '@/lib/format';
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
@@ -60,6 +61,20 @@ const normalizeTime = (value: string): string | null => {
   }
 
   return `${trimmed}:00`;
+};
+
+const getAppointmentClientLabel = (appointment: { quote: { client_name: string } | null; quote_id: string | null }): string =>
+  appointment.quote?.client_name ?? (appointment.quote_id ? '-' : 'Sin cliente');
+
+const getAppointmentDescription = (
+  appointment: {
+    title: string;
+    notes: string | null;
+    quote: { title: string; notes: string | null } | null;
+  },
+): string => {
+  const description = appointment.notes?.trim() || appointment.quote?.notes?.trim() || appointment.quote?.title?.trim() || appointment.title.trim();
+  return description || 'Sin descripcion';
 };
 
 export const WorkCalendarCard = () => {
@@ -162,15 +177,25 @@ export const WorkCalendarCard = () => {
         {!appointmentsQuery.isLoading &&
           selectedDateAppointments.map((appointment) => (
             <Card key={appointment.id} mode="outlined" style={styles.appointmentCard}>
-              <Card.Content>
-                <Text variant="titleSmall">
-                  {appointment.starts_at ? appointment.starts_at.slice(0, 5) : '--:--'} - {appointment.title}
-                </Text>
-                {appointment.notes ? <Text>{appointment.notes}</Text> : null}
+              <Card.Content style={styles.appointmentContent}>
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Cliente:</Text>
+                  <Text style={styles.metaValue}>{getAppointmentClientLabel(appointment)}</Text>
+                </View>
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Fecha y hora:</Text>
+                  <Text style={styles.metaValue}>
+                    {`${formatDateAr(appointment.scheduled_for)}${appointment.starts_at ? ` - ${formatTimeShort(appointment.starts_at)}` : ''}`}
+                  </Text>
+                </View>
+                <View style={styles.metaBlock}>
+                  <Text style={styles.metaLabel}>Descripcion:</Text>
+                  <Text style={styles.metaValue}>{getAppointmentDescription(appointment)}</Text>
+                </View>
                 <View style={styles.appointmentActions}>
                   {appointment.quote_id ? (
-                    <Button compact onPress={() => router.push(`/quotes/${appointment.quote_id}`)}>
-                      Ver detalle
+                    <Button compact mode="text" onPress={() => router.push(`/quotes/${appointment.quote_id}`)}>
+                      Ver presupuesto
                     </Button>
                   ) : (
                     <Button
@@ -195,7 +220,6 @@ export const WorkCalendarCard = () => {
                   <Button
                     compact
                     textColor="#B3261E"
-                    style={styles.deleteButton}
                     onPress={async () => {
                       try {
                         await deleteAppointment.mutateAsync(appointment.id);
@@ -361,16 +385,28 @@ const styles = StyleSheet.create({
   appointmentCard: {
     marginTop: 2,
   },
+  appointmentContent: {
+    gap: 8,
+  },
+  metaBlock: {
+    gap: 2,
+  },
+  metaLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#5f6368',
+  },
+  metaValue: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   appointmentActions: {
     marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  deleteButton: {
-    alignSelf: 'flex-end',
   },
   quickForm: {
     marginTop: 4,

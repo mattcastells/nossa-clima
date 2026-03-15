@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 const ensureProfile = async (userId: string): Promise<void> => {
   const { error } = await supabase.from('profiles').upsert({ id: userId }).select('id').single();
   if (error) {
-    // No frenar login por perfil, pero dejamos error explícito para debugging.
+    // No frenar login por perfil, pero dejamos error explicito para debugging.
     // eslint-disable-next-line no-console
     console.warn('No se pudo asegurar perfil del usuario:', error.message);
   }
