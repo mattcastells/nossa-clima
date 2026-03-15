@@ -188,7 +188,7 @@ const loadWebLogoImage = (uri: string): Promise<WebLogoImage> => {
 const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string => {
   const { quote } = detail;
   const quoteDate = getQuoteDisplayDate(detail);
-  const logoMarkup = brandLogoUri
+  const logoMarkup = Platform.OS === 'web' && brandLogoUri
     ? `<img src="${escapeHtml(brandLogoUri)}" alt="Nossa Clima" />`
     : buildCompanyLogoSvg();
 
@@ -660,9 +660,8 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
 };
 
 export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
-  const brandLogoUri = await resolveBrandLogoUri();
-
   if (Platform.OS === 'web') {
+    const brandLogoUri = await resolveBrandLogoUri();
     await exportQuotePdfWeb(detail, brandLogoUri);
     return;
   }
@@ -672,7 +671,7 @@ export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Sharing = require('expo-sharing') as typeof import('expo-sharing');
 
-  const html = buildQuotePdfHtml(detail, brandLogoUri);
+  const html = buildQuotePdfHtml(detail, '');
   const file = await Print.printToFileAsync({ html });
   const canShare = await Sharing.isAvailableAsync();
 

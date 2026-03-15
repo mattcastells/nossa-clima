@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { Href } from 'expo-router';
-import { Link } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 
@@ -23,6 +22,8 @@ const HOME_ACTIONS: HomeAction[] = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
     <AppScreen showBackButton={false}>
       <View style={styles.bannerBand}>
@@ -30,17 +31,15 @@ export default function HomeScreen() {
       </View>
       <View style={styles.grid}>
         {HOME_ACTIONS.map((action) => (
-          <Link key={action.title} href={action.href} asChild>
-            <Card mode="contained" style={styles.tile}>
-              <Card.Content style={styles.tileContent}>
-                <MaterialCommunityIcons name={action.icon} size={34} color="#0B6E4F" />
-                <Text variant="titleMedium" style={styles.tileTitle}>
-                  {action.title}
-                </Text>
-                <Text style={styles.tileSubtitle}>{action.subtitle}</Text>
-              </Card.Content>
-            </Card>
-          </Link>
+          <Card key={action.title} mode="contained" style={styles.tile} onPress={() => router.push(action.href)}>
+            <Card.Content style={styles.tileContent}>
+              <MaterialCommunityIcons name={action.icon} size={34} color="#0B6E4F" />
+              <Text variant="titleMedium" style={styles.tileTitle}>
+                {action.title}
+              </Text>
+              <Text style={styles.tileSubtitle}>{action.subtitle}</Text>
+            </Card.Content>
+          </Card>
         ))}
       </View>
     </AppScreen>
