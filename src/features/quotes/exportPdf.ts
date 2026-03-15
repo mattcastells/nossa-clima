@@ -1,8 +1,4 @@
 import { Asset } from 'expo-asset';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import autoTable from 'jspdf-autotable';
-import { jsPDF } from 'jspdf';
 import { Platform } from 'react-native';
 
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
@@ -18,6 +14,12 @@ const COMPANY_EMAIL = 'nossaclima@gmail.com';
 const COMPANY_PHONE = '11 6786 9084';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const brandBanner = require('../../../assets/nossa-banner.png');
+
+type PdfDocument = import('jspdf').jsPDF;
+type AutoTableFn = (doc: PdfDocument, options: Record<string, unknown>) => void;
+type AutoTableModule = AutoTableFn & {
+  default?: AutoTableFn;
+};
 
 type WebLogoImage = {
   dataUrl: string;
@@ -124,7 +126,7 @@ const buildCompanyLogoSvg = (): string => `
     </text>
   </svg>`;
 
-const drawCompanyLogo = (doc: jsPDF, x: number, y: number, width: number): number => {
+const drawCompanyLogo = (doc: PdfDocument, x: number, y: number, width: number): number => {
   const baseWidth = 440;
   const scale = width / baseWidth;
   const logoHeight = 96 * scale;
@@ -384,7 +386,7 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
   </html>`;
 };
 
-const ensureVerticalSpace = (doc: jsPDF, currentY: number, neededSpace: number): number => {
+const ensureVerticalSpace = (doc: PdfDocument, currentY: number, neededSpace: number): number => {
   const pageHeight = doc.internal.pageSize.getHeight();
   if (currentY + neededSpace <= pageHeight - 42) {
     return currentY;
@@ -394,7 +396,7 @@ const ensureVerticalSpace = (doc: jsPDF, currentY: number, neededSpace: number):
   return 42;
 };
 
-const drawInfoCard = (doc: jsPDF, detail: QuoteDetail, x: number, y: number, width: number): number => {
+const drawInfoCard = (doc: PdfDocument, detail: QuoteDetail, x: number, y: number, width: number): number => {
   const fields = [
     { label: 'Cliente', value: detail.quote.client_name },
     { label: 'Telefono', value: detail.quote.client_phone ?? '-' },
@@ -434,7 +436,7 @@ const drawInfoCard = (doc: jsPDF, detail: QuoteDetail, x: number, y: number, wid
   return height;
 };
 
-const drawContactCard = (doc: jsPDF, x: number, y: number, width: number): number => {
+const drawContactCard = (doc: PdfDocument, x: number, y: number, width: number): number => {
   const height = 74;
   const firstRowY = y + 36;
   const secondRowY = y + 58;
@@ -463,7 +465,7 @@ const drawContactCard = (doc: jsPDF, x: number, y: number, width: number): numbe
   return height;
 };
 
-const drawSectionTitle = (doc: jsPDF, title: string, x: number, y: number, lineEndX: number): number => {
+const drawSectionTitle = (doc: PdfDocument, title: string, x: number, y: number, lineEndX: number): number => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(...BRAND_BLUE_RGB);
@@ -477,7 +479,7 @@ const drawSectionTitle = (doc: jsPDF, title: string, x: number, y: number, lineE
   return y + 8;
 };
 
-const drawTotalsPanel = (doc: jsPDF, detail: QuoteDetail, x: number, y: number, width: number): number => {
+const drawTotalsPanel = (doc: PdfDocument, detail: QuoteDetail, x: number, y: number, width: number): number => {
   const rowHeight = 24;
   const totalHeight = rowHeight * 3;
 
@@ -519,6 +521,13 @@ const drawTotalsPanel = (doc: jsPDF, detail: QuoteDetail, x: number, y: number, 
 };
 
 const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Promise<void> => {
+  // Load web-only PDF dependencies only when the user actually exports a PDF.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { jsPDF } = require('jspdf') as typeof import('jspdf');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const autoTableImport = require('jspdf-autotable') as AutoTableModule;
+  const autoTable = autoTableImport.default ?? autoTableImport;
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   const marginX = 44;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -657,6 +666,11 @@ export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
     await exportQuotePdfWeb(detail, brandLogoUri);
     return;
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Print = require('expo-print') as typeof import('expo-print');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Sharing = require('expo-sharing') as typeof import('expo-sharing');
 
   const html = buildQuotePdfHtml(detail, brandLogoUri);
   const file = await Print.printToFileAsync({ html });

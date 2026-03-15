@@ -4,21 +4,35 @@ import { PaperProvider, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { getMissingRequiredEnvVars, hasMissingRequiredEnvVars } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';
 import { appTheme } from '@/theme';
 
-export default function RootLayout() {
+function AppShell() {
   const authLoading = useAuthSession();
+
+  return authLoading ? (
+    <AppScreen title="Nossa Clima" showBackButton={false}>
+      <Text>Cargando sesion...</Text>
+    </AppScreen>
+  ) : (
+    <Stack screenOptions={{ headerShown: false }} />
+  );
+}
+
+export default function RootLayout() {
+  const missingEnvVars = hasMissingRequiredEnvVars ? getMissingRequiredEnvVars() : [];
 
   return (
     <PaperProvider theme={appTheme}>
       <QueryClientProvider client={queryClient}>
-        {authLoading ? (
+        {missingEnvVars.length > 0 ? (
           <AppScreen title="Nossa Clima" showBackButton={false}>
-            <Text>Cargando sesión...</Text>
+            <Text>Faltan variables de configuracion en la APK.</Text>
+            <Text>{missingEnvVars.join(', ')}</Text>
           </AppScreen>
         ) : (
-          <Stack screenOptions={{ headerShown: false }} />
+          <AppShell />
         )}
       </QueryClientProvider>
     </PaperProvider>
