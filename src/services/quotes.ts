@@ -10,6 +10,10 @@ export interface QuoteDetail {
   appointment: Appointment | null;
 }
 
+export interface QuoteListItem extends Quote {
+  appointment: Pick<Appointment, 'scheduled_for' | 'starts_at'> | null;
+}
+
 export interface SuggestedMaterialPrice {
   baseCost: number;
   suggestedUnitPrice: number;
@@ -22,6 +26,11 @@ export interface DeleteOldQuotesResult {
 
 export interface DeleteAllQuotesResult {
   deletedCount: number;
+}
+
+export interface ResetQuoteMaterialMarginsResult {
+  quoteId: string;
+  updatedCount: number;
 }
 
 export type QuoteMaterialItemInput = Omit<
@@ -38,14 +47,40 @@ export type QuoteMaterialItemUpdate = Partial<Pick<QuoteMaterialItem, 'quantity'
 
 export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'notes'>>;
 
-export const listQuotes = async (status?: QuoteStatus | 'all'): Promise<Quote[]> => {
+export const listQuotes = async (status?: QuoteStatus | 'all'): Promise<QuoteListItem[]> => {
   let query = supabase.from('quotes').select('*').order('created_at', { ascending: false });
   if (status && status !== 'all') {
     query = query.eq('status', status);
   }
   const { data, error } = await query;
   if (error) throw error;
-  return data;
+  if (!data?.length) return [];
+
+  const quoteIds = data.map((quote) => quote.id);
+  const { data: appointments, error: appointmentsError } = await supabase
+    .from('appointments')
+    .select('quote_id, scheduled_for, starts_at')
+    .in('quote_id', quoteIds)
+    .order('scheduled_for')
+    .order('starts_at');
+
+  if (appointmentsError && !isMissingAppointmentQuoteLinkError(appointmentsError)) {
+    throw appointmentsError;
+  }
+
+  const appointmentsByQuoteId = new Map<string, Pick<Appointment, 'scheduled_for' | 'starts_at'>>();
+  (appointments ?? []).forEach((appointment) => {
+    if (!appointment.quote_id || appointmentsByQuoteId.has(appointment.quote_id)) return;
+    appointmentsByQuoteId.set(appointment.quote_id, {
+      scheduled_for: appointment.scheduled_for,
+      starts_at: appointment.starts_at,
+    });
+  });
+
+  return data.map((quote) => ({
+    ...quote,
+    appointment: appointmentsByQuoteId.get(quote.id) ?? null,
+  }));
 };
 
 export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
@@ -235,6 +270,16 @@ export const duplicateQuoteMaterialItem = async (itemId: string): Promise<QuoteM
   };
 
   return addQuoteMaterialItem(payload);
+};
+
+export const resetQuoteMaterialItemMarginsToDefault = async (quoteId: string): Promise<ResetQuoteMaterialMarginsResult> => {
+  const { data, error } = await supabase.from('quote_material_items').update({ margin_percent: null }).eq('quote_id', quoteId).select('id');
+  if (error) throw error;
+
+  return {
+    quoteId,
+    updatedCount: data?.length ?? 0,
+  };
 };
 
 export const addQuoteServiceItem = async (payload: QuoteServiceItemInput): Promise<QuoteServiceItem> => {

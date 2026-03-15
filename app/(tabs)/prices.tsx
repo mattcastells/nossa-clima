@@ -12,8 +12,8 @@ export default function PricesScreen() {
 
   return (
     <AppScreen title="Precios">
-      <Link href="/prices/new" asChild>
-        <Button mode="contained">Registrar precio</Button>
+      <Link href="/items" asChild>
+        <Button mode="contained">Elegir material</Button>
       </Link>
       <LoadingOrError isLoading={isLoading} error={error} />
       <FlatList

@@ -1,22 +1,56 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { Card, Snackbar } from 'react-native-paper';
+import { Card, Snackbar, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useLinkAppointmentToQuote } from '@/features/appointments/hooks';
 import { QuoteForm } from '@/features/quotes/QuoteForm';
 import { useSaveQuote } from '@/features/quotes/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
+import { formatDateAr, formatTimeShort } from '@/lib/format';
+
+const getSingleParam = (value: string | string[] | undefined): string => (Array.isArray(value) ? value[0] ?? '' : value ?? '');
 
 export default function NewQuotePage() {
+  const params = useLocalSearchParams<{
+    appointmentId?: string | string[];
+    scheduledFor?: string | string[];
+    startsAt?: string | string[];
+    title?: string | string[];
+    notes?: string | string[];
+  }>();
   const save = useSaveQuote();
+  const linkAppointment = useLinkAppointmentToQuote();
   const [message, setMessage] = useState<string | null>(null);
+  const appointmentId = getSingleParam(params.appointmentId).trim();
+  const scheduledFor = getSingleParam(params.scheduledFor).trim();
+  const startsAt = getSingleParam(params.startsAt).trim();
+  const appointmentTitle = getSingleParam(params.title).trim();
+  const appointmentNotes = getSingleParam(params.notes).trim();
+  const hasLinkedAppointment = Boolean(appointmentId);
 
   return (
     <AppScreen title="Nuevo trabajo">
+      {hasLinkedAppointment ? (
+        <Card mode="contained" style={styles.infoCard}>
+          <Card.Content style={styles.infoCardContent}>
+            <Text style={styles.infoTitle}>Turno seleccionado</Text>
+            <Text style={styles.infoText}>
+              {formatDateAr(scheduledFor)}
+              {startsAt ? ` - ${formatTimeShort(startsAt)}` : ''}
+            </Text>
+            <Text style={styles.infoHelper}>Al guardar, este turno vacio se vincula al trabajo nuevo.</Text>
+          </Card.Content>
+        </Card>
+      ) : null}
       <Card mode="outlined" style={styles.formCard}>
         <Card.Content style={styles.formCardContent}>
           <QuoteForm
+            defaultValues={{
+              title: appointmentTitle,
+              notes: appointmentNotes,
+            }}
             onSubmit={async (values) => {
               try {
                 const quote = await save.mutateAsync({
@@ -26,7 +60,29 @@ export default function NewQuotePage() {
                   notes: values.notes?.trim() ? values.notes.trim() : null,
                   status: 'draft',
                 });
-                router.replace(`/quotes/${quote.id}`);
+                if (!hasLinkedAppointment) {
+                  router.replace(`/quotes/${quote.id}`);
+                  return;
+                }
+
+                try {
+                  await linkAppointment.mutateAsync({
+                    appointmentId,
+                    quoteId: quote.id,
+                    title: values.title.trim(),
+                    notes: values.notes?.trim() ? values.notes.trim() : null,
+                  });
+                  router.replace(`/quotes/${quote.id}`);
+                } catch (linkError) {
+                  router.replace({
+                    pathname: '/quotes/[id]',
+                    params: {
+                      id: quote.id,
+                      linkWarning: '1',
+                    },
+                  });
+                  setMessage(toUserErrorMessage(linkError, 'El trabajo se creo, pero no se pudo vincular al turno.'));
+                }
               } catch (error) {
                 setMessage(toUserErrorMessage(error, 'No se pudo guardar el trabajo.'));
               }
@@ -42,6 +98,26 @@ export default function NewQuotePage() {
 }
 
 const styles = StyleSheet.create({
+  infoCard: {
+    marginBottom: 12,
+    borderRadius: 12,
+  },
+  infoCardContent: {
+    gap: 4,
+    paddingVertical: 10,
+  },
+  infoTitle: {
+    fontWeight: '600',
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  infoHelper: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#5f6368',
+  },
   formCard: {
     borderRadius: 12,
   },

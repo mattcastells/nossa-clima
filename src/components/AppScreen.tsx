@@ -5,11 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
 
 interface Props extends PropsWithChildren {
-  title: string;
+  title?: string;
   showBackButton?: boolean;
+  showHomeButton?: boolean;
 }
 
-export const AppScreen = ({ title, children, showBackButton = true }: Props) => {
+export const AppScreen = ({ title, children, showBackButton = true, showHomeButton = true }: Props) => {
   const router = useRouter();
   const segments = useSegments();
   const theme = useTheme();
@@ -18,8 +19,9 @@ export const AppScreen = ({ title, children, showBackButton = true }: Props) => 
   const topLevelTabSection = inTabs && segments.length === 2;
   const nestedInTabs = inTabs && segments.length > 2;
   const outsideTabsAndAuth = !inTabs && !inAuth && segments.length > 0;
+  const isHomeScreen = inTabs && segments.length === 2 && segments[1] === 'index';
   const showBack = showBackButton && (nestedInTabs || outsideTabsAndAuth);
-  const showHomeButton = showBackButton && topLevelTabSection;
+  const shouldShowHomeButton = showHomeButton && showBackButton && !inAuth && !isHomeScreen && (topLevelTabSection || nestedInTabs || outsideTabsAndAuth);
   const fallback: Href = inTabs && segments[1] ? (`/(tabs)/${segments[1]}` as Href) : '/(tabs)';
 
   return (
@@ -38,7 +40,7 @@ export const AppScreen = ({ title, children, showBackButton = true }: Props) => 
                 Volver
               </Button>
             )}
-            {showHomeButton && (
+            {shouldShowHomeButton && (
               <Button
                 mode="text"
                 compact
@@ -46,13 +48,15 @@ export const AppScreen = ({ title, children, showBackButton = true }: Props) => 
                 style={styles.backButton}
                 onPress={() => router.replace('/(tabs)')}
               >
-                Inicio
+                Volver al Inicio
               </Button>
             )}
           </View>
-          <Text variant="headlineSmall" style={styles.title}>
-            {title}
-          </Text>
+          {title ? (
+            <Text variant="headlineSmall" style={styles.title}>
+              {title}
+            </Text>
+          ) : null}
           <View style={styles.content}>{children}</View>
         </View>
       </ScrollView>
@@ -64,7 +68,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scrollContent: { paddingBottom: 28 },
   container: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 96 },
-  navRow: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 34 },
+  navRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, minHeight: 34 },
   backButton: { alignSelf: 'flex-start', marginBottom: 4 },
   title: { marginBottom: 18 },
   content: { gap: 16 },

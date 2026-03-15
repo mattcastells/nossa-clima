@@ -1,60 +1,84 @@
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
-import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { Button, Card, Divider, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useDeleteAppointment, useUpsertQuoteAppointment } from '@/features/appointments/hooks';
 import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
-import { QuoteMaterialItemCard } from '@/features/quotes/components/QuoteMaterialItemCard';
-import { QuoteServiceItemCard } from '@/features/quotes/components/QuoteServiceItemCard';
+import { QuoteItemsTable } from '@/features/quotes/components/QuoteItemsTable';
 import { QuoteTotalsSummary } from '@/features/quotes/components/QuoteTotalsSummary';
 import { exportQuotePdf } from '@/features/quotes/exportPdf';
 import { QuoteForm } from '@/features/quotes/QuoteForm';
 import {
   useDeleteQuoteMaterialItem,
   useDeleteQuoteServiceItem,
-  useDuplicateQuoteMaterialItem,
-  useDuplicateQuoteServiceItem,
   useQuoteDetail,
+  useResetQuoteMaterialItemMarginsToDefault,
   useSaveQuote,
   useUpdateQuoteMaterialItem,
   useUpdateQuoteServiceItem,
 } from '@/features/quotes/hooks';
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
-import { formatCurrencyArs } from '@/lib/format';
 
 const formatDateForInput = (value: Date): string => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const year = value.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+const formatStoredDateForInput = (value: string): string => {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!isoMatch) {
+    return trimmed;
+  }
+
+  const [, year, month, day] = isoMatch;
+  return `${day}-${month}-${year}`;
+};
+
+const isValidDate = (year: number, month: number, day: number): boolean => {
+  const date = new Date(year, month - 1, day);
+
+  return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 };
 
 const normalizeDateInput = (value: string): string => {
   const trimmed = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    throw new Error('La fecha debe tener formato YYYY-MM-DD.');
+  const localMatch = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (localMatch) {
+    const [, rawDay, rawMonth, rawYear] = localMatch;
+    const year = Number(rawYear);
+    const month = Number(rawMonth);
+    const day = Number(rawDay);
+
+    if (!isValidDate(year, month, day)) {
+      throw new Error('La fecha ingresada no es valida.');
+    }
+
+    return `${rawYear}-${rawMonth}-${rawDay}`;
   }
 
-  const [rawYear, rawMonth, rawDay] = trimmed.split('-');
-  const year = Number(rawYear);
-  const month = Number(rawMonth);
-  const day = Number(rawDay);
-  const date = new Date(year, month - 1, day);
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, rawYear, rawMonth, rawDay] = isoMatch;
+    const year = Number(rawYear);
+    const month = Number(rawMonth);
+    const day = Number(rawDay);
 
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    throw new Error('La fecha ingresada no es valida.');
+    if (!isValidDate(year, month, day)) {
+      throw new Error('La fecha ingresada no es valida.');
+    }
+
+    return trimmed;
   }
 
-  return trimmed;
+  throw new Error('La fecha debe tener formato DD-MM-AAAA.');
 };
 
 const normalizeTimeInput = (value: string): string | null => {
@@ -68,8 +92,20 @@ const normalizeTimeInput = (value: string): string | null => {
   return `${trimmed}:00`;
 };
 
+const normalizeOptionalPercentInput = (value: string): number | null => {
+  const trimmed = value.trim().replace(',', '.');
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error('El margen debe ser un numero mayor o igual a 0.');
+  }
+
+  return Number(parsed.toFixed(2));
+};
+
 export default function QuoteDetailPage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, linkWarning } = useLocalSearchParams<{ id: string; linkWarning?: string }>();
   const { data, isLoading, error } = useQuoteDetail(id);
   const { data: stores } = useStores();
   const save = useSaveQuote();
@@ -79,13 +115,13 @@ export default function QuoteDetailPage() {
   const updateService = useUpdateQuoteServiceItem();
   const deleteMaterial = useDeleteQuoteMaterialItem();
   const deleteService = useDeleteQuoteServiceItem();
-  const duplicateMaterial = useDuplicateQuoteMaterialItem();
-  const duplicateService = useDuplicateQuoteServiceItem();
+  const resetMaterialMargins = useResetQuoteMaterialItemMarginsToDefault();
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState(formatDateForInput(new Date()));
   const [scheduleTime, setScheduleTime] = useState('');
+  const [globalMarginInput, setGlobalMarginInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'material' | 'service'; id: string } | null>(null);
 
   useEffect(() => {
@@ -96,9 +132,19 @@ export default function QuoteDetailPage() {
       return;
     }
 
-    setScheduleDate(data.appointment.scheduled_for);
+    setScheduleDate(formatStoredDateForInput(data.appointment.scheduled_for));
     setScheduleTime(data.appointment.starts_at ? data.appointment.starts_at.slice(0, 5) : '');
   }, [data]);
+
+  useEffect(() => {
+    setGlobalMarginInput(data?.quote.default_material_margin_percent == null ? '' : String(data.quote.default_material_margin_percent));
+  }, [data]);
+
+  useEffect(() => {
+    if (linkWarning === '1') {
+      setSnack('El trabajo se creo, pero no se pudo vincular automaticamente al turno.');
+    }
+  }, [linkWarning]);
 
   const isBusy =
     save.isPending ||
@@ -108,8 +154,7 @@ export default function QuoteDetailPage() {
     updateService.isPending ||
     deleteMaterial.isPending ||
     deleteService.isPending ||
-    duplicateMaterial.isPending ||
-    duplicateService.isPending ||
+    resetMaterialMargins.isPending ||
     isExportingPdf;
 
   const saveCurrentJob = async () => {
@@ -139,26 +184,6 @@ export default function QuoteDetailPage() {
       setSnack(toUserErrorMessage(exportError, 'No se pudo exportar el trabajo.'));
     } finally {
       setIsExportingPdf(false);
-    }
-  };
-
-  const shareCurrentJobSummary = async () => {
-    if (!data) return;
-    try {
-      const text = [
-        `Trabajo: ${data.quote.title}`,
-        `Cliente: ${data.quote.client_name}`,
-        `Total: ${formatCurrencyArs(data.quote.total)}`,
-        data.quote.notes ? `Notas: ${data.quote.notes}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n');
-      await Share.share({
-        title: 'Resumen de trabajo',
-        message: text,
-      });
-    } catch (error) {
-      setSnack(toUserErrorMessage(error, 'No se pudo compartir el resumen.'));
     }
   };
 
@@ -196,11 +221,32 @@ export default function QuoteDetailPage() {
     }
   };
 
+  const applyGlobalMargin = async () => {
+    if (!data) return;
+
+    try {
+      const normalizedMargin = normalizeOptionalPercentInput(globalMarginInput);
+      await save.mutateAsync({
+        id: data.quote.id,
+        title: data.quote.title,
+        client_name: data.quote.client_name,
+        default_material_margin_percent: normalizedMargin,
+      });
+      await resetMaterialMargins.mutateAsync(data.quote.id);
+      setSnack('Margen global aplicado.');
+    } catch (mutationError) {
+      setSnack(toUserErrorMessage(mutationError, 'No se pudo aplicar el margen global.'));
+    }
+  };
+
   return (
-    <AppScreen title="Detalle de trabajo">
+    <AppScreen title="Detalle de trabajo" showHomeButton={false}>
       <LoadingOrError isLoading={isLoading} error={error} />
       {data && (
         <View style={styles.page}>
+          <Text variant="titleMedium" style={styles.sectionHeading}>
+            Resumen
+          </Text>
           <QuoteTotalsSummary
             subtotalMaterials={data.quote.subtotal_materials}
             subtotalServices={data.quote.subtotal_services}
@@ -209,7 +255,41 @@ export default function QuoteDetailPage() {
 
           <Card mode="contained" style={styles.sectionCard}>
             <Card.Content style={styles.sectionContent}>
-              <Text variant="titleMedium">Cabecera</Text>
+              <View style={styles.actionsRow}>
+                <Button
+                  mode="contained"
+                  icon="content-save-outline"
+                  disabled={isBusy}
+                  onPress={saveCurrentJob}
+                  style={styles.actionButton}
+                  contentStyle={styles.actionButtonContent}
+                >
+                  Guardar trabajo
+                </Button>
+                <Button
+                  mode="outlined"
+                  icon="share-variant-outline"
+                  loading={isExportingPdf}
+                  disabled={isBusy}
+                  onPress={exportCurrentJobPdf}
+                  style={styles.actionButton}
+                  contentStyle={styles.actionButtonContent}
+                >
+                  Exportar / compartir PDF
+                </Button>
+              </View>
+            </Card.Content>
+          </Card>
+
+          <View style={styles.editingDivider}>
+            <Divider />
+          </View>
+
+          <Text variant="titleMedium" style={styles.sectionHeading}>
+            Cliente
+          </Text>
+          <Card mode="contained" style={styles.sectionCard}>
+            <Card.Content style={styles.sectionContent}>
               <QuoteForm
                 defaultValues={{
                   client_name: data.quote.client_name,
@@ -217,7 +297,7 @@ export default function QuoteDetailPage() {
                   title: data.quote.title,
                   notes: data.quote.notes ?? '',
                 }}
-                buttonLabel="Guardar cabecera"
+                buttonLabel="Guardar cliente"
                 onSubmit={async (values) => {
                   try {
                     await save.mutateAsync({
@@ -228,31 +308,26 @@ export default function QuoteDetailPage() {
                       notes: values.notes?.trim() ? values.notes.trim() : null,
                       status: 'draft',
                     });
-                    setSnack('Cabecera guardada.');
+                    setSnack('Cliente guardado.');
                   } catch (mutationError) {
-                    setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar la cabecera.'));
+                    setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el cliente.'));
                   }
                 }}
               />
             </Card.Content>
           </Card>
 
+          <Text variant="titleMedium" style={styles.sectionHeading}>
+            Fecha
+          </Text>
           <Card mode="contained" style={styles.sectionCard}>
             <Card.Content style={styles.sectionContent}>
-              <Text variant="titleMedium">Programacion</Text>
-              {data.appointment ? (
-                <Text>
-                  Actualmente programado para {data.appointment.scheduled_for}
-                  {data.appointment.starts_at ? ` a las ${data.appointment.starts_at.slice(0, 5)}` : ''}.
-                </Text>
-              ) : (
-                <Text>Este trabajo aun no esta programado en el calendario.</Text>
-              )}
               <TextInput
                 mode="outlined"
-                label="Fecha (YYYY-MM-DD)"
+                label="Fecha (DD-MM-AAAA)"
                 value={scheduleDate}
                 onChangeText={setScheduleDate}
+                placeholder="12-03-2026"
                 outlineStyle={styles.inputOutline}
               />
               <TextInput
@@ -292,133 +367,47 @@ export default function QuoteDetailPage() {
             </Card.Content>
           </Card>
 
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
-              <Text variant="titleMedium">Acciones</Text>
-              <View style={styles.actionsRow}>
-                <Link href={{ pathname: '/quotes/[id]/add-service', params: { id: data.quote.id } }} asChild>
-                  <Button mode="contained-tonal" disabled={isBusy} style={styles.actionButton} contentStyle={styles.actionButtonContent}>
-                    Agregar servicio
-                  </Button>
-                </Link>
-                <Link href={{ pathname: '/quotes/[id]/add-material', params: { id: data.quote.id } }} asChild>
-                  <Button
-                    mode="contained-tonal"
-                    disabled={isBusy || data.services.length === 0}
-                    style={styles.actionButton}
-                    contentStyle={styles.actionButtonContent}
-                  >
-                    Agregar material
-                  </Button>
-                </Link>
-                <Button
-                  mode="contained"
-                  icon="content-save-outline"
-                  disabled={isBusy}
-                  onPress={saveCurrentJob}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                >
-                  Guardar trabajo
-                </Button>
-                <Button
-                  mode="outlined"
-                  icon="file-pdf-box"
-                  loading={isExportingPdf}
-                  disabled={isBusy}
-                  onPress={exportCurrentJobPdf}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                >
-                  Exportar / compartir PDF
-                </Button>
-                <Button
-                  mode="outlined"
-                  icon="share-variant-outline"
-                  disabled={isBusy}
-                  onPress={shareCurrentJobSummary}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                >
-                  Compartir resumen
-                </Button>
-              </View>
-              {data.services.length === 0 && (
-                <Text style={styles.helperText}>Primero agrega un servicio para poder cargar materiales.</Text>
-              )}
-            </Card.Content>
-          </Card>
+          <View style={styles.contentDivider}>
+            <Divider />
+          </View>
 
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
-              <Text variant="titleMedium">Servicios</Text>
-              {data.services.length === 0 && <Text>No hay servicios cargados.</Text>}
-              <View style={styles.linesList}>
-                {data.services.map((serviceLine) => (
-                  <QuoteServiceItemCard
-                    key={serviceLine.id}
-                    item={serviceLine}
-                    onSave={async (itemId, payload) => {
-                      try {
-                        await updateService.mutateAsync({ itemId, payload });
-                        setSnack('Servicio actualizado.');
-                      } catch (mutationError) {
-                        setSnack(toUserErrorMessage(mutationError, 'No se pudo actualizar el servicio.'));
-                      }
-                    }}
-                    onDuplicate={async (itemId) => {
-                      try {
-                        await duplicateService.mutateAsync(itemId);
-                        setSnack('Servicio duplicado.');
-                      } catch (mutationError) {
-                        setSnack(toUserErrorMessage(mutationError, 'No se pudo duplicar el servicio.'));
-                      }
-                    }}
-                    onDelete={(itemId) => setDeleteTarget({ kind: 'service', id: itemId })}
-                    saving={updateService.isPending}
-                    duplicating={duplicateService.isPending}
-                    deleting={deleteService.isPending}
-                  />
-                ))}
-              </View>
-            </Card.Content>
-          </Card>
-
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
-              <Text variant="titleMedium">Materiales</Text>
-              {data.materials.length === 0 && <Text>No hay materiales cargados.</Text>}
-              <View style={styles.linesList}>
-                {data.materials.map((materialLine) => (
-                  <QuoteMaterialItemCard
-                    key={materialLine.id}
-                    item={materialLine}
-                    stores={stores ?? []}
-                    onSave={async (itemId, payload) => {
-                      try {
-                        await updateMaterial.mutateAsync({ itemId, payload });
-                        setSnack('Material actualizado.');
-                      } catch (mutationError) {
-                        setSnack(toUserErrorMessage(mutationError, 'No se pudo actualizar el material.'));
-                      }
-                    }}
-                    onDuplicate={async (itemId) => {
-                      try {
-                        await duplicateMaterial.mutateAsync(itemId);
-                        setSnack('Material duplicado.');
-                      } catch (mutationError) {
-                        setSnack(toUserErrorMessage(mutationError, 'No se pudo duplicar el material.'));
-                      }
-                    }}
-                    onDelete={(itemId) => setDeleteTarget({ kind: 'material', id: itemId })}
-                    saving={updateMaterial.isPending}
-                    duplicating={duplicateMaterial.isPending}
-                    deleting={deleteMaterial.isPending}
-                  />
-                ))}
-              </View>
-            </Card.Content>
-          </Card>
+          <Text variant="titleMedium" style={styles.sectionHeading}>
+            Conceptos
+          </Text>
+          <QuoteItemsTable
+            quoteId={data.quote.id}
+            services={data.services}
+            materials={data.materials}
+            stores={stores ?? []}
+            defaultMarginPercent={data.quote.default_material_margin_percent}
+            globalMarginInput={globalMarginInput}
+            onGlobalMarginChange={setGlobalMarginInput}
+            onApplyGlobalMargin={applyGlobalMargin}
+            onSaveService={async (itemId, payload) => {
+              try {
+                await updateService.mutateAsync({ itemId, payload });
+                setSnack('Servicio actualizado.');
+              } catch (mutationError) {
+                setSnack(toUserErrorMessage(mutationError, 'No se pudo actualizar el servicio.'));
+              }
+            }}
+            onDeleteService={(itemId) => setDeleteTarget({ kind: 'service', id: itemId })}
+            onSaveMaterial={async (itemId, payload) => {
+              try {
+                await updateMaterial.mutateAsync({ itemId, payload });
+                setSnack('Material actualizado.');
+              } catch (mutationError) {
+                setSnack(toUserErrorMessage(mutationError, 'No se pudo actualizar el material.'));
+              }
+            }}
+            onDeleteMaterial={(itemId) => setDeleteTarget({ kind: 'material', id: itemId })}
+            isBusy={isBusy}
+            isApplyingGlobalMargin={save.isPending || resetMaterialMargins.isPending}
+            savingService={updateService.isPending}
+            deletingService={deleteService.isPending}
+            savingMaterial={updateMaterial.isPending}
+            deletingMaterial={deleteMaterial.isPending}
+          />
 
           <QuoteTotalsSummary
             subtotalMaterials={data.quote.subtotal_materials}
@@ -471,6 +460,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DCE4EC',
   },
+  sectionHeading: {
+    marginBottom: -6,
+  },
+  editingDivider: {
+    marginTop: 2,
+    marginBottom: -2,
+  },
+  contentDivider: {
+    marginTop: 4,
+    marginBottom: -2,
+  },
   inputOutline: {
     borderRadius: 10,
   },
@@ -487,12 +487,5 @@ const styles = StyleSheet.create({
   actionButtonContent: {
     minHeight: 40,
     paddingHorizontal: 8,
-  },
-  linesList: {
-    gap: 14,
-  },
-  helperText: {
-    color: '#5f6368',
-    marginTop: 2,
   },
 });

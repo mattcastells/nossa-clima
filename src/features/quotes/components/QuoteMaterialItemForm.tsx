@@ -5,16 +5,20 @@ import { Button, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import type { Store } from '@/types/db';
 
+import { formatCurrencyArs, formatPercent } from '@/lib/format';
+
 import { QuoteMaterialItemFormValues, quoteMaterialItemSchema } from '../schemas';
+import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
 
 interface Props {
   stores: Store[];
   defaultValues: QuoteMaterialItemFormValues;
   onSubmit: (values: QuoteMaterialItemFormValues) => Promise<void>;
   submitLabel: string;
+  defaultMarginPercent?: number | null;
 }
 
-export const QuoteMaterialItemForm = ({ stores, defaultValues, onSubmit, submitLabel }: Props) => {
+export const QuoteMaterialItemForm = ({ stores, defaultValues, onSubmit, submitLabel, defaultMarginPercent = null }: Props) => {
   const { control, handleSubmit, watch } = useForm<QuoteMaterialItemFormValues>({
     resolver: zodResolver(quoteMaterialItemSchema),
     defaultValues,
@@ -22,6 +26,11 @@ export const QuoteMaterialItemForm = ({ stores, defaultValues, onSubmit, submitL
 
   const quantity = watch('quantity');
   const unitPrice = watch('unit_price');
+  const marginPercent = watch('margin_percent');
+  const effectiveMargin = getEffectiveMaterialMarginPercent(marginPercent, defaultMarginPercent);
+  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(unitPrice, marginPercent, defaultMarginPercent);
+  const effectiveTotal = getMaterialEffectiveTotalPrice(quantity, unitPrice, marginPercent, defaultMarginPercent);
+  const usesGlobalMargin = marginPercent == null && defaultMarginPercent != null;
 
   return (
     <View style={{ gap: 8 }}>
@@ -36,7 +45,7 @@ export const QuoteMaterialItemForm = ({ stores, defaultValues, onSubmit, submitL
         control={control}
         name="unit_price"
         render={({ field }) => (
-          <TextInput mode="outlined" label="Precio unitario" keyboardType="decimal-pad" value={String(field.value)} onChangeText={field.onChange} />
+          <TextInput mode="outlined" label="Costo unitario" keyboardType="decimal-pad" value={String(field.value)} onChangeText={field.onChange} />
         )}
       />
       <Controller
@@ -45,7 +54,7 @@ export const QuoteMaterialItemForm = ({ stores, defaultValues, onSubmit, submitL
         render={({ field }) => (
           <TextInput
             mode="outlined"
-            label="Margen %"
+            label="Margen % (vacío = global)"
             keyboardType="decimal-pad"
             value={field.value == null ? '' : String(field.value)}
             onChangeText={(value) => field.onChange(value ? Number(value) : null)}
@@ -71,7 +80,9 @@ export const QuoteMaterialItemForm = ({ stores, defaultValues, onSubmit, submitL
         name="notes"
         render={({ field }) => <TextInput mode="outlined" label="Notas" value={field.value ?? ''} onChangeText={field.onChange} />}
       />
-      <Text>Total preview: ${(Number(quantity) || 0) * (Number(unitPrice) || 0)}</Text>
+      <Text>Margen efectivo: {formatPercent(effectiveMargin)}{usesGlobalMargin ? ' (global)' : ''}</Text>
+      <Text>Venta unitaria estimada: {formatCurrencyArs(effectiveUnitPrice)}</Text>
+      <Text>Total estimado: {formatCurrencyArs(effectiveTotal)}</Text>
       <Button mode="contained" onPress={handleSubmit(onSubmit)}>
         {submitLabel}
       </Button>

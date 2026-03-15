@@ -70,7 +70,7 @@ export default function ServicesScreen() {
           <Button mode="contained">Nuevo servicio</Button>
         </Link>
         <Link href="/services/categories" asChild>
-          <Button mode="outlined" icon="tag-edit-outline">
+          <Button mode="outlined">
             Categorias
           </Button>
         </Link>

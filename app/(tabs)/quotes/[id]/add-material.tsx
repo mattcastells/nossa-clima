@@ -8,17 +8,19 @@ import { Button, Card, Searchbar, SegmentedButtons, Snackbar, Text, TextInput } 
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems, useSaveItem } from '@/features/items/hooks';
-import { useAddQuoteMaterialItem, useSuggestedMaterialPrice } from '@/features/quotes/hooks';
+import { useAddQuoteMaterialItem, useQuoteDetail, useSuggestedMaterialPrice } from '@/features/quotes/hooks';
+import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '@/features/quotes/materialPricing';
 import { QuoteMaterialItemFormValues, quoteMaterialItemSchema } from '@/features/quotes/schemas';
 import { useStoreLatestPrices, useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
-import { formatCurrencyArs } from '@/lib/format';
+import { formatCurrencyArs, formatPercent } from '@/lib/format';
 
 type MaterialEntryMode = 'catalog' | 'manual';
 
 export default function AddMaterialToQuotePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const quoteDetail = useQuoteDetail(id ?? '');
   const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
   const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
   const saveItem = useSaveItem();
@@ -51,6 +53,11 @@ export default function AddMaterialToQuotePage() {
   const marginPercent = watch('margin_percent');
   const quantity = watch('quantity');
   const unitPrice = watch('unit_price');
+  const defaultMarginPercent = quoteDetail.data?.quote.default_material_margin_percent ?? null;
+  const effectiveMargin = getEffectiveMaterialMarginPercent(marginPercent, defaultMarginPercent);
+  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(unitPrice, marginPercent, defaultMarginPercent);
+  const effectiveTotal = getMaterialEffectiveTotalPrice(quantity, unitPrice, marginPercent, defaultMarginPercent);
+  const usesGlobalMargin = marginPercent == null && defaultMarginPercent != null;
 
   const storePricesQuery = useStoreLatestPrices(sourceStoreId ?? '');
   const storePriceRows = useMemo(() => storePricesQuery.data ?? [], [storePricesQuery.data]);
@@ -82,11 +89,13 @@ export default function AddMaterialToQuotePage() {
 
   const suggestion = useSuggestedMaterialPrice(entryMode === 'catalog' ? selectedItemId : '', marginPercent, sourceStoreId);
 
-  const loading = itemsLoading || storesLoading || (Boolean(sourceStoreId) && storePricesQuery.isLoading);
+  const loading = itemsLoading || storesLoading || quoteDetail.isLoading || (Boolean(sourceStoreId) && storePricesQuery.isLoading);
   const combinedError = itemsError
     ? new Error(itemsError.message)
     : storesError
       ? new Error(storesError.message)
+      : quoteDetail.error
+        ? new Error(quoteDetail.error.message)
       : storePricesQuery.error
         ? new Error(storePricesQuery.error.message)
         : null;
@@ -253,7 +262,7 @@ export default function AddMaterialToQuotePage() {
           render={({ field }) => (
             <TextInput
               mode="outlined"
-              label="Margen % (opcional)"
+              label="Margen % (vacío = global)"
               keyboardType="decimal-pad"
               value={field.value == null ? '' : String(field.value)}
               onChangeText={(value) => field.onChange(value ? Number(value) : null)}
@@ -264,9 +273,9 @@ export default function AddMaterialToQuotePage() {
         <Button
           mode="outlined"
           disabled={entryMode !== 'catalog' || !selectedItemId}
-          onPress={() => setValue('unit_price', suggestion.data?.suggestedUnitPrice ?? 0)}
+          onPress={() => setValue('unit_price', suggestion.data?.baseCost ?? 0)}
         >
-          Usar precio sugerido
+          Usar costo sugerido
         </Button>
 
         <Controller
@@ -275,7 +284,7 @@ export default function AddMaterialToQuotePage() {
           render={({ field }) => (
             <TextInput
               mode="outlined"
-              label="Precio unitario"
+              label="Costo unitario"
               keyboardType="decimal-pad"
               value={String(field.value)}
               onChangeText={field.onChange}
@@ -288,7 +297,10 @@ export default function AddMaterialToQuotePage() {
           render={({ field }) => <TextInput mode="outlined" label="Notas" value={field.value ?? ''} onChangeText={field.onChange} />}
         />
 
-        <Text variant="titleMedium">Total estimado: {formatCurrencyArs((Number(quantity) || 0) * (Number(unitPrice) || 0))}</Text>
+        <Text>Costo base sugerido: {formatCurrencyArs(suggestion.data?.baseCost ?? 0)}</Text>
+        <Text>Margen efectivo: {formatPercent(effectiveMargin)}{usesGlobalMargin ? ' (global)' : ''}</Text>
+        <Text>Precio de venta unitario estimado: {formatCurrencyArs(effectiveUnitPrice)}</Text>
+        <Text variant="titleMedium">Total estimado: {formatCurrencyArs(effectiveTotal)}</Text>
 
         <Button mode="contained" loading={add.isPending || saveItem.isPending} onPress={submit}>
           Agregar material al trabajo

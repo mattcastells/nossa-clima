@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createAppointment, deleteAppointment, listAppointmentsInRange, type AppointmentInput, upsertQuoteAppointment } from '@/services/appointments';
+import {
+  createAppointment,
+  deleteAppointment,
+  linkAppointmentToQuote,
+  listAppointmentsInRange,
+  type AppointmentInput,
+  upsertQuoteAppointment,
+} from '@/services/appointments';
 
 const formatLocalDate = (value: Date): string => {
   const year = value.getFullYear();
@@ -56,6 +63,30 @@ export const useUpsertQuoteAppointment = () => {
     onSuccess: (appointment) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['quote-detail', appointment.quote_id] });
+    },
+  });
+};
+
+export const useLinkAppointmentToQuote = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      appointmentId,
+      quoteId,
+      title,
+      notes,
+    }: {
+      appointmentId: string;
+      quoteId: string;
+      title: string;
+      notes?: string | null;
+    }) => linkAppointmentToQuote({ appointmentId, quoteId, title, notes: notes ?? null }),
+    onSuccess: (appointment) => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      if (appointment.quote_id) {
+        queryClient.invalidateQueries({ queryKey: ['quote-detail', appointment.quote_id] });
+      }
     },
   });
 };

@@ -66,6 +66,7 @@ export interface Quote {
   description: string | null;
   status: QuoteStatus;
   notes: string | null;
+  default_material_margin_percent: number | null;
   subtotal_materials: number;
   subtotal_services: number;
   total: number;

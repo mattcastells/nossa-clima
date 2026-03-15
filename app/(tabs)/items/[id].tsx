@@ -50,7 +50,7 @@ export default function ItemDetailPage() {
   const combinedError = itemsError ?? storesError ?? pricesError;
 
   return (
-    <AppScreen title="Detalle de material">
+    <AppScreen title="Detalle de material" showHomeButton={false}>
       <LoadingOrError isLoading={itemsLoading || storesLoading || pricesLoading} error={combinedError} />
 
       {material && (

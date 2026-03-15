@@ -12,6 +12,7 @@ import {
   getQuoteDetail,
   getSuggestedMaterialPrice,
   listQuotes,
+  resetQuoteMaterialItemMarginsToDefault,
   type QuoteMaterialItemInput,
   type QuoteMaterialItemUpdate,
   type QuoteServiceItemInput,
@@ -75,6 +76,14 @@ export const useDuplicateQuoteMaterialItem = () => {
   return useMutation({
     mutationFn: (itemId: string) => duplicateQuoteMaterialItem(itemId),
     onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
+  });
+};
+
+export const useResetQuoteMaterialItemMarginsToDefault = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (quoteId: string) => resetQuoteMaterialItemMarginsToDefault(quoteId),
+    onSuccess: ({ quoteId }) => invalidateQuoteCaches(queryClient, quoteId),
   });
 };
 

@@ -1,86 +1,102 @@
-import { Share, StyleSheet, View } from 'react-native';
 import { useState } from 'react';
-import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Alert, Platform, StyleSheet } from 'react-native';
+import { Button, Card, Snackbar, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
-import { useExportBackup, useRestoreBackup } from '@/features/backup/hooks';
 import { signOut } from '@/features/auth/service';
 import { toUserErrorMessage } from '@/lib/errors';
+import { getAppVersion } from '@/lib/appVersion';
+import {
+  downloadAndInstallAppUpdate,
+  fetchAppUpdateRelease,
+  getCurrentBuildNumber,
+  isAppUpdateAvailable,
+  type AppUpdateRelease,
+} from '@/services/appUpdates';
 
 export default function SettingsScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [backupJson, setBackupJson] = useState('');
+  const [isUpdatingApp, setIsUpdatingApp] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const exportBackup = useExportBackup();
-  const restoreBackup = useRestoreBackup();
 
-  const isBusy = isSigningOut || exportBackup.isPending || restoreBackup.isPending;
+  const isBusy = isSigningOut || isUpdatingApp;
 
-  const generateBackup = async () => {
+  const confirmInstallUpdate = (release: AppUpdateRelease): Promise<boolean> =>
+    new Promise((resolve) => {
+      const details = [
+        `Se encontro la version ${release.version} (${release.buildNumber}).`,
+        release.notes ? '' : null,
+        release.notes ?? null,
+        '',
+        'Deseas descargarla e instalarla ahora?',
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      Alert.alert('Actualizacion disponible', details, [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Instalar',
+          onPress: () => resolve(true),
+        },
+      ]);
+    });
+
+  const checkAndInstallUpdate = async () => {
     try {
-      const payload = await exportBackup.mutateAsync();
-      const serialized = JSON.stringify(payload, null, 2);
-      setBackupJson(serialized);
-      setMessage('Backup generado.');
-    } catch (error) {
-      setMessage(toUserErrorMessage(error, 'No se pudo generar el backup.'));
-    }
-  };
-
-  const shareBackup = async () => {
-    try {
-      if (!backupJson.trim()) {
-        throw new Error('Primero genera un backup.');
+      if (Platform.OS !== 'android') {
+        setMessage('La instalacion directa de actualizaciones solo funciona en Android.');
+        return;
       }
-      await Share.share({
-        message: backupJson,
-        title: 'Backup Nossa Clima',
-      });
+
+      const currentBuild = getCurrentBuildNumber();
+      if (currentBuild == null) {
+        setMessage('Probalo sobre una APK instalada. En Expo Go este flujo no funciona.');
+        return;
+      }
+
+      setIsUpdatingApp(true);
+      const release = await fetchAppUpdateRelease();
+
+      if (!isAppUpdateAvailable(release)) {
+        setMessage('La aplicacion ya esta actualizada.');
+        return;
+      }
+
+      setIsUpdatingApp(false);
+      const confirmed = await confirmInstallUpdate(release);
+
+      if (!confirmed) {
+        setMessage('Instalacion cancelada.');
+        return;
+      }
+
+      setIsUpdatingApp(true);
+      await downloadAndInstallAppUpdate(release);
+      setMessage('La APK se descargo y se abrio el instalador del sistema.');
     } catch (error) {
-      setMessage(toUserErrorMessage(error, 'No se pudo compartir el backup.'));
+      setMessage(toUserErrorMessage(error, 'No se pudo descargar o instalar la actualizacion.'));
+    } finally {
+      setIsUpdatingApp(false);
     }
   };
 
-  const restoreFromBackup = async () => {
-    try {
-      if (!backupJson.trim()) {
-        throw new Error('Pega un JSON de backup valido.');
-      }
-      const parsed = JSON.parse(backupJson);
-      await restoreBackup.mutateAsync(parsed);
-      setMessage('Backup restaurado.');
-    } catch (error) {
-      setMessage(toUserErrorMessage(error, 'No se pudo restaurar el backup.'));
-    }
-  };
+  const isAndroid = Platform.OS === 'android';
+  const appVersion = getAppVersion();
 
   return (
     <AppScreen title="Opciones">
-      <Text>Configuracion general y mantenimiento de datos.</Text>
+      <Text>Configuracion general.</Text>
 
       <Card mode="outlined">
         <Card.Content style={styles.cardContent}>
-          <Text variant="titleMedium">Backup / Restauracion</Text>
-          <Text style={styles.helperText}>Puedes exportar tus datos en JSON o restaurarlos pegando un backup.</Text>
-          <View style={styles.actions}>
-            <Button mode="contained" onPress={generateBackup} loading={exportBackup.isPending} disabled={isBusy}>
-              Generar backup
-            </Button>
-            <Button mode="outlined" onPress={shareBackup} disabled={isBusy || !backupJson.trim()}>
-              Compartir backup
-            </Button>
-          </View>
-          <TextInput
-            mode="outlined"
-            label="JSON de backup"
-            value={backupJson}
-            onChangeText={setBackupJson}
-            multiline
-            numberOfLines={10}
-            style={styles.jsonInput}
-          />
-          <Button mode="contained-tonal" onPress={restoreFromBackup} loading={restoreBackup.isPending} disabled={isBusy || !backupJson.trim()}>
-            Restaurar backup
+          <Text variant="titleMedium">Actualizar</Text>
+          <Button mode="contained" onPress={checkAndInstallUpdate} loading={isUpdatingApp} disabled={isBusy || !isAndroid}>
+            Buscar actualizaciones
           </Button>
         </Card.Content>
       </Card>
@@ -108,6 +124,8 @@ export default function SettingsScreen() {
         </Card.Content>
       </Card>
 
+      <Text style={styles.versionText}>v{appVersion}</Text>
+
       <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
         {message}
       </Snackbar>
@@ -119,15 +137,9 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: 12,
   },
-  helperText: {
-    color: '#5f6368',
-  },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  jsonInput: {
-    maxHeight: 260,
+  versionText: {
+    marginTop: 4,
+    textAlign: 'center',
+    color: '#6B7280',
   },
 });

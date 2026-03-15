@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Href } from 'expo-router';
 import { Link } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
@@ -24,8 +24,10 @@ const HOME_ACTIONS: HomeAction[] = [
 
 export default function HomeScreen() {
   return (
-    <AppScreen title="Inicio" showBackButton={false}>
-      <Text style={styles.subtitle}>Accesos principales</Text>
+    <AppScreen showBackButton={false}>
+      <View style={styles.bannerBand}>
+        <Image source={require('../../assets/nossa-banner.png')} style={styles.banner} resizeMode="contain" />
+      </View>
       <View style={styles.grid}>
         {HOME_ACTIONS.map((action) => (
           <Link key={action.title} href={action.href} asChild>
@@ -46,10 +48,18 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  subtitle: {
-    color: '#4B5563',
-    marginTop: -6,
-    marginBottom: 2,
+  bannerBand: {
+    marginHorizontal: -20,
+    marginTop: -8,
+    marginBottom: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    backgroundColor: '#F4F1EE',
+  },
+  banner: {
+    width: '100%',
+    height: 64,
+    alignSelf: 'center',
   },
   grid: {
     flexDirection: 'row',

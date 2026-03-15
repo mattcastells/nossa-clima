@@ -1,0 +1,57 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*-b*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CI: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare release version
+        run: node scripts/prepare-android-release.mjs "${GITHUB_REF_NAME}"
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - name: Configure Android SDK path
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > android/local.properties
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk "nossa-clima-${GITHUB_REF_NAME}.apk"
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "nossa-clima-${GITHUB_REF_NAME}.apk" \
+            --title "Nossa Clima ${GITHUB_REF_NAME}" \
+            --generate-notes

@@ -78,11 +78,17 @@ export default function ItemsScreen() {
         renderItem={({ item }) => (
           <Link href={`/items/${item.id}`} asChild>
             <Card mode="outlined" style={styles.materialCard}>
+              <View style={styles.headerBlock}>
+                <View style={styles.headerMainRow}>
+                  <Text style={styles.headerTitle}>{item.name}</Text>
+                  <Chip compact style={styles.categoryChip} textStyle={styles.categoryChipText}>
+                    {item.category ?? 'Sin categoria'}
+                  </Chip>
+                </View>
+              </View>
               <Card.Content style={styles.materialCardContent}>
-                <Text variant="titleMedium">{item.name}</Text>
-                <Text>Categoria: {item.category ?? 'Sin categoria'}</Text>
-                {item.description ? <Text>Descripcion: {item.description}</Text> : null}
-                {item.notes ? <Text>Notas: {item.notes}</Text> : null}
+                {item.description ? <Text style={styles.description}>Descripcion: {item.description}</Text> : null}
+                {item.notes ? <Text style={styles.description}>Notas: {item.notes}</Text> : null}
               </Card.Content>
             </Card>
           </Link>
@@ -115,8 +121,40 @@ const styles = StyleSheet.create({
   materialCard: {
     marginBottom: 10,
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  headerBlock: {
+    backgroundColor: '#F6F8FB',
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 8,
+  },
+  headerMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '500',
+    flex: 1,
   },
   materialCardContent: {
-    gap: 4,
+    gap: 6,
+    paddingTop: 12,
+  },
+  categoryChip: {
+    borderRadius: 10,
+    backgroundColor: '#DCD1EE',
+    minHeight: 24,
+  },
+  categoryChipText: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  description: {
+    color: '#5f6368',
   },
 });

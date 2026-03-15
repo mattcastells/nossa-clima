@@ -5,7 +5,7 @@ import { Button, Card, Text } from 'react-native-paper';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useQuotes } from '@/features/quotes/hooks';
-import { formatCurrencyArs, formatDateAr } from '@/lib/format';
+import { formatCurrencyArs, formatDateAr, formatTimeShort } from '@/lib/format';
 
 export default function QuotesScreen() {
   const { data, isLoading, error } = useQuotes();
@@ -29,20 +29,38 @@ export default function QuotesScreen() {
         data={data ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <Link href={`/quotes/${item.id}`} asChild>
-            <Card mode="outlined" style={styles.quoteCard}>
-              <View style={styles.headerBlock}>
-                <Text style={styles.headerTitle}>{item.title}</Text>
-              </View>
-              <Card.Content style={styles.quoteContent}>
-                <Text style={styles.clientName}>{item.client_name}</Text>
-                <Text>{formatCurrencyArs(item.total)}</Text>
-                <Text>{formatDateAr(item.created_at)}</Text>
-              </Card.Content>
-            </Card>
-          </Link>
-        )}
+        renderItem={({ item }) => {
+          const dateValue = formatDateAr(item.appointment?.scheduled_for ?? item.created_at);
+          const timeValue = formatTimeShort(item.appointment?.starts_at);
+
+          return (
+            <Link href={`/quotes/${item.id}`} asChild>
+              <Card mode="outlined" style={styles.quoteCard}>
+                <View style={styles.headerBlock}>
+                  <Text style={styles.headerTitle}>{item.title}</Text>
+                </View>
+                <Card.Content style={styles.quoteContent}>
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>Cliente:</Text>
+                    <Text style={styles.metaValue}>{item.client_name}</Text>
+                  </View>
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>Fecha:</Text>
+                    <Text style={styles.metaValue}>{timeValue ? `${dateValue} - ${timeValue}` : dateValue}</Text>
+                  </View>
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>Descripcion:</Text>
+                    <Text style={styles.metaValue}>{item.description?.trim() || item.notes?.trim() || 'Sin descripcion'}</Text>
+                  </View>
+                  <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>Total:</Text>
+                    <Text style={styles.totalValue}>{formatCurrencyArs(item.total)}</Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            </Link>
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text>No hay trabajos cargados. Crea uno nuevo para comenzar.</Text>
@@ -80,10 +98,24 @@ const styles = StyleSheet.create({
   },
   quoteContent: {
     paddingTop: 12,
-    gap: 6,
+    gap: 8,
   },
-  clientName: {
+  metaBlock: {
+    gap: 2,
+  },
+  metaLabel: {
+    fontSize: 12,
+    lineHeight: 16,
     color: '#5f6368',
+  },
+  metaValue: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  totalValue: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
   },
   emptyState: {
     paddingVertical: 8,

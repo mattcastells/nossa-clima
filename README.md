@@ -27,6 +27,7 @@ Copy-Item .env.example .env
 
 - `EXPO_PUBLIC_SUPABASE_URL`
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_APP_UPDATE_GITHUB_REPO` (opcional, override del repo publico para updates por APK)
 
 4. Aplicar base de datos en Supabase (en este orden):
 
@@ -66,3 +67,4 @@ Con Expo CLI:
 - Usar solo `anon key` en la app cliente. No usar `service role key`.
 - Si el usuario existe en Supabase Auth pero no en `profiles`, la app intenta crear el perfil al iniciar sesion.
 - Documentacion de pre-release: `docs/PRE_RELEASE_SETUP.md`.
+- Documentacion de updates por APK: `docs/APP_UPDATES.md`.

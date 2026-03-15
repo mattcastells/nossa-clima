@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { useAppointmentsInMonth, useCreateAppointment, useDeleteAppointment } from '@/features/appointments/hooks';
@@ -101,18 +101,17 @@ export const WorkCalendarCard = () => {
 
   return (
     <Card style={styles.card}>
-      <Card.Title title="Agenda de trabajos" subtitle="Trabajos programados por fecha" />
       <Card.Content style={styles.content}>
         <View style={styles.monthHeader}>
           <Text variant="titleMedium" style={styles.monthLabel}>
             {monthLabel(monthAnchor)}
           </Text>
           <View style={styles.monthNav}>
-            <Button compact onPress={() => moveMonth(-1)} style={styles.monthButton}>
-              Mes anterior
+            <Button compact mode="text" onPress={() => moveMonth(-1)} style={styles.monthButton} contentStyle={styles.monthButtonContent}>
+              Anterior
             </Button>
-            <Button compact onPress={() => moveMonth(1)} style={styles.monthButton}>
-              Mes siguiente
+            <Button compact mode="text" onPress={() => moveMonth(1)} style={styles.monthButton} contentStyle={styles.monthButtonContent}>
+              Siguiente
             </Button>
           </View>
         </View>
@@ -131,22 +130,24 @@ export const WorkCalendarCard = () => {
               day == null ? null : formatLocalDate(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), day));
             const selected = dateKey != null && dateKey === selectedDate;
             const count = dateKey != null ? appointmentsByDate.get(dateKey) ?? 0 : 0;
+            const markers = Math.min(count, 3);
 
             return (
               <View key={`day-${index}-${day ?? 'empty'}`} style={styles.dayCell}>
                 {dateKey ? (
-                  <>
-                    <Button
-                      mode={selected ? 'contained-tonal' : 'text'}
-                      compact
-                      onPress={() => setSelectedDate(dateKey)}
-                      style={styles.dayButton}
-                      contentStyle={styles.dayButtonContent}
-                    >
-                      {day}
-                    </Button>
-                    {count > 0 && <Text style={styles.dayCount}>{count}</Text>}
-                  </>
+                  <Pressable
+                    onPress={() => setSelectedDate(dateKey)}
+                    style={({ pressed }) => [styles.dayPressable, pressed && styles.dayPressablePressed]}
+                  >
+                    <View style={[styles.dayBubble, selected && styles.dayBubbleSelected]}>
+                      <Text style={[styles.dayNumber, selected && styles.dayNumberSelected]}>{day}</Text>
+                    </View>
+                    <View style={styles.dayMarkersRow}>
+                      {Array.from({ length: markers }).map((_, markerIndex) => (
+                        <View key={`${dateKey}-marker-${markerIndex}`} style={[styles.dayMarker, selected && styles.dayMarkerSelected]} />
+                      ))}
+                    </View>
+                  </Pressable>
                 ) : null}
               </View>
             );
@@ -172,7 +173,24 @@ export const WorkCalendarCard = () => {
                       Ver detalle
                     </Button>
                   ) : (
-                    <Text style={styles.helperText}>Sin trabajo vinculado</Text>
+                    <Button
+                      compact
+                      mode="text"
+                      onPress={() =>
+                        router.push({
+                          pathname: '/quotes/new',
+                          params: {
+                            appointmentId: appointment.id,
+                            scheduledFor: appointment.scheduled_for,
+                            startsAt: appointment.starts_at ?? '',
+                            title: appointment.title,
+                            notes: appointment.notes ?? '',
+                          },
+                        })
+                      }
+                    >
+                      Crear trabajo
+                    </Button>
                   )}
                   <Button
                     compact
@@ -254,16 +272,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   monthHeader: {
-    gap: 6,
+    gap: 8,
   },
   monthNav: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 8,
   },
   monthButton: {
-    minWidth: 130,
+    flex: 1,
+    minWidth: 0,
+  },
+  monthButtonContent: {
+    minHeight: 36,
   },
   monthLabel: {
     textAlign: 'center',
@@ -289,18 +311,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 2,
   },
-  dayButton: {
-    minWidth: 34,
-    marginHorizontal: 2,
+  dayPressable: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingVertical: 2,
   },
-  dayButtonContent: {
-    height: 34,
-    paddingHorizontal: 0,
+  dayPressablePressed: {
+    opacity: 0.72,
   },
-  dayCount: {
-    marginTop: 1,
-    fontSize: 11,
-    color: '#0B6E4F',
+  dayBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayNumber: {
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: '500',
+    color: '#164E63',
+  },
+  dayBubbleSelected: {
+    backgroundColor: '#E7DBFF',
+  },
+  dayNumberSelected: {
+    fontWeight: '700',
+    color: '#36245B',
+  },
+  dayMarkersRow: {
+    minHeight: 8,
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  dayMarker: {
+    width: 4,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#18A7C7',
+  },
+  dayMarkerSelected: {
+    backgroundColor: '#6A43B7',
   },
   appointmentCard: {
     marginTop: 2,
@@ -312,9 +368,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  helperText: {
-    color: '#5f6368',
   },
   deleteButton: {
     alignSelf: 'flex-end',

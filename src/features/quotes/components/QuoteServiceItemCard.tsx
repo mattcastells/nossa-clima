@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Card, Dialog, Divider, Portal, Text } from 'react-native-paper';
 
 import type { QuoteServiceItem } from '@/types/db';
 
@@ -22,14 +22,63 @@ export const QuoteServiceItemCard = ({ item, onSave, onDuplicate, onDelete, savi
   const [editing, setEditing] = useState(false);
 
   return (
-    <Card mode="outlined" style={styles.card}>
-      <View style={styles.headerBlock}>
-        <Text style={styles.headerTitle}>{item.service_name_snapshot}</Text>
-      </View>
+    <Card mode="outlined" style={[styles.card, styles.serviceCard]}>
       <Card.Content style={styles.content}>
-        <Text>
-          {item.quantity} x {formatCurrencyArs(item.unit_price)} = {formatCurrencyArs(item.total_price)}
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.titleBlock}>
+            <View style={styles.badge}>
+              <Text variant="labelSmall" style={styles.badgeText}>
+                Servicio
+              </Text>
+            </View>
+            <Text variant="titleSmall" style={styles.headerTitle}>
+              {item.service_name_snapshot}
+            </Text>
+            {item.notes ? (
+              <Text variant="bodySmall" style={styles.notes}>
+                {item.notes}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.totalBlock}>
+            <Text variant="labelSmall" style={styles.totalLabel}>
+              Total
+            </Text>
+            <Text variant="titleMedium" style={styles.totalValue}>
+              {formatCurrencyArs(item.total_price)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Cantidad
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {item.quantity}
+            </Text>
+          </View>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Unitario
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {formatCurrencyArs(item.unit_price)}
+            </Text>
+          </View>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Calculo
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {item.quantity} x {formatCurrencyArs(item.unit_price)}
+            </Text>
+          </View>
+        </View>
+
+        <Divider style={styles.divider} />
+
         <View style={styles.actionsRow}>
           <Button mode="text" onPress={() => setEditing(true)} disabled={saving || duplicating || deleting} compact>
             Editar
@@ -75,26 +124,90 @@ export const QuoteServiceItemCard = ({ item, onSave, onDuplicate, onDelete, savi
 const styles = StyleSheet.create({
   card: {
     borderRadius: 10,
-    overflow: 'hidden',
+    borderColor: '#C9D6E4',
+    backgroundColor: '#FFFFFF',
   },
-  headerBlock: {
-    backgroundColor: '#F6F8FB',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  headerTitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '500',
+  serviceCard: {
+    backgroundColor: '#FCFEFF',
   },
   content: {
+    gap: 14,
+    paddingVertical: 14,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#E8F1FB',
+  },
+  badgeText: {
+    color: '#1F4D7A',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  headerTitle: {
+    fontWeight: '600',
+  },
+  notes: {
+    color: '#5f6368',
+    lineHeight: 18,
+  },
+  totalBlock: {
+    minWidth: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F4F7FB',
+    borderWidth: 1,
+    borderColor: '#DCE4EC',
+  },
+  totalLabel: {
+    color: '#5f6368',
+    marginBottom: 2,
+  },
+  totalValue: {
+    fontWeight: '700',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
-    paddingVertical: 2,
+  },
+  metricCell: {
+    flexGrow: 1,
+    minWidth: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFD',
+    borderWidth: 1,
+    borderColor: '#E1E7EF',
+  },
+  metricLabel: {
+    color: '#5f6368',
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontWeight: '600',
+  },
+  divider: {
+    backgroundColor: '#E1E7EF',
   },
   actionsRow: {
     flexDirection: 'row',
     gap: 4,
     flexWrap: 'wrap',
-    marginTop: 2,
+    justifyContent: 'flex-end',
   },
 });

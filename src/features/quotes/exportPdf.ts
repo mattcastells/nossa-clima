@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 import type { QuoteDetail } from '@/services/quotes';
+import { getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from './materialPricing';
 
 const BRAND_BLUE_HEX = '#032D6E';
 const BRAND_BLUE_RGB: [number, number, number] = [3, 45, 110];
@@ -85,8 +86,8 @@ const renderMaterialsRows = (detail: QuoteDetail): string => {
         <td>${escapeHtml(material.item_name_snapshot)}</td>
         <td class="right">${formatNumber(material.quantity)}</td>
         <td>${escapeHtml(material.unit ?? '-')}</td>
-        <td class="right">${escapeHtml(formatCurrencyArs(material.unit_price))}</td>
-        <td class="right">${escapeHtml(formatCurrencyArs(material.total_price))}</td>
+        <td class="right">${escapeHtml(formatCurrencyArs(getMaterialEffectiveUnitPrice(material.unit_price, material.margin_percent, detail.quote.default_material_margin_percent)))}</td>
+        <td class="right">${escapeHtml(formatCurrencyArs(getMaterialEffectiveTotalPrice(material.quantity, material.unit_price, material.margin_percent, detail.quote.default_material_margin_percent)))}</td>
       </tr>`,
     )
     .join('');
@@ -367,8 +368,8 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
           material.item_name_snapshot,
           formatNumber(material.quantity),
           material.unit ?? '-',
-          formatCurrencyArs(material.unit_price),
-          formatCurrencyArs(material.total_price),
+          formatCurrencyArs(getMaterialEffectiveUnitPrice(material.unit_price, material.margin_percent, detail.quote.default_material_margin_percent)),
+          formatCurrencyArs(getMaterialEffectiveTotalPrice(material.quantity, material.unit_price, material.margin_percent, detail.quote.default_material_margin_percent)),
         ])) as string[][],
     styles: { fontSize: 10, cellPadding: 5 },
     headStyles: { fillColor: BRAND_BLUE_RGB, textColor: [255, 255, 255] },

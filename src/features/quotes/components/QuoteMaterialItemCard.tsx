@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Card, Dialog, Divider, Portal, Text } from 'react-native-paper';
 
 import type { QuoteMaterialItem, Store } from '@/types/db';
 
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
 
 import { QuoteMaterialItemForm } from './QuoteMaterialItemForm';
+import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
 
 interface Props {
   item: QuoteMaterialItem;
@@ -17,21 +18,103 @@ interface Props {
   saving?: boolean;
   duplicating?: boolean;
   deleting?: boolean;
+  defaultMarginPercent?: number | null;
 }
 
-export const QuoteMaterialItemCard = ({ item, stores, onSave, onDuplicate, onDelete, saving = false, duplicating = false, deleting = false }: Props) => {
+export const QuoteMaterialItemCard = ({
+  item,
+  stores,
+  onSave,
+  onDuplicate,
+  onDelete,
+  saving = false,
+  duplicating = false,
+  deleting = false,
+  defaultMarginPercent = null,
+}: Props) => {
   const [editing, setEditing] = useState(false);
+  const sourceStoreName = item.source_store_id ? stores.find((store) => store.id === item.source_store_id)?.name ?? null : null;
+  const effectiveMargin = getEffectiveMaterialMarginPercent(item.margin_percent, defaultMarginPercent);
+  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(item.unit_price, item.margin_percent, defaultMarginPercent);
+  const effectiveTotalPrice = getMaterialEffectiveTotalPrice(item.quantity, item.unit_price, item.margin_percent, defaultMarginPercent);
+  const usesGlobalMargin = item.margin_percent == null && defaultMarginPercent != null;
 
   return (
-    <Card mode="outlined" style={styles.card}>
-      <View style={styles.headerBlock}>
-        <Text style={styles.headerTitle}>{item.item_name_snapshot}</Text>
-      </View>
+    <Card mode="outlined" style={[styles.card, styles.materialCard]}>
       <Card.Content style={styles.content}>
-        <Text>
-          {item.quantity} x {formatCurrencyArs(item.unit_price)} = {formatCurrencyArs(item.total_price)}
-        </Text>
-        <Text>Margen: {formatPercent(item.margin_percent)}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.titleBlock}>
+            <View style={styles.badge}>
+              <Text variant="labelSmall" style={styles.badgeText}>
+                Material
+              </Text>
+            </View>
+            <Text variant="titleSmall" style={styles.headerTitle}>
+              {item.item_name_snapshot}
+            </Text>
+            {item.notes ? (
+              <Text variant="bodySmall" style={styles.notes}>
+                {item.notes}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.totalBlock}>
+            <Text variant="labelSmall" style={styles.totalLabel}>
+              Total
+            </Text>
+            <Text variant="titleMedium" style={styles.totalValue}>
+              {formatCurrencyArs(effectiveTotalPrice)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Cantidad
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {item.quantity}
+              {item.unit ? ` ${item.unit}` : ''}
+            </Text>
+          </View>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Costo
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {formatCurrencyArs(item.unit_price)}
+            </Text>
+          </View>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Margen
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {formatPercent(effectiveMargin)}
+              {usesGlobalMargin ? ' global' : ''}
+            </Text>
+          </View>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Venta unit.
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {formatCurrencyArs(effectiveUnitPrice)}
+            </Text>
+          </View>
+          <View style={styles.metricCell}>
+            <Text variant="labelSmall" style={styles.metricLabel}>
+              Origen
+            </Text>
+            <Text variant="bodyMedium" style={styles.metricValue}>
+              {sourceStoreName ?? 'Sin tienda'}
+            </Text>
+          </View>
+        </View>
+
+        <Divider style={styles.divider} />
+
         <View style={styles.actionsRow}>
           <Button mode="text" onPress={() => setEditing(true)} disabled={saving || duplicating || deleting} compact>
             Editar
@@ -61,6 +144,7 @@ export const QuoteMaterialItemCard = ({ item, stores, onSave, onDuplicate, onDel
                 source_store_id: item.source_store_id,
                 notes: item.notes ?? '',
               }}
+              defaultMarginPercent={defaultMarginPercent}
               submitLabel="Guardar cambios"
               onSubmit={async (values) => {
                 await onSave(item.id, {
@@ -83,26 +167,90 @@ export const QuoteMaterialItemCard = ({ item, stores, onSave, onDuplicate, onDel
 const styles = StyleSheet.create({
   card: {
     borderRadius: 10,
-    overflow: 'hidden',
+    borderColor: '#C9D6E4',
+    backgroundColor: '#FFFFFF',
   },
-  headerBlock: {
-    backgroundColor: '#F6F8FB',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  headerTitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '500',
+  materialCard: {
+    backgroundColor: '#FBFCFE',
   },
   content: {
+    gap: 14,
+    paddingVertical: 14,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#EDF3EA',
+  },
+  badgeText: {
+    color: '#43663D',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  headerTitle: {
+    fontWeight: '600',
+  },
+  notes: {
+    color: '#5f6368',
+    lineHeight: 18,
+  },
+  totalBlock: {
+    minWidth: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F4F7FB',
+    borderWidth: 1,
+    borderColor: '#DCE4EC',
+  },
+  totalLabel: {
+    color: '#5f6368',
+    marginBottom: 2,
+  },
+  totalValue: {
+    fontWeight: '700',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
-    paddingVertical: 2,
+  },
+  metricCell: {
+    flexGrow: 1,
+    minWidth: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFD',
+    borderWidth: 1,
+    borderColor: '#E1E7EF',
+  },
+  metricLabel: {
+    color: '#5f6368',
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontWeight: '600',
+  },
+  divider: {
+    backgroundColor: '#E1E7EF',
   },
   actionsRow: {
     flexDirection: 'row',
     gap: 4,
     flexWrap: 'wrap',
-    marginTop: 2,
+    justifyContent: 'flex-end',
   },
 });

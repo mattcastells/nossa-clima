@@ -3,6 +3,12 @@ import type { Appointment } from '@/types/db';
 import { isMissingAppointmentQuoteLinkError } from './supabaseCompatibility';
 
 export type AppointmentInput = Omit<Appointment, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+export type LinkAppointmentToQuoteInput = {
+  appointmentId: string;
+  quoteId: string;
+  title: string;
+  notes?: string | null;
+};
 
 const missingQuoteIdColumnMessage = 'Falta aplicar la migracion 202603100004 para poder programar trabajos.';
 
@@ -78,5 +84,32 @@ export const upsertQuoteAppointment = async (
     }
     throw error;
   }
+  return data;
+};
+
+export const linkAppointmentToQuote = async ({
+  appointmentId,
+  quoteId,
+  title,
+  notes,
+}: LinkAppointmentToQuoteInput): Promise<Appointment> => {
+  const { data, error } = await supabase
+    .from('appointments')
+    .update({
+      quote_id: quoteId,
+      title,
+      notes: notes ?? null,
+    })
+    .eq('id', appointmentId)
+    .select()
+    .single();
+
+  if (error) {
+    if (isMissingAppointmentQuoteLinkError(error)) {
+      throw new Error(missingQuoteIdColumnMessage);
+    }
+    throw error;
+  }
+
   return data;
 };

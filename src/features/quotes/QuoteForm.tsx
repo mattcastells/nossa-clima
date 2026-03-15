@@ -35,6 +35,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
           <TextInput
             mode="outlined"
             label="Cliente"
+            placeholder="Ej. Juan Perez"
             value={field.value}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
@@ -48,6 +49,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
           <TextInput
             mode="outlined"
             label="Telefono"
+            placeholder="Ej. 11 1234 5678"
             value={field.value ?? ''}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
@@ -61,6 +63,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
           <TextInput
             mode="outlined"
             label="Titulo"
+            placeholder="Ej. Instalacion aire acondicionado"
             value={field.value}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
@@ -74,6 +77,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
           <TextInput
             mode="outlined"
             label="Notas"
+            placeholder="Detalles, observaciones o aclaraciones"
             value={field.value ?? ''}
             onChangeText={field.onChange}
             multiline
