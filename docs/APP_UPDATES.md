@@ -41,6 +41,25 @@ Rules:
 4. GitHub Actions builds the APK and creates a GitHub Release with the APK attached.
 5. The installed app can detect that release and open the installer.
 
+## First release for this repo
+
+For the current source state, the first public APK release should be:
+
+- `v0.1.0-b1`
+
+Suggested command sequence:
+
+1. Commit the current release-ready changes on `main`.
+2. Push `main`.
+3. Create the first release tag:
+   - `git tag v0.1.0-b1`
+4. Push the tag:
+   - `git push origin v0.1.0-b1`
+5. Wait for `.github/workflows/android-release.yml` to finish.
+6. Download `nossa-clima-v0.1.0-b1.apk` from the generated GitHub Release.
+
+Do not use a plain `0.1.0` tag here. The app update parser expects the build suffix (`-b1`, `-b2`, etc.) so it can compare Android build numbers correctly.
+
 ## Current configuration
 
 - Public repo used by the app: `mattcastells/nossa-clima`

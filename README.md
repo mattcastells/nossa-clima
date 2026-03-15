@@ -62,6 +62,13 @@ Con Expo CLI:
 - `npm run typecheck`
 - `npm run test`
 
+## Release Android
+
+- El flujo de APK via GitHub Releases usa tags con formato `vX.Y.Z-bN`.
+- Para este primer corte, el tag correcto es `v0.1.0-b1`.
+- Al pushear ese tag, `.github/workflows/android-release.yml` construye la APK release y la adjunta al release de GitHub.
+- La app ya consulta GitHub Releases con ese formato, asi que no conviene publicar un tag plano `0.1.0`.
+
 ## Notas
 
 - Usar solo `anon key` en la app cliente. No usar `service role key`.
