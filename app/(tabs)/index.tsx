@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
-import { Image, StyleSheet, View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
@@ -38,15 +37,23 @@ export default function HomeScreen() {
       <View style={styles.grid}>
         {HOME_ACTIONS.map((action, index) => (
           <AnimatedEntrance key={action.title} delay={90 + index * 45} distance={14} style={styles.tileShell}>
-            <Card mode="contained" style={[styles.tile, { borderColor: theme.colors.borderSoft }]} onPress={() => router.push(action.href)}>
-              <Card.Content style={styles.tileContent}>
-                <MaterialCommunityIcons name={action.icon} size={34} color={theme.colors.primary} />
-                <Text variant="titleMedium" style={styles.tileTitle}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(action.href)}
+              style={({ pressed }) => [styles.tilePressable, pressed && styles.tilePressed]}
+            >
+              <View style={[styles.tile, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surface }]}>
+                <View style={[styles.iconBubble, { backgroundColor: theme.colors.softBlue }]}>
+                  <MaterialCommunityIcons name={action.icon} size={30} color={theme.colors.primary} />
+                </View>
+                <Text style={[styles.tileTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
                   {action.title}
                 </Text>
-                <Text style={[styles.tileSubtitle, { color: theme.colors.textMuted }]}>{action.subtitle}</Text>
-              </Card.Content>
-            </Card>
+                <Text style={[styles.tileSubtitle, { color: theme.colors.textMuted }]} numberOfLines={2}>
+                  {action.subtitle}
+                </Text>
+              </View>
+            </Pressable>
           </AnimatedEntrance>
         ))}
       </View>
@@ -79,25 +86,42 @@ const styles = StyleSheet.create({
     width: '48%',
     marginBottom: 12,
   },
-  tile: {
+  tilePressable: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: 16,
-    borderWidth: 1,
   },
-  tileContent: {
-    flex: 1,
-    justifyContent: 'center',
+  tilePressed: {
+    opacity: 0.82,
+  },
+  tile: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 8,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  iconBubble: {
+    width: 54,
+    height: 54,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tileTitle: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '700',
     textAlign: 'center',
   },
   tileSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
     textAlign: 'center',
-    color: '#5f6368',
-    lineHeight: 18,
   },
 });

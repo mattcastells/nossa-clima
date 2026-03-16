@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Button, Card, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { StoreSelectorDialog } from '@/components/StoreSelectorDialog';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItemMeasurements, useItems, useSaveItem } from '@/features/items/hooks';
@@ -14,7 +15,7 @@ import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
 import { formatMeasurementDisplayLabel, formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
-import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
+import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
 
 type MaterialEntryMode = 'catalog' | 'manual';
 
@@ -45,8 +46,7 @@ export default function AddMaterialToQuotePage() {
   const saveItem = useSaveItem();
 
   const [entryMode, setEntryMode] = useState<MaterialEntryMode>('catalog');
-  const [storeMenuVisible, setStoreMenuVisible] = useState(false);
-  const [storeSearch, setStoreSearch] = useState('');
+  const [storeDialogVisible, setStoreDialogVisible] = useState(false);
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -87,18 +87,6 @@ export default function AddMaterialToQuotePage() {
   );
   const measuredItemIds = useMemo(() => new Set(storeMeasureRows.map((row) => row.item_id)), [storeMeasureRows]);
   const directItemIds = useMemo(() => new Set(storeBaseRows.map((row) => row.item_id)), [storeBaseRows]);
-
-  const filteredStores = useMemo(() => {
-    const query = storeSearch.trim().toLowerCase();
-    if (!query) return availableStores;
-
-    return availableStores.filter(
-      (store) =>
-        store.name.toLowerCase().includes(query) ||
-        (store.description ?? '').toLowerCase().includes(query) ||
-        (store.address ?? '').toLowerCase().includes(query),
-    );
-  }, [availableStores, storeSearch]);
 
   const catalogItems = useMemo(() => {
     if (!selectedStoreId) return [];
@@ -301,52 +289,20 @@ export default function AddMaterialToQuotePage() {
                   <Text style={styles.helperText}>Se usa para traer el precio actual del material o de cada medida.</Text>
                 </View>
 
-                <Menu
-                  visible={storeMenuVisible}
-                  onDismiss={() => setStoreMenuVisible(false)}
-                  anchor={
-                    <Button
-                      mode="outlined"
-                      icon="storefront-outline"
-                      onPress={() => setStoreMenuVisible(true)}
-                      style={styles.selectButton}
-                      contentStyle={styles.selectButtonContent}
-                    >
-                      {selectedStore?.name ?? 'Seleccionar tienda'}
-                    </Button>
-                  }
+                <Button
+                  mode="outlined"
+                  icon="table-search"
+                  onPress={() => setStoreDialogVisible(true)}
+                  style={styles.selectButton}
+                  contentStyle={styles.selectButtonContent}
                 >
-                  {availableStores.map((store) => (
-                    <Menu.Item
-                      key={store.id}
-                      title={store.name}
-                      onPress={() => {
-                        setSelectedStoreId(store.id);
-                        setStoreMenuVisible(false);
-                      }}
-                    />
-                  ))}
-                </Menu>
+                  {selectedStore?.name ?? 'Seleccionar tienda'}
+                </Button>
 
-                {availableStores.length > 6 ? (
-                  <Searchbar placeholder="Buscar tienda" value={storeSearch} onChangeText={setStoreSearch} style={styles.searchbar} />
-                ) : null}
-
-                {!selectedStoreId && filteredStores.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storeChipsRow}>
-                    {filteredStores.map((store) => {
-                      const selected = store.id === selectedStoreId;
-                      return (
-                        <Pressable
-                          key={store.id}
-                          onPress={() => setSelectedStoreId(store.id)}
-                          style={[styles.storeChip, selected ? styles.storeChipSelected : null]}
-                        >
-                          <Text style={selected ? styles.storeChipSelectedText : styles.storeChipText}>{store.name}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
+                {selectedStore ? (
+                  <Text style={styles.helperText}>
+                    Tienda seleccionada: {selectedStore.name}
+                  </Text>
                 ) : null}
               </Card.Content>
             </Card>
@@ -366,6 +322,7 @@ export default function AddMaterialToQuotePage() {
                   onChangeText={setMaterialSearch}
                   editable={Boolean(selectedStoreId)}
                   style={styles.searchbar}
+                  inputStyle={styles.searchInput}
                 />
 
                 {selectedStoreId ? (
@@ -443,8 +400,24 @@ export default function AddMaterialToQuotePage() {
                 <Text style={styles.helperText}>Para una carga rapida. Si el material necesita medidas, conviene crearlo desde Materiales.</Text>
               </View>
 
-              <TextInput mode="outlined" label="Nombre" value={manualName} onChangeText={setManualName} outlineStyle={styles.inputOutline} />
-              <TextInput mode="outlined" label="Categoria" value={manualCategory} onChangeText={setManualCategory} outlineStyle={styles.inputOutline} />
+              <TextInput
+                mode="outlined"
+                label="Nombre"
+                value={manualName}
+                onChangeText={setManualName}
+                outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContent}
+                scrollEnabled
+              />
+              <TextInput
+                mode="outlined"
+                label="Categoria"
+                value={manualCategory}
+                onChangeText={setManualCategory}
+                outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContent}
+                scrollEnabled
+              />
             </Card.Content>
           </Card>
         )}
@@ -473,6 +446,8 @@ export default function AddMaterialToQuotePage() {
                 keyboardType="decimal-pad"
                 outlineStyle={styles.inputOutline}
                 style={styles.inlineField}
+                contentStyle={styles.inputContent}
+                scrollEnabled
               />
               <TextInput
                 mode="outlined"
@@ -482,6 +457,8 @@ export default function AddMaterialToQuotePage() {
                 keyboardType="decimal-pad"
                 outlineStyle={styles.inputOutline}
                 style={styles.inlineField}
+                contentStyle={styles.inputContent}
+                scrollEnabled
               />
             </View>
 
@@ -492,6 +469,7 @@ export default function AddMaterialToQuotePage() {
               onChangeText={setNotesInput}
               outlineStyle={styles.inputOutline}
               multiline
+              contentStyle={styles.inputContentMultiline}
             />
 
             <View style={styles.previewBlock}>
@@ -511,6 +489,16 @@ export default function AddMaterialToQuotePage() {
           </Card.Content>
         </Card>
       </View>
+
+      <StoreSelectorDialog
+        visible={storeDialogVisible}
+        stores={availableStores}
+        selectedStoreId={selectedStoreId}
+        onSelect={(storeId) => setSelectedStoreId(storeId ?? null)}
+        onDismiss={() => setStoreDialogVisible(false)}
+        title="Seleccionar tienda para el material"
+        allowNoStore={false}
+      />
     </AppScreen>
   );
 }
@@ -539,6 +527,13 @@ const styles = StyleSheet.create({
   inputOutline: {
     borderRadius: 10,
   },
+  inputContent: {
+    paddingHorizontal: 10,
+  },
+  inputContentMultiline: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+  },
   selectButton: {
     borderRadius: 10,
     borderColor: '#D7E1ED',
@@ -548,26 +543,12 @@ const styles = StyleSheet.create({
   },
   searchbar: {
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D7E1ED',
   },
-  storeChipsRow: {
-    gap: 8,
-  },
-  storeChip: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
-  storeChipSelected: {
-    backgroundColor: BRAND_BLUE,
-  },
-  storeChipText: {
-    color: BRAND_BLUE,
-    fontWeight: '600',
-  },
-  storeChipSelectedText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+  searchInput: {
+    paddingLeft: 6,
+    paddingRight: 10,
   },
   resultsList: {
     gap: 8,
@@ -584,8 +565,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   resultRowSelected: {
-    borderColor: BRAND_BLUE,
-    backgroundColor: BRAND_BLUE_SOFT,
+    borderColor: BRAND_GREEN,
+    backgroundColor: BRAND_GREEN_SOFT,
   },
   resultInfo: {
     flex: 1,
@@ -605,7 +586,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '700',
-    color: BRAND_BLUE,
+    color: BRAND_GREEN,
   },
   measurementsList: {
     gap: 8,

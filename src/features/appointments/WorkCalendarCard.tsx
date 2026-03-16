@@ -228,7 +228,15 @@ export const WorkCalendarCard = () => {
 
         <View style={styles.quickForm}>
           <Text variant="titleMedium">Nuevo turno rapido</Text>
-          <TextInput mode="outlined" label="Trabajo / turno" value={title} onChangeText={setTitle} />
+          <TextInput
+            mode="outlined"
+            label="Titulo"
+            value={title}
+            onChangeText={setTitle}
+            outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContent}
+            scrollEnabled
+          />
           <TextInput
             mode="outlined"
             label="Hora (HH:mm)"
@@ -237,8 +245,19 @@ export const WorkCalendarCard = () => {
             placeholder="09:30"
             keyboardType="number-pad"
             maxLength={5}
+            outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContent}
+            scrollEnabled
           />
-          <TextInput mode="outlined" label="Notas (opcional)" value={notes} onChangeText={setNotes} multiline />
+          <TextInput
+            mode="outlined"
+            label="Notas (opcional)"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContentMultiline}
+          />
           <Button
             mode="contained"
             style={styles.primaryAction}
@@ -249,7 +268,7 @@ export const WorkCalendarCard = () => {
               try {
                 const normalizedTitle = title.trim();
                 if (!normalizedTitle) {
-                  throw new Error('El titulo del turno es obligatorio.');
+                  throw new Error('El titulo es obligatorio.');
                 }
 
                 const normalizedStartsAt = normalizeOptionalTimeInput(startsAt);
@@ -407,6 +426,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     gap: 10,
     paddingBottom: 8,
+  },
+  inputOutline: {
+    borderRadius: 10,
+  },
+  inputContent: {
+    paddingHorizontal: 10,
+  },
+  inputContentMultiline: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
   },
   primaryAction: {
     borderRadius: 999,

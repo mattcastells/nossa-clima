@@ -2,8 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Card, Menu, Searchbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Searchbar, Text, TextInput } from 'react-native-paper';
 
+import { StoreSelectorDialog } from '@/components/StoreSelectorDialog';
 import type { Item, LatestStoreItemPrice, Store } from '@/types/db';
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
 import { formatItemDisplayName, formatItemPresentation } from '@/lib/itemDisplay';
@@ -37,7 +38,7 @@ export const QuoteMaterialItemForm = ({
     resolver: zodResolver(quoteMaterialItemSchema),
     defaultValues,
   });
-  const [storeMenuVisible, setStoreMenuVisible] = useState(false);
+  const [storeDialogVisible, setStoreDialogVisible] = useState(false);
   const [materialSearch, setMaterialSearch] = useState('');
   const [seededSearch, setSeededSearch] = useState(false);
 
@@ -164,39 +165,15 @@ export const QuoteMaterialItemForm = ({
         <Text variant="labelMedium" style={styles.fieldLabel}>
           Tienda de referencia
         </Text>
-        <Menu
-          visible={storeMenuVisible}
-          onDismiss={() => setStoreMenuVisible(false)}
-          anchor={
-            <Button
-              mode="outlined"
-              icon="storefront-outline"
-              onPress={() => setStoreMenuVisible(true)}
-              style={styles.selectButton}
-              contentStyle={styles.selectButtonContent}
-            >
-              {selectedStoreLabel}
-            </Button>
-          }
+        <Button
+          mode="outlined"
+          icon="table-search"
+          onPress={() => setStoreDialogVisible(true)}
+          style={styles.selectButton}
+          contentStyle={styles.selectButtonContent}
         >
-          <Menu.Item
-            title="Sin tienda"
-            onPress={() => {
-              setValue('source_store_id', null, { shouldValidate: true });
-              setStoreMenuVisible(false);
-            }}
-          />
-          {stores.map((store) => (
-            <Menu.Item
-              key={store.id}
-              title={store.name}
-              onPress={() => {
-                setValue('source_store_id', store.id, { shouldValidate: true });
-                setStoreMenuVisible(false);
-              }}
-            />
-          ))}
-        </Menu>
+          {selectedStoreLabel}
+        </Button>
         <Text style={styles.helperText}>
           {sourceStoreId ? 'El catálogo se filtra por materiales con precio en esa tienda.' : 'Sin tienda, se usa el catálogo general.'}
         </Text>
@@ -212,6 +189,7 @@ export const QuoteMaterialItemForm = ({
           onChangeText={setMaterialSearch}
           onClearIconPress={() => setMaterialSearch('')}
           style={styles.searchbar}
+          inputStyle={styles.searchInput}
         />
 
         {selectedItem ? (
@@ -298,6 +276,8 @@ export const QuoteMaterialItemForm = ({
             editable={false}
             disabled={!selectedItemId}
             outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContent}
+            scrollEnabled
           />
         )}
       />
@@ -312,6 +292,8 @@ export const QuoteMaterialItemForm = ({
             value={String(field.value)}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContent}
+            scrollEnabled
           />
         )}
       />
@@ -326,6 +308,8 @@ export const QuoteMaterialItemForm = ({
             value={field.value == null ? '' : String(field.value)}
             onChangeText={(value) => field.onChange(value ? Number(value) : null)}
             outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContent}
+            scrollEnabled
           />
         )}
       />
@@ -341,6 +325,7 @@ export const QuoteMaterialItemForm = ({
             multiline
             numberOfLines={3}
             outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContentMultiline}
           />
         )}
       />
@@ -363,6 +348,16 @@ export const QuoteMaterialItemForm = ({
         </View>
       </View>
 
+      <StoreSelectorDialog
+        visible={storeDialogVisible}
+        stores={stores}
+        selectedStoreId={sourceStoreId ?? null}
+        onSelect={(storeId) => setValue('source_store_id', storeId, { shouldValidate: true })}
+        onDismiss={() => setStoreDialogVisible(false)}
+        title="Seleccionar tienda de referencia"
+        allowNoStore
+      />
+
       <Button mode="contained" onPress={handleSubmit(onSubmit)} style={styles.submitButton} contentStyle={styles.submitButtonContent}>
         {submitLabel}
       </Button>
@@ -384,8 +379,21 @@ const styles = StyleSheet.create({
   inputOutline: {
     borderRadius: 12,
   },
+  inputContent: {
+    paddingHorizontal: 10,
+  },
+  inputContentMultiline: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+  },
   searchbar: {
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C9D7E6',
+  },
+  searchInput: {
+    paddingLeft: 6,
+    paddingRight: 10,
   },
   selectButton: {
     borderRadius: 12,

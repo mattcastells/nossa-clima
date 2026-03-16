@@ -7,7 +7,7 @@ import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
-import { useAppTheme } from '@/theme';
+import { BRAND_YELLOW, useAppTheme } from '@/theme';
 
 export default function StoresScreen() {
   const { data, isLoading, error } = useStores();
@@ -33,6 +33,7 @@ export default function StoresScreen() {
         placeholder="Buscar tienda"
         value={search}
         onChangeText={setSearch}
+        inputStyle={styles.searchInput}
         style={[
           styles.searchbar,
           {
@@ -44,7 +45,9 @@ export default function StoresScreen() {
 
       <View style={styles.topActions}>
         <Link href="/stores/new" asChild>
-          <Button mode="contained">Nueva tienda</Button>
+          <Button mode="contained-tonal" buttonColor={theme.colors.softYellow} textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_YELLOW}>
+            Nueva tienda
+          </Button>
         </Link>
       </View>
 
@@ -58,7 +61,7 @@ export default function StoresScreen() {
           <AnimatedEntrance delay={80 + index * 40} distance={12}>
             <Link href={`/stores/${item.id}`} asChild>
               <Card mode="outlined" style={styles.storeCard}>
-                <View style={[styles.headerBlock, { backgroundColor: theme.colors.softBlue }]}>
+                <View style={[styles.headerBlock, { backgroundColor: theme.colors.softYellow }]}>
                   <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]}>{item.name}</Text>
                 </View>
                 <Card.Content style={styles.storeCardContent}>
@@ -79,6 +82,10 @@ const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 14,
     borderWidth: 1,
+  },
+  searchInput: {
+    paddingLeft: 6,
+    paddingRight: 10,
   },
   topActions: {
     flexDirection: 'row',

@@ -116,7 +116,7 @@ export default function ItemHistoryPage() {
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScrollContent}>
                   <View style={styles.tableFrameBase}>
-                    <View style={[styles.tableHeader, { backgroundColor: theme.colors.softBlue }]}>
+                    <View style={[styles.tableHeader, { backgroundColor: theme.colors.softYellow }]}>
                       <Text style={[styles.headerCell, styles.storeColumn, { color: theme.colors.titleOnSoft }]}>Local</Text>
                       <Text style={[styles.headerCell, styles.priceColumn, { color: theme.colors.titleOnSoft }]}>Precio</Text>
                       <Text style={[styles.headerCell, styles.referenceColumn, { color: theme.colors.titleOnSoft }]}>Referencia</Text>

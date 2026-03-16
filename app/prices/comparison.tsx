@@ -77,7 +77,7 @@ export default function PriceComparisonPage() {
     <AppScreen title="Comparacion de precios">
       <LoadingOrError isLoading={loading} error={error} />
 
-      <Searchbar placeholder="Buscar material" value={search} onChangeText={setSearch} style={styles.searchbar} />
+      <Searchbar placeholder="Buscar material" value={search} onChangeText={setSearch} style={styles.searchbar} inputStyle={styles.searchInput} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.itemsRow}>
         {filteredItems.map((item) => {
@@ -158,6 +158,10 @@ export default function PriceComparisonPage() {
 const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 12,
+  },
+  searchInput: {
+    paddingLeft: 6,
+    paddingRight: 10,
   },
   itemsRow: {
     gap: 8,

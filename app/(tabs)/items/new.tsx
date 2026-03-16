@@ -3,9 +3,10 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Menu, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Chip, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { StoreSelectorDialog } from '@/components/StoreSelectorDialog';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems, useSaveItem } from '@/features/items/hooks';
@@ -52,7 +53,7 @@ export default function NewItemPage() {
   });
 
   const [message, setMessage] = useState<string | null>(null);
-  const [storeMenuVisible, setStoreMenuVisible] = useState(false);
+  const [storeDialogVisible, setStoreDialogVisible] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState('');
   const [initialPriceInput, setInitialPriceInput] = useState('');
   const toast = useAppToast();
@@ -143,6 +144,8 @@ export default function NewItemPage() {
                 value={field.value}
                 onChangeText={field.onChange}
                 outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContent}
+                scrollEnabled
               />
             )}
           />
@@ -158,6 +161,8 @@ export default function NewItemPage() {
                 value={field.value ?? ''}
                 onChangeText={field.onChange}
                 outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContent}
+                scrollEnabled
                 placeholder="Ej: Cobre"
               />
             )}
@@ -173,6 +178,8 @@ export default function NewItemPage() {
                 value={field.value ?? ''}
                 onChangeText={field.onChange}
                 outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContent}
+                scrollEnabled
               />
             )}
           />
@@ -220,6 +227,7 @@ export default function NewItemPage() {
                 multiline
                 numberOfLines={3}
                 outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContentMultiline}
               />
             )}
           />
@@ -236,6 +244,7 @@ export default function NewItemPage() {
                 multiline
                 numberOfLines={3}
                 outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContentMultiline}
               />
             )}
           />
@@ -249,40 +258,16 @@ export default function NewItemPage() {
 
           <View style={styles.fieldGroup}>
             <Text variant="labelMedium">Tienda</Text>
-            <Menu
-              visible={storeMenuVisible}
-              onDismiss={() => setStoreMenuVisible(false)}
-              anchor={
-                <Button
-                  mode="outlined"
-                  icon="chevron-down"
-                  onPress={() => setStoreMenuVisible(true)}
-                  style={styles.selectButton}
-                  contentStyle={styles.selectButtonContent}
-                  disabled={availableStores.length === 0}
-                >
-                  {selectedStore?.name ?? (availableStores.length === 0 ? 'Sin tiendas disponibles' : 'Seleccionar tienda')}
-                </Button>
-              }
+            <Button
+              mode="outlined"
+              icon="table-search"
+              onPress={() => setStoreDialogVisible(true)}
+              style={styles.selectButton}
+              contentStyle={styles.selectButtonContent}
+              disabled={availableStores.length === 0}
             >
-              <Menu.Item
-                title="Sin tienda"
-                onPress={() => {
-                  setSelectedStoreId('');
-                  setStoreMenuVisible(false);
-                }}
-              />
-              {availableStores.map((store) => (
-                <Menu.Item
-                  key={store.id}
-                  title={store.name}
-                  onPress={() => {
-                    setSelectedStoreId(store.id);
-                    setStoreMenuVisible(false);
-                  }}
-                />
-              ))}
-            </Menu>
+              {selectedStore?.name ?? (availableStores.length === 0 ? 'Sin tiendas disponibles' : 'Seleccionar tienda')}
+            </Button>
           </View>
 
           <TextInput
@@ -292,6 +277,8 @@ export default function NewItemPage() {
             value={initialPriceInput}
             onChangeText={setInitialPriceInput}
             outlineStyle={styles.inputOutline}
+            contentStyle={styles.inputContent}
+            scrollEnabled
             placeholder="Ej: 120000"
           />
         </Card.Content>
@@ -300,6 +287,16 @@ export default function NewItemPage() {
       <Button mode="contained" onPress={submit} loading={isBusy} disabled={isBusy} style={styles.saveButton} contentStyle={styles.saveButtonContent}>
         Guardar material
       </Button>
+
+      <StoreSelectorDialog
+        visible={storeDialogVisible}
+        stores={availableStores}
+        selectedStoreId={selectedStoreId || null}
+        onSelect={(storeId) => setSelectedStoreId(storeId ?? '')}
+        onDismiss={() => setStoreDialogVisible(false)}
+        title="Seleccionar tienda para el material"
+        allowNoStore
+      />
     </AppScreen>
   );
 }
@@ -335,6 +332,13 @@ const styles = StyleSheet.create({
   },
   inputOutline: {
     borderRadius: 10,
+  },
+  inputContent: {
+    paddingHorizontal: 10,
+  },
+  inputContentMultiline: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
   },
   categorySuggestions: {
     gap: 8,

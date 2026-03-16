@@ -15,7 +15,7 @@ import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatDateTimeAr } from '@/lib/format';
-import { BRAND_BLUE, BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
+import { BRAND_GREEN, BRAND_GREEN_SOFT, BRAND_YELLOW, useAppTheme } from '@/theme';
 import type { ItemMeasurement, LatestStoreItemMeasurementPrice, LatestStoreItemPrice } from '@/types/db';
 
 const formatAuditActor = (userId: string | null | undefined, namesById: Map<string, string>): string => {
@@ -381,8 +381,8 @@ export default function ItemDetailPage() {
                     <Button
                       mode="contained-tonal"
                       style={styles.priceActionButton}
-                      textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE}
-                      buttonColor={theme.colors.softBlue}
+                      textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_YELLOW}
+                      buttonColor={theme.colors.softYellow}
                     >
                       {summary.hasPrice ? 'Actualizar' : 'Asignar'}
                     </Button>

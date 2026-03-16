@@ -60,6 +60,7 @@ export default function ItemsScreen() {
         placeholder="Buscar material"
         value={search}
         onChangeText={setSearch}
+        inputStyle={styles.searchInput}
         style={[
           styles.searchbar,
           {
@@ -159,6 +160,10 @@ const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 14,
     borderWidth: 1,
+  },
+  searchInput: {
+    paddingLeft: 6,
+    paddingRight: 10,
   },
   topActions: {
     flexDirection: 'row',

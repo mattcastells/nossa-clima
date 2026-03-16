@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Card, Divider, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
@@ -49,63 +49,6 @@ const STATUS_OPTIONS: Array<{ value: JobQuoteStatus; label: string }> = [
   { value: 'cancelled', label: 'Cancelado' },
 ];
 
-interface CollapsibleSectionProps {
-  title: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}
-
-const CollapsibleSection = ({ title, expanded, onToggle, children }: CollapsibleSectionProps) => {
-  const [contentHeight, setContentHeight] = useState(0);
-  const progress = useRef(new Animated.Value(expanded ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.timing(progress, {
-      toValue: expanded ? 1 : 0,
-      duration: expanded ? 220 : 180,
-      easing: expanded ? Easing.out(Easing.cubic) : Easing.inOut(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [expanded, progress]);
-
-  const animatedHeight = contentHeight > 0 ? progress.interpolate({ inputRange: [0, 1], outputRange: [0, contentHeight] }) : expanded ? undefined : 0;
-
-  return (
-    <View style={styles.collapsibleSection}>
-      <View style={styles.sectionHeaderRow}>
-        <Text variant="titleMedium" style={styles.sectionHeading}>
-          {title}
-        </Text>
-        <IconButton icon={expanded ? 'chevron-up' : 'chevron-down'} size={22} style={styles.sectionToggle} onPress={onToggle} />
-      </View>
-      <Animated.View
-        style={[
-          styles.collapsibleBody,
-          {
-            height: animatedHeight,
-            opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-            transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
-            pointerEvents: expanded ? 'auto' : 'none',
-          },
-        ]}
-      >
-        <View
-          onLayout={(event) => {
-            const nextHeight = Math.ceil(event.nativeEvent.layout.height);
-            if (nextHeight !== contentHeight) {
-              setContentHeight(nextHeight);
-            }
-          }}
-          style={styles.collapsibleBodyContent}
-        >
-          {children}
-        </View>
-      </Animated.View>
-    </View>
-  );
-};
-
 const normalizeOptionalPercentInput = (value: string): number | null => {
   const trimmed = value.trim().replace(',', '.');
   if (!trimmed) return null;
@@ -145,8 +88,6 @@ export default function QuoteDetailPage() {
   const [globalMarginInput, setGlobalMarginInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'material' | 'service'; id: string } | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const [clientExpanded, setClientExpanded] = useState(false);
-  const [scheduleExpanded, setScheduleExpanded] = useState(false);
   useToastMessageEffect(snack, () => setSnack(null));
   const [calendarMonthAnchor, setCalendarMonthAnchor] = useState(() => {
     const today = new Date();
@@ -269,7 +210,7 @@ export default function QuoteDetailPage() {
     try {
       setIsSavingPdf(true);
       await saveQuotePdf(data);
-      setSnack(Platform.OS === 'android' ? 'PDF guardado en Descargas.' : 'PDF guardado.');
+      setSnack(Platform.OS === 'android' ? 'PDF guardado en la carpeta seleccionada.' : 'PDF guardado.');
     } catch (exportError) {
       setSnack(toUserErrorMessage(exportError, 'No se pudo guardar el PDF.'));
     } finally {
@@ -432,176 +373,177 @@ export default function QuoteDetailPage() {
             <Divider />
           </View>
 
-          <CollapsibleSection title="Cliente" expanded={clientExpanded} onToggle={() => setClientExpanded((current) => !current)}>
-            <Card mode="contained" style={styles.sectionCard}>
-              <Card.Content style={styles.sectionContent}>
-                <QuoteForm
-                  defaultValues={{
-                    client_name: data.quote.client_name,
-                    client_phone: data.quote.client_phone ?? '',
-                    title: data.quote.title,
-                    notes: data.quote.notes ?? '',
-                  }}
-                  buttonLabel="Guardar cliente"
-                  onSubmit={async (values) => {
-                    try {
-                      await save.mutateAsync({
-                        id: data.quote.id,
-                        title: values.title,
-                        client_name: values.client_name,
-                        client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
-                        notes: values.notes?.trim() ? values.notes.trim() : null,
-                      });
-                      setSnack('Cliente guardado.');
-                    } catch (mutationError) {
-                      setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el cliente.'));
-                    }
-                  }}
-                />
-              </Card.Content>
-            </Card>
-          </CollapsibleSection>
+          <Text variant="titleMedium" style={styles.sectionHeading}>
+            Cliente
+          </Text>
+          <Card mode="contained" style={styles.sectionCard}>
+            <Card.Content style={styles.sectionContent}>
+              <QuoteForm
+                defaultValues={{
+                  client_name: data.quote.client_name,
+                  client_phone: data.quote.client_phone ?? '',
+                  title: data.quote.title,
+                  notes: data.quote.notes ?? '',
+                }}
+                buttonLabel="Guardar cliente"
+                onSubmit={async (values) => {
+                  try {
+                    await save.mutateAsync({
+                      id: data.quote.id,
+                      title: values.title,
+                      client_name: values.client_name,
+                      client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
+                      notes: values.notes?.trim() ? values.notes.trim() : null,
+                    });
+                    setSnack('Cliente guardado.');
+                  } catch (mutationError) {
+                    setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el cliente.'));
+                  }
+                }}
+              />
+            </Card.Content>
+          </Card>
 
-          <CollapsibleSection title="Fecha" expanded={scheduleExpanded} onToggle={() => setScheduleExpanded((current) => !current)}>
-            <Card mode="contained" style={styles.sectionCard}>
-              <Card.Content style={styles.sectionContent}>
-                <TextInput
-                  mode="outlined"
-                  label="Fecha (DD-MM-AAAA)"
-                  value={scheduleDate}
-                  onChangeText={(value) => setScheduleDate(maskDateInput(value))}
-                  placeholder="12-03-2026"
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  outlineStyle={styles.inputOutline}
-                  right={<TextInput.Icon icon="calendar-month-outline" onPress={toggleInlineCalendar} />}
-                />
-                <TextInput
-                  mode="outlined"
-                  label="Hora (HH:mm, opcional)"
-                  value={scheduleTime}
-                  onChangeText={(value) => setScheduleTime(maskTimeInput(value))}
-                  placeholder="09:30"
-                  keyboardType="number-pad"
-                  maxLength={5}
-                  outlineStyle={styles.inputOutline}
-                />
-                {calendarVisible ? (
-                  <Card mode="contained" style={styles.inlineCalendarCard}>
-                    <Card.Content style={styles.inlineCalendarContent}>
-                      <View style={styles.inlineCalendarHeader}>
-                        <Text variant="titleMedium" style={styles.inlineCalendarMonthLabel}>
-                          {monthLabel(calendarMonthAnchor)}
+          <Text variant="titleMedium" style={styles.sectionHeading}>
+            Fecha
+          </Text>
+          <Card mode="contained" style={styles.sectionCard}>
+            <Card.Content style={styles.sectionContent}>
+              <TextInput
+                mode="outlined"
+                label="Fecha (DD-MM-AAAA)"
+                value={scheduleDate}
+                onChangeText={(value) => setScheduleDate(maskDateInput(value))}
+                placeholder="12-03-2026"
+                keyboardType="number-pad"
+                maxLength={10}
+                outlineStyle={styles.inputOutline}
+                right={<TextInput.Icon icon="calendar-month-outline" onPress={toggleInlineCalendar} />}
+              />
+              <TextInput
+                mode="outlined"
+                label="Hora (HH:mm, opcional)"
+                value={scheduleTime}
+                onChangeText={(value) => setScheduleTime(maskTimeInput(value))}
+                placeholder="09:30"
+                keyboardType="number-pad"
+                maxLength={5}
+                outlineStyle={styles.inputOutline}
+              />
+              {calendarVisible ? (
+                <Card mode="contained" style={styles.inlineCalendarCard}>
+                  <Card.Content style={styles.inlineCalendarContent}>
+                    <View style={styles.inlineCalendarHeader}>
+                      <Text variant="titleMedium" style={styles.inlineCalendarMonthLabel}>
+                        {monthLabel(calendarMonthAnchor)}
+                      </Text>
+                      <View style={styles.inlineCalendarNav}>
+                        <IconButton
+                          icon="arrow-left"
+                          size={18}
+                          accessibilityLabel="Mes anterior"
+                          onPress={() => moveCalendarMonth(-1)}
+                          style={styles.inlineCalendarNavButton}
+                        />
+                        <IconButton
+                          icon="arrow-right"
+                          size={18}
+                          accessibilityLabel="Mes siguiente"
+                          onPress={() => moveCalendarMonth(1)}
+                          style={styles.inlineCalendarNavButton}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.inlineCalendarWeekHeader}>
+                      {WEEKDAY_LABELS.map((label) => (
+                        <Text key={label} style={styles.inlineCalendarWeekLabel}>
+                          {label}
                         </Text>
-                        <View style={styles.inlineCalendarNav}>
-                          <IconButton
-                            icon="arrow-left"
-                            size={18}
-                            accessibilityLabel="Mes anterior"
-                            onPress={() => moveCalendarMonth(-1)}
-                            style={styles.inlineCalendarNavButton}
-                          />
-                          <IconButton
-                            icon="arrow-right"
-                            size={18}
-                            accessibilityLabel="Mes siguiente"
-                            onPress={() => moveCalendarMonth(1)}
-                            style={styles.inlineCalendarNavButton}
-                          />
-                        </View>
-                      </View>
+                      ))}
+                    </View>
 
-                      <View style={styles.inlineCalendarWeekHeader}>
-                        {WEEKDAY_LABELS.map((label) => (
-                          <Text key={label} style={styles.inlineCalendarWeekLabel}>
-                            {label}
-                          </Text>
-                        ))}
-                      </View>
+                    <View style={styles.inlineCalendarGrid}>
+                      {calendarCells.map((day, index) => {
+                        const dateKey = day == null ? null : formatIsoDate(new Date(calendarMonthAnchor.getFullYear(), calendarMonthAnchor.getMonth(), day));
+                        const selected = dateKey != null && dateKey === calendarSelectedDate;
+                        const markers = dateKey != null ? Math.min(appointmentsByDate.get(dateKey) ?? 0, 3) : 0;
 
-                      <View style={styles.inlineCalendarGrid}>
-                        {calendarCells.map((day, index) => {
-                          const dateKey =
-                            day == null ? null : formatIsoDate(new Date(calendarMonthAnchor.getFullYear(), calendarMonthAnchor.getMonth(), day));
-                          const selected = dateKey != null && dateKey === calendarSelectedDate;
-                          const markers = dateKey != null ? Math.min(appointmentsByDate.get(dateKey) ?? 0, 3) : 0;
-
-                          return (
-                            <View key={`quote-calendar-day-${index}-${day ?? 'empty'}`} style={styles.inlineCalendarDayCell}>
-                              {dateKey ? (
-                                <Pressable
-                                  onPress={() => handleCalendarDateSelect(dateKey)}
-                                  style={({ pressed }) => [styles.inlineCalendarDayPressable, pressed && styles.inlineCalendarDayPressed]}
-                                >
-                                  <View style={[styles.inlineCalendarDayBubble, selected && styles.inlineCalendarDayBubbleSelected]}>
-                                    <Text style={[styles.inlineCalendarDayNumber, selected && styles.inlineCalendarDayNumberSelected]}>{day}</Text>
-                                  </View>
-                                  <View style={styles.inlineCalendarMarkersRow}>
-                                    {Array.from({ length: markers }).map((_, markerIndex) => (
-                                      <View
-                                        key={`${dateKey}-quote-marker-${markerIndex}`}
-                                        style={[styles.inlineCalendarMarker, selected && styles.inlineCalendarMarkerSelected]}
-                                      />
-                                    ))}
-                                  </View>
-                                </Pressable>
-                              ) : null}
-                            </View>
-                          );
-                        })}
-                      </View>
-
-                      <View style={styles.inlineAgendaBlock}>
-                        <Text variant="titleSmall" style={styles.inlineAgendaTitle}>
-                          Trabajos del {toHumanDate(calendarSelectedDate)}
-                        </Text>
-                        {monthAppointments.isLoading ? (
-                          <Text style={styles.inlineAgendaHint}>Cargando trabajos...</Text>
-                        ) : selectedDateAppointments.length === 0 ? (
-                          <Text style={styles.inlineAgendaHint}>No hay trabajos con turno ese dia.</Text>
-                        ) : (
-                          <View style={styles.inlineAgendaList}>
-                            {selectedDateAppointments.map((appointment) => (
-                              <View key={appointment.id} style={styles.inlineAgendaItem}>
-                                <Text style={styles.inlineAgendaTime}>{appointment.starts_at ? formatTimeShort(appointment.starts_at) : 'Sin hora'}</Text>
-                                <Text style={styles.inlineAgendaText} numberOfLines={1}>
-                                  {appointment.title}
-                                </Text>
-                              </View>
-                            ))}
+                        return (
+                          <View key={`quote-calendar-day-${index}-${day ?? 'empty'}`} style={styles.inlineCalendarDayCell}>
+                            {dateKey ? (
+                              <Pressable
+                                onPress={() => handleCalendarDateSelect(dateKey)}
+                                style={({ pressed }) => [styles.inlineCalendarDayPressable, pressed && styles.inlineCalendarDayPressed]}
+                              >
+                                <View style={[styles.inlineCalendarDayBubble, selected && styles.inlineCalendarDayBubbleSelected]}>
+                                  <Text style={[styles.inlineCalendarDayNumber, selected && styles.inlineCalendarDayNumberSelected]}>{day}</Text>
+                                </View>
+                                <View style={styles.inlineCalendarMarkersRow}>
+                                  {Array.from({ length: markers }).map((_, markerIndex) => (
+                                    <View
+                                      key={`${dateKey}-quote-marker-${markerIndex}`}
+                                      style={[styles.inlineCalendarMarker, selected && styles.inlineCalendarMarkerSelected]}
+                                    />
+                                  ))}
+                                </View>
+                              </Pressable>
+                            ) : null}
                           </View>
-                        )}
-                      </View>
-                    </Card.Content>
-                  </Card>
-                ) : null}
-                <View style={styles.actionsRow}>
+                        );
+                      })}
+                    </View>
+
+                    <View style={styles.inlineAgendaBlock}>
+                      <Text variant="titleSmall" style={styles.inlineAgendaTitle}>
+                        Trabajos del {toHumanDate(calendarSelectedDate)}
+                      </Text>
+                      {monthAppointments.isLoading ? (
+                        <Text style={styles.inlineAgendaHint}>Cargando trabajos...</Text>
+                      ) : selectedDateAppointments.length === 0 ? (
+                        <Text style={styles.inlineAgendaHint}>No hay trabajos con turno ese dia.</Text>
+                      ) : (
+                        <View style={styles.inlineAgendaList}>
+                          {selectedDateAppointments.map((appointment) => (
+                            <View key={appointment.id} style={styles.inlineAgendaItem}>
+                              <Text style={styles.inlineAgendaTime}>{appointment.starts_at ? formatTimeShort(appointment.starts_at) : 'Sin hora'}</Text>
+                              <Text style={styles.inlineAgendaText} numberOfLines={1}>
+                                {appointment.title}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  </Card.Content>
+                </Card>
+              ) : null}
+              <View style={styles.actionsRow}>
+                <Button
+                  mode="contained"
+                  icon="calendar-check-outline"
+                  disabled={isBusy}
+                  onPress={scheduleCurrentJob}
+                  style={styles.actionButton}
+                  contentStyle={styles.actionButtonContent}
+                >
+                  {data.appointment ? 'Reprogramar trabajo' : 'Programar trabajo'}
+                </Button>
+                {data.appointment && (
                   <Button
-                    mode="contained"
-                    icon="calendar-check-outline"
+                    mode="outlined"
+                    textColor="#B3261E"
                     disabled={isBusy}
-                    onPress={scheduleCurrentJob}
+                    onPress={unscheduleCurrentJob}
                     style={styles.actionButton}
                     contentStyle={styles.actionButtonContent}
                   >
-                    {data.appointment ? 'Reprogramar trabajo' : 'Programar trabajo'}
+                    Quitar del calendario
                   </Button>
-                  {data.appointment && (
-                    <Button
-                      mode="outlined"
-                      textColor="#B3261E"
-                      disabled={isBusy}
-                      onPress={unscheduleCurrentJob}
-                      style={styles.actionButton}
-                      contentStyle={styles.actionButtonContent}
-                    >
-                      Quitar del calendario
-                    </Button>
-                  )}
-                </View>
-              </Card.Content>
-            </Card>
-          </CollapsibleSection>
+                )}
+              </View>
+            </Card.Content>
+          </Card>
 
           <View style={styles.contentDivider}>
             <Divider />
@@ -753,22 +695,6 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 10,
   },
-  collapsibleSection: {
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(5, 38, 83, 0.08)',
-    backgroundColor: 'rgba(5, 38, 83, 0.03)',
-  },
-  collapsibleBody: {
-    overflow: 'hidden',
-  },
-  collapsibleBodyContent: {
-    paddingTop: 4,
-  },
   sectionCard: {
     borderRadius: 12,
     borderWidth: 1,
@@ -780,15 +706,6 @@ const styles = StyleSheet.create({
   },
   statusTitle: {
     flexGrow: 0,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 40,
-  },
-  sectionToggle: {
-    margin: 0,
   },
   editingDivider: {
     marginTop: 2,

@@ -14,7 +14,7 @@ import { AppDialog } from '@/components/AppDialog';
 import { AppScreen } from '@/components/AppScreen';
 import { useAppToast } from '@/components/AppToastProvider';
 import { sendAssistantMessage, type AssistantHistoryMessage } from '@/services/assistant';
-import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN_SOFT } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 type PendingImage = {
   uri: string;
@@ -34,6 +34,7 @@ type ChatMessage = {
 const createLocalId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
 export default function AssistantScreen() {
+  const theme = useAppTheme();
   const toast = useAppToast();
   const scrollRef = useRef<ScrollView | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -148,13 +149,15 @@ export default function AssistantScreen() {
     <AppScreen scrollable={false}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
         <View style={styles.titleRow}>
-          <Text variant="headlineSmall">Asistente AI</Text>
+          <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>
+            Asistente AI
+          </Text>
           <IconButton
             icon="refresh"
             size={18}
             mode="contained-tonal"
-            containerColor={BRAND_BLUE_SOFT}
-            iconColor={BRAND_BLUE}
+            containerColor={theme.colors.softBlue}
+            iconColor={theme.colors.primary}
             onPress={requestConversationReset}
             disabled={messages.length === 0 && !pendingImage && !input}
             accessibilityLabel="Nueva conversacion"
@@ -162,10 +165,12 @@ export default function AssistantScreen() {
         </View>
 
         {messages.length === 0 ? (
-          <Card mode="outlined" style={styles.emptyCard}>
+          <Card mode="outlined" style={[styles.emptyCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
             <Card.Content style={styles.emptyContent}>
-              <Text variant="titleMedium">Todavia no hay mensajes</Text>
-              <Text style={styles.helperText}>Proba con una consulta tecnica o una foto del equipo para analizar.</Text>
+              <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                Todavia no hay mensajes
+              </Text>
+              <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Proba con una consulta tecnica o una foto del equipo para analizar.</Text>
             </Card.Content>
           </Card>
         ) : null}
@@ -186,18 +191,22 @@ export default function AssistantScreen() {
                   mode="outlined"
                   style={[
                     styles.messageBubble,
-                    message.role === 'user' ? styles.userBubble : styles.assistantBubble,
+                    message.role === 'user'
+                      ? [styles.userBubble, { backgroundColor: theme.colors.softBlue, borderColor: theme.colors.softBlueStrong }]
+                      : [styles.assistantBubble, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }],
                   ]}
                 >
                   <Card.Content style={styles.messageContent}>
                     {message.imageUri ? <Image source={{ uri: message.imageUri }} style={styles.messageImage} /> : null}
                     {message.pending ? (
                       <View style={styles.pendingRow}>
-                        <ActivityIndicator size="small" color={BRAND_BLUE} />
-                        <Text style={styles.pendingText}>Pensando respuesta...</Text>
+                        <ActivityIndicator size="small" color={theme.colors.primary} />
+                        <Text style={[styles.pendingText, { color: theme.colors.textMuted }]}>Pensando respuesta...</Text>
                       </View>
                     ) : (
-                      <Text style={styles.messageText}>{message.text}</Text>
+                      <Text style={[styles.messageText, { color: message.role === 'user' ? theme.colors.titleOnSoft : theme.colors.onSurface }]}>
+                        {message.text}
+                      </Text>
                     )}
                   </Card.Content>
                 </Card>
@@ -206,14 +215,14 @@ export default function AssistantScreen() {
           ) : null}
         </ScrollView>
 
-        <Card mode="outlined" style={styles.composerCard}>
+        <Card mode="outlined" style={[styles.composerCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Card.Content style={styles.composerContent}>
             {pendingImage ? (
-              <View style={styles.previewRow}>
+              <View style={[styles.previewRow, { backgroundColor: theme.colors.softGreen, borderColor: theme.colors.softGreenStrong }]}>
                 <Image source={{ uri: pendingImage.uri }} style={styles.previewImage} />
                 <View style={styles.previewCopy}>
-                  <Text variant="labelLarge">{pendingImage.name}</Text>
-                  <Text style={styles.helperText}>Se enviara con el proximo mensaje.</Text>
+                  <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>{pendingImage.name}</Text>
+                  <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Se enviara con el proximo mensaje.</Text>
                 </View>
                 <IconButton icon="close" size={18} onPress={() => setPendingImage(null)} />
               </View>
@@ -227,11 +236,14 @@ export default function AssistantScreen() {
               multiline
               numberOfLines={4}
               outlineStyle={styles.inputOutline}
+              contentStyle={styles.inputContent}
               placeholder="Escribi tu consulta para el asistente"
+              textColor={theme.colors.onSurface}
+              placeholderTextColor={theme.colors.textMuted}
             />
 
             <View style={styles.composerActions}>
-              <Button mode="outlined" icon="image-outline" onPress={pickImage} style={styles.attachButton}>
+              <Button mode="outlined" icon="image-outline" onPress={pickImage} style={[styles.attachButton, { borderColor: theme.colors.borderSoft }]}>
                 Imagen
               </Button>
               <Button
@@ -249,9 +261,9 @@ export default function AssistantScreen() {
         </Card>
 
         <AppDialog visible={showResetDialog} onDismiss={() => setShowResetDialog(false)}>
-          <Dialog.Title>Nueva conversacion</Dialog.Title>
+          <Dialog.Title style={{ color: theme.colors.onSurface }}>Nueva conversacion</Dialog.Title>
           <Dialog.Content>
-            <Text>Se van a borrar los mensajes actuales. Queres continuar?</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Se van a borrar los mensajes actuales. Queres continuar?</Text>
           </Dialog.Content>
           <Dialog.Actions style={styles.dialogActions}>
             <Button onPress={() => setShowResetDialog(false)}>Cancelar</Button>
@@ -283,7 +295,6 @@ const styles = StyleSheet.create({
     minHeight: 42,
   },
   helperText: {
-    color: '#5f6368',
     lineHeight: 18,
   },
   messagesScroll: {
@@ -315,14 +326,8 @@ const styles = StyleSheet.create({
     width: '88%',
     borderRadius: 16,
   },
-  userBubble: {
-    backgroundColor: BRAND_BLUE_SOFT,
-    borderColor: '#C7D5E7',
-  },
-  assistantBubble: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#DCE4EC',
-  },
+  userBubble: {},
+  assistantBubble: {},
   messageContent: {
     gap: 10,
     paddingVertical: 10,
@@ -334,16 +339,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
     borderRadius: 12,
-    backgroundColor: '#E6EBF1',
+    backgroundColor: '#CED8E3',
   },
   pendingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  pendingText: {
-    color: '#5f6368',
-  },
+  pendingText: {},
   composerCard: {
     borderRadius: 16,
   },
@@ -355,7 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: BRAND_GREEN_SOFT,
+    borderWidth: 1,
     borderRadius: 14,
     paddingLeft: 10,
     paddingRight: 4,
@@ -373,6 +376,10 @@ const styles = StyleSheet.create({
   },
   inputOutline: {
     borderRadius: 12,
+  },
+  inputContent: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
   },
   composerActions: {
     flexDirection: 'row',

@@ -61,6 +61,7 @@ export default function AddServiceToQuotePage() {
           placeholder="Buscar servicio"
           value={search}
           onChangeText={setSearch}
+          inputStyle={styles.searchInput}
           style={styles.searchbar}
         />
 
@@ -113,6 +114,8 @@ export default function AddServiceToQuotePage() {
               value={String(field.value)}
               onChangeText={field.onChange}
               outlineStyle={styles.inputOutline}
+              contentStyle={styles.inputContent}
+              scrollEnabled
             />
           )}
         />
@@ -127,6 +130,8 @@ export default function AddServiceToQuotePage() {
               value={String(field.value)}
               onChangeText={field.onChange}
               outlineStyle={styles.inputOutline}
+              contentStyle={styles.inputContent}
+              scrollEnabled
             />
           )}
         />
@@ -140,6 +145,7 @@ export default function AddServiceToQuotePage() {
               value={field.value ?? ''}
               onChangeText={field.onChange}
               outlineStyle={styles.inputOutline}
+              contentStyle={styles.inputContentMultiline}
             />
           )}
         />
@@ -184,6 +190,10 @@ const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 10,
   },
+  searchInput: {
+    paddingLeft: 6,
+    paddingRight: 10,
+  },
   servicesPanel: {
     flex: 1,
     minHeight: 280,
@@ -214,6 +224,16 @@ const styles = StyleSheet.create({
   serviceCardContent: {
     gap: 4,
   },
+  inputOutline: {
+    borderRadius: 10,
+  },
+  inputContent: {
+    paddingHorizontal: 10,
+  },
+  inputContentMultiline: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+  },
   serviceCardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -243,9 +263,6 @@ const styles = StyleSheet.create({
     color: '#5f6368',
     marginTop: -2,
   },
-  inputOutline: {
-    borderRadius: 10,
-  },
   totalText: {
     marginTop: 2,
     marginBottom: 2,
@@ -258,4 +275,3 @@ const styles = StyleSheet.create({
     minHeight: 42,
   },
 });
-

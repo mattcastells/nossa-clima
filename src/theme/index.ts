@@ -6,12 +6,17 @@ export const BRAND_BLUE_MID = '#6E87A7';
 export const BRAND_GREEN = '#43663D';
 export const BRAND_GREEN_SOFT = '#EDF3EA';
 export const BRAND_GREEN_MID = '#C9DDB7';
+export const BRAND_YELLOW = '#8C6C1E';
+export const BRAND_YELLOW_SOFT = '#F6F1DC';
+export const BRAND_YELLOW_MID = '#E7D8A4';
 
 type AppExtendedColors = {
   softBlue: string;
   softGreen: string;
+  softYellow: string;
   softBlueStrong: string;
   softGreenStrong: string;
+  softYellowStrong: string;
   surfaceMuted: string;
   surfaceAlt: string;
   surfaceSoft: string;
@@ -43,8 +48,10 @@ export const lightTheme: AppTheme = {
     error: '#C62828',
     softBlue: '#E2ECF8',
     softGreen: '#E4EDE0',
+    softYellow: '#F6F1DC',
     softBlueStrong: '#CCDDF0',
     softGreenStrong: '#D1E0CA',
+    softYellowStrong: '#E7D8A4',
     surfaceMuted: '#F6F8FB',
     surfaceAlt: '#F7FAFD',
     surfaceSoft: '#F9FBFC',
@@ -73,8 +80,10 @@ export const darkTheme: AppTheme = {
     error: '#FFB4AB',
     softBlue: '#2B4058',
     softGreen: '#344A39',
+    softYellow: '#4B4225',
     softBlueStrong: '#3B5572',
     softGreenStrong: '#486252',
+    softYellowStrong: '#665832',
     surfaceMuted: '#22303E',
     surfaceAlt: '#1B2631',
     surfaceSoft: '#23313F',

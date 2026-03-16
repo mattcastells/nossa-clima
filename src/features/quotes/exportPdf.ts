@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
 import { Platform } from 'react-native';
 
@@ -18,6 +19,7 @@ const COMPANY_FOOTER_LINES = [
   'Disenos para obras y refrigeracion comercial',
   'Todas las marcas y modelos',
 ];
+const ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY = 'nossa-clima:pdf-directory-uri';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const brandBanner = require('../../../assets/nossa-banner.png');
 
@@ -754,6 +756,36 @@ const createUniqueSafFileUri = async (
   }
 };
 
+const requestAndroidPdfDirectoryUri = async (
+  StorageAccessFramework: typeof import('expo-file-system').StorageAccessFramework,
+): Promise<string> => {
+  const downloadsRootUri = StorageAccessFramework.getUriForDirectoryInRoot('Download');
+  const preferredPermission = await StorageAccessFramework.requestDirectoryPermissionsAsync(downloadsRootUri);
+  if (preferredPermission.granted && preferredPermission.directoryUri) {
+    return preferredPermission.directoryUri;
+  }
+
+  const fallbackPermission = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+  if (!fallbackPermission.granted || !fallbackPermission.directoryUri) {
+    throw new Error('No se otorgo permiso para guardar el PDF. Selecciona una carpeta para continuar.');
+  }
+
+  return fallbackPermission.directoryUri;
+};
+
+const loadAndroidPdfDirectorySelection = async (
+  StorageAccessFramework: typeof import('expo-file-system').StorageAccessFramework,
+): Promise<{ directoryUri: string; fromCache: boolean }> => {
+  const cachedDirectoryUri = (await AsyncStorage.getItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY).catch(() => null))?.trim();
+  if (cachedDirectoryUri) {
+    return { directoryUri: cachedDirectoryUri, fromCache: true };
+  }
+
+  const requestedDirectoryUri = await requestAndroidPdfDirectoryUri(StorageAccessFramework);
+  await AsyncStorage.setItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY, requestedDirectoryUri).catch(() => undefined);
+  return { directoryUri: requestedDirectoryUri, fromCache: false };
+};
+
 export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
   if (Platform.OS === 'web') {
     const brandLogoUri = await resolveBrandLogoUri();
@@ -818,18 +850,28 @@ export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
       return targetUri;
     }
 
-    const downloadsRootUri = StorageAccessFramework.getUriForDirectoryInRoot('Download');
-    const permission = await StorageAccessFramework.requestDirectoryPermissionsAsync(downloadsRootUri);
-
-    if (!permission.granted || !permission.directoryUri) {
-      throw new Error('No se otorgo permiso para guardar el PDF en Descargas.');
-    }
-
     const fileBase64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
-    const targetUri = await createUniqueSafFileUri(permission.directoryUri, file.fileName, 'application/pdf', StorageAccessFramework);
-    await StorageAccessFramework.writeAsStringAsync(targetUri, fileBase64, { encoding: FileSystem.EncodingType.Base64 });
+    const writeToSafDirectory = async (directoryUri: string): Promise<string> => {
+      const targetUri = await createUniqueSafFileUri(directoryUri, file.fileName, 'application/pdf', StorageAccessFramework);
+      await StorageAccessFramework.writeAsStringAsync(targetUri, fileBase64, { encoding: FileSystem.EncodingType.Base64 });
+      return targetUri;
+    };
 
-    return targetUri;
+    let directorySelection = await loadAndroidPdfDirectorySelection(StorageAccessFramework);
+
+    try {
+      return await writeToSafDirectory(directorySelection.directoryUri);
+    } catch (writeError) {
+      if (!directorySelection.fromCache) {
+        throw writeError;
+      }
+
+      await AsyncStorage.removeItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY).catch(() => undefined);
+      const requestedDirectoryUri = await requestAndroidPdfDirectoryUri(StorageAccessFramework);
+      await AsyncStorage.setItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY, requestedDirectoryUri).catch(() => undefined);
+      directorySelection = { directoryUri: requestedDirectoryUri, fromCache: false };
+      return writeToSafDirectory(directorySelection.directoryUri);
+    }
   } finally {
     try {
       await FileSystem.deleteAsync(file.uri);
