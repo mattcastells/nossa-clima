@@ -3,17 +3,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Button, Card, IconButton, Searchbar, Text } from 'react-native-paper';
 
+import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useQuotes } from '@/features/quotes/hooks';
 import { normalizeQuoteStatus, quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { formatCurrencyArs, formatDateAr, formatTimeShort } from '@/lib/format';
-import { BRAND_BLUE, BRAND_BLUE_SOFT } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 const PAGE_SIZE = 5;
 
 export default function QuotesScreen() {
   const { data, isLoading, error } = useQuotes();
+  const theme = useAppTheme();
   const { width } = useWindowDimensions();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -33,7 +35,11 @@ export default function QuotesScreen() {
       const dateLabel = formattedTime ? `${formattedDate} ${formattedTime}` : formattedDate;
       const searchableDate = `${dateLabel} ${dateSource}`.toLowerCase().replace(/-/g, '/');
 
-      return item.title.toLowerCase().includes(query) || searchableDate.includes(normalizedQuery);
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.client_name.toLowerCase().includes(query) ||
+        searchableDate.includes(normalizedQuery)
+      );
     });
   }, [quotes, search]);
   const totalPages = Math.max(1, Math.ceil(filteredQuotes.length / PAGE_SIZE));
@@ -64,20 +70,26 @@ export default function QuotesScreen() {
       </View>
 
       <Searchbar
-        placeholder="Buscar por titulo o fecha"
+        placeholder="Buscar por titulo, cliente o fecha"
         value={search}
         onChangeText={setSearch}
-        style={styles.searchbar}
+        style={[
+          styles.searchbar,
+          {
+            backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
+            borderColor: theme.colors.borderSoft,
+          },
+        ]}
       />
 
       <LoadingOrError isLoading={isLoading} error={error} />
 
       {!isLoading && !error && filteredQuotes.length > 0 ? (
         <View style={styles.paginationHeader}>
-          <Text style={styles.paginationSummary}>
+          <Text style={[styles.paginationSummary, { color: theme.colors.textMuted }]}>
             Mostrando {rangeStart}-{rangeEnd} de {filteredQuotes.length}
           </Text>
-          <Text style={styles.paginationSummary}>
+          <Text style={[styles.paginationSummary, { color: theme.colors.textMuted }]}>
             Pagina {page} de {totalPages}
           </Text>
         </View>
@@ -87,70 +99,78 @@ export default function QuotesScreen() {
         data={paginatedQuotes}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const dateValue = formatDateAr(item.appointment?.scheduled_for ?? item.created_at);
           const timeValue = formatTimeShort(item.appointment?.starts_at);
           const statusAccent = quoteStatusAccent(item.status);
           const descriptionValue = item.description?.trim() || item.notes?.trim() || 'Sin descripcion';
 
           return (
-            <Link href={`/quotes/${item.id}`} asChild>
-              <Card mode="outlined" style={styles.quoteCard}>
-                <View style={styles.headerBlock}>
-                  <View style={styles.headerRow}>
-                    <Text style={styles.headerTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor: statusAccent.backgroundColor,
-                          borderColor: statusAccent.borderColor,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.statusBadgeText, { color: statusAccent.textColor }]}>
-                        {quoteStatusLabel(item.status)}
+            <AnimatedEntrance delay={90 + index * 40} distance={12}>
+              <Link href={`/quotes/${item.id}`} asChild>
+                <Card mode="outlined" style={styles.quoteCard}>
+                  <View style={[styles.headerBlock, { backgroundColor: theme.colors.surfaceMuted }]}>
+                    <View style={styles.headerRow}>
+                      <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
+                        {item.title}
                       </Text>
-                    </View>
-                  </View>
-                </View>
-                <Card.Content style={styles.quoteContent}>
-                  <View style={[styles.metaColumns, !useTwoColumns && styles.metaColumnsStacked]}>
-                    <View style={styles.metaColumn}>
-                      <View style={styles.metaCard}>
-                        <Text style={styles.metaLabel}>Cliente</Text>
-                        <Text style={styles.metaValue} numberOfLines={2}>
-                          {item.client_name}
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: statusAccent.backgroundColor,
+                            borderColor: statusAccent.borderColor,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.statusBadgeText, { color: statusAccent.textColor }]}>
+                          {quoteStatusLabel(item.status)}
                         </Text>
-                      </View>
-                      <View style={[styles.metaCard, styles.descriptionCard]}>
-                        <Text style={styles.metaLabel}>Descripcion</Text>
-                        <Text style={styles.metaValue} numberOfLines={useTwoColumns ? 4 : 3}>
-                          {descriptionValue}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.metaColumn}>
-                      <View style={styles.metaCard}>
-                        <Text style={styles.metaLabel}>Fecha</Text>
-                        <Text style={styles.metaValue} numberOfLines={2}>
-                          {timeValue ? `${dateValue} - ${timeValue}` : dateValue}
-                        </Text>
-                      </View>
-                      <View style={[styles.metaCard, styles.totalCard]}>
-                        <Text style={[styles.metaLabel, styles.totalLabel]}>Total</Text>
-                        <Text style={styles.totalValue}>{formatCurrencyArs(item.total)}</Text>
                       </View>
                     </View>
                   </View>
-                  {normalizeQuoteStatus(item.status) === 'cancelled' ? (
-                    <Text style={styles.cancelledHint}>Se elimina automaticamente a los 3 dias si sigue cancelado.</Text>
-                  ) : null}
-                </Card.Content>
-              </Card>
-            </Link>
+                  <Card.Content style={styles.quoteContent}>
+                    <View style={[styles.metaColumns, !useTwoColumns && styles.metaColumnsStacked]}>
+                      <View style={styles.metaColumn}>
+                        <View style={[styles.metaCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
+                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Cliente</Text>
+                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                            {item.client_name}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.metaCard,
+                            styles.descriptionCard,
+                            { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft },
+                          ]}
+                        >
+                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Descripcion</Text>
+                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={useTwoColumns ? 4 : 3}>
+                            {descriptionValue}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.metaColumn}>
+                        <View style={[styles.metaCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
+                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Fecha</Text>
+                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                            {timeValue ? `${dateValue} - ${timeValue}` : dateValue}
+                          </Text>
+                        </View>
+                        <View style={[styles.metaCard, styles.totalCard, { backgroundColor: theme.colors.softBlue, borderColor: theme.colors.softBlueStrong }]}>
+                          <Text style={[styles.metaLabel, styles.totalLabel, { color: theme.colors.primary }]}>Total</Text>
+                          <Text style={[styles.totalValue, { color: theme.colors.primary }]}>{formatCurrencyArs(item.total)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    {normalizeQuoteStatus(item.status) === 'cancelled' ? (
+                      <Text style={[styles.cancelledHint, { color: theme.colors.error }]}>Se elimina automaticamente a los 3 dias si sigue cancelado.</Text>
+                    ) : null}
+                  </Card.Content>
+                </Card>
+              </Link>
+            </AnimatedEntrance>
           );
         }}
         ListEmptyComponent={
@@ -197,6 +217,7 @@ const styles = StyleSheet.create({
   },
   searchbar: {
     borderRadius: 14,
+    borderWidth: 1,
   },
   listContent: {
     paddingTop: 4,
@@ -210,7 +231,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   paginationSummary: {
-    color: '#5f6368',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -220,7 +240,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerBlock: {
-    backgroundColor: '#F6F8FB',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
@@ -269,8 +288,6 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E3E8EF',
-    backgroundColor: '#F9FBFC',
   },
   descriptionCard: {
     flex: 1,
@@ -278,28 +295,21 @@ const styles = StyleSheet.create({
   metaLabel: {
     fontSize: 11,
     lineHeight: 14,
-    color: '#5f6368',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   metaValue: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#1F2937',
     fontWeight: '500',
   },
   totalCard: {
-    backgroundColor: BRAND_BLUE_SOFT,
-    borderColor: '#C5D4E6',
   },
-  totalLabel: {
-    color: BRAND_BLUE,
-  },
+  totalLabel: {},
   totalValue: {
     fontSize: 22,
     lineHeight: 28,
     fontWeight: '700',
-    color: BRAND_BLUE,
   },
   cancelledHint: {
     marginTop: 2,

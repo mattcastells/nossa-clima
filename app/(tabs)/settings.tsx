@@ -1,11 +1,12 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, StyleSheet } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { Button, Card, Switch, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { signOut } from '@/features/auth/service';
+import { useThemeStore } from '@/features/theme/store';
 import { toUserErrorMessage } from '@/lib/errors';
 import { getAppVersion } from '@/lib/appVersion';
 import {
@@ -15,11 +16,15 @@ import {
   isAppUpdateAvailable,
   type AppUpdateRelease,
 } from '@/services/appUpdates';
+import { useAppTheme } from '@/theme';
 
 export default function SettingsScreen() {
+  const theme = useAppTheme();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const preference = useThemeStore((s) => s.preference);
+  const setPreference = useThemeStore((s) => s.setPreference);
   useToastMessageEffect(message, () => setMessage(null));
 
   const isBusy = isSigningOut || isUpdatingApp;
@@ -93,7 +98,19 @@ export default function SettingsScreen() {
 
   return (
     <AppScreen title="Opciones">
-      <Text>Configuracion general.</Text>
+      <Text style={{ color: theme.colors.textMuted }}>Configuracion general.</Text>
+
+      <Card mode="outlined">
+        <Card.Content style={styles.cardContent}>
+          <Text variant="titleMedium">Apariencia</Text>
+          <View style={[styles.preferenceRow, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
+            <View style={styles.preferenceCopy}>
+              <Text style={styles.preferenceTitle}>Modo oscuro</Text>
+            </View>
+            <Switch value={preference === 'dark'} onValueChange={(value) => setPreference(value ? 'dark' : 'light')} />
+          </View>
+        </Card.Content>
+      </Card>
 
       <Card mode="outlined">
         <Card.Content style={styles.cardContent}>
@@ -130,7 +147,7 @@ export default function SettingsScreen() {
       <Card mode="outlined">
         <Card.Content style={styles.cardContent}>
           <Text variant="titleMedium">Mantenimiento</Text>
-          <Text style={styles.helperText}>Usa esta opcion solo para eliminar trabajos viejos o limpiar datos.</Text>
+          <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Usa esta opcion solo para eliminar trabajos viejos o limpiar datos.</Text>
           <Link href="/quotes/cleanup" asChild>
             <Button mode="outlined" icon="delete-sweep-outline" disabled={isBusy}>
               Limpiar trabajos antiguos
@@ -139,7 +156,7 @@ export default function SettingsScreen() {
         </Card.Content>
       </Card>
 
-      <Text style={styles.versionText}>v{appVersion}</Text>
+      <Text style={[styles.versionText, { color: theme.colors.textMuted }]}>v{appVersion}</Text>
     </AppScreen>
   );
 }
@@ -148,14 +165,30 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: 12,
   },
+  preferenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  preferenceCopy: {
+    flex: 1,
+  },
+  preferenceTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
   helperText: {
-    color: '#6B7280',
     fontSize: 12,
     lineHeight: 18,
   },
   versionText: {
     marginTop: 4,
     textAlign: 'center',
-    color: '#6B7280',
   },
 });

@@ -3,13 +3,15 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Card, Searchbar, Text } from 'react-native-paper';
 
+import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
-import { BRAND_BLUE_SOFT } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 export default function StoresScreen() {
   const { data, isLoading, error } = useStores();
+  const theme = useAppTheme();
   const [search, setSearch] = useState('');
 
   const filteredStores = useMemo(() => {
@@ -27,7 +29,18 @@ export default function StoresScreen() {
 
   return (
     <AppScreen title="Tiendas">
-      <Searchbar placeholder="Buscar tienda" value={search} onChangeText={setSearch} style={styles.searchbar} />
+      <Searchbar
+        placeholder="Buscar tienda"
+        value={search}
+        onChangeText={setSearch}
+        style={[
+          styles.searchbar,
+          {
+            backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
+            borderColor: theme.colors.borderSoft,
+          },
+        ]}
+      />
 
       <View style={styles.topActions}>
         <Link href="/stores/new" asChild>
@@ -41,18 +54,20 @@ export default function StoresScreen() {
         data={filteredStores}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <Link href={`/stores/${item.id}`} asChild>
-            <Card mode="outlined" style={styles.storeCard}>
-              <View style={styles.headerBlock}>
-                <Text style={styles.headerTitle}>{item.name}</Text>
-              </View>
-              <Card.Content style={styles.storeCardContent}>
-                {item.address ? <Text>Ubicacion: {item.address}</Text> : null}
-                {item.phone ? <Text>Telefono: {item.phone}</Text> : null}
-              </Card.Content>
-            </Card>
-          </Link>
+        renderItem={({ item, index }) => (
+          <AnimatedEntrance delay={80 + index * 40} distance={12}>
+            <Link href={`/stores/${item.id}`} asChild>
+              <Card mode="outlined" style={styles.storeCard}>
+                <View style={[styles.headerBlock, { backgroundColor: theme.colors.softBlue }]}>
+                  <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]}>{item.name}</Text>
+                </View>
+                <Card.Content style={styles.storeCardContent}>
+                  {item.address ? <Text style={{ color: theme.colors.onSurface }}>Ubicacion: {item.address}</Text> : null}
+                  {item.phone ? <Text style={{ color: theme.colors.onSurface }}>Telefono: {item.phone}</Text> : null}
+                </Card.Content>
+              </Card>
+            </Link>
+          </AnimatedEntrance>
         )}
         ListEmptyComponent={<Text>No hay tiendas que coincidan con los filtros.</Text>}
       />
@@ -63,6 +78,7 @@ export default function StoresScreen() {
 const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 14,
+    borderWidth: 1,
   },
   topActions: {
     flexDirection: 'row',
@@ -77,7 +93,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerBlock: {
-    backgroundColor: BRAND_BLUE_SOFT,
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: 9,

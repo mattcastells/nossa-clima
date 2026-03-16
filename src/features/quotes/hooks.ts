@@ -137,10 +137,15 @@ export const useDuplicateQuoteServiceItem = () => {
   });
 };
 
-export const useSuggestedMaterialPrice = (itemId: string, marginPercent?: number | null, sourceStoreId?: string | null) =>
+export const useSuggestedMaterialPrice = (
+  itemId: string,
+  itemMeasurementId?: string | null,
+  marginPercent?: number | null,
+  sourceStoreId?: string | null,
+) =>
   useQuery({
-    queryKey: ['suggested-material-price', itemId, marginPercent ?? null, sourceStoreId ?? null],
-    queryFn: () => getSuggestedMaterialPrice(itemId, marginPercent, sourceStoreId),
+    queryKey: ['suggested-material-price', itemId, itemMeasurementId ?? null, marginPercent ?? null, sourceStoreId ?? null],
+    queryFn: () => getSuggestedMaterialPrice(itemId, itemMeasurementId, marginPercent, sourceStoreId),
     enabled: Boolean(itemId),
   });
 

@@ -1,108 +1,286 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
 import { Button, Card, Menu, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
-import { useItems } from '@/features/items/hooks';
-import { useCreatePrice, useLatestPrices } from '@/features/prices/hooks';
-import { PriceFormValues, priceSchema } from '@/features/prices/schemas';
+import { useItemMeasurements, useItems } from '@/features/items/hooks';
+import { useCreateMeasurePrice, useCreatePrice, useLatestManualMeasurePrices, useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
-import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
+import { useAppTheme } from '@/theme';
+import type { LatestStoreItemMeasurementPrice, LatestStoreItemPrice } from '@/types/db';
 
 const getSingleParam = (value: string | string[] | undefined): string => (Array.isArray(value) ? value[0] ?? '' : value ?? '');
 
+const parsePriceInput = (value: string): number | null => {
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const parsed = Number(normalized.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const formatStoreSummary = (
+  measureRows: LatestStoreItemMeasurementPrice[],
+  baseRow: LatestStoreItemPrice | null,
+  hasCalculatedMeasures: boolean,
+  basePriceLabel: string | null,
+): { primary: string; secondary?: string } => {
+  if (measureRows.length === 0 && !baseRow) {
+    return { primary: 'Sin precios cargados' };
+  }
+
+  if (measureRows.length > 0) {
+    const latestMeasureRow = measureRows[0] ?? null;
+    const summary: { primary: string; secondary?: string } = {
+      primary: `${measureRows.length} medida${measureRows.length === 1 ? '' : 's'} con precio`,
+    };
+
+    if (hasCalculatedMeasures && baseRow) {
+      summary.secondary = `${basePriceLabel?.trim() ? `${basePriceLabel.trim()}: ` : 'Base: '}${formatCurrencyArs(baseRow.price)} / kg`;
+    } else if (latestMeasureRow) {
+      summary.secondary = `Ultimo registro: ${formatDateAr(latestMeasureRow.observed_at)}`;
+    }
+
+    return summary;
+  }
+
+  const summary: { primary: string; secondary?: string } = {
+    primary: `${basePriceLabel?.trim() ? `${basePriceLabel.trim()}: ` : 'Base: '}${formatCurrencyArs(baseRow?.price ?? 0)} / kg`,
+  };
+
+  if (baseRow) {
+    summary.secondary = `Ultimo registro: ${formatDateAr(baseRow.observed_at)}`;
+  }
+
+  return summary;
+};
+
 export default function NewPricePage() {
+  const theme = useAppTheme();
   const params = useLocalSearchParams<{ itemId?: string | string[]; storeId?: string | string[] }>();
   const initialStoreId = getSingleParam(params.storeId).trim();
   const initialItemId = getSingleParam(params.itemId).trim();
 
   const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
   const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
-  const { data: latestPrices, isLoading: pricesLoading, error: pricesError } = useLatestPrices();
+  const { data: measurements, isLoading: measurementsLoading, error: measurementsError } = useItemMeasurements(initialItemId);
+  const { data: latestBasePrices, isLoading: basePricesLoading, error: basePricesError } = useLatestPrices();
+  const { data: latestEffectiveMeasurePrices, isLoading: effectivePricesLoading, error: effectivePricesError } = useLatestMeasurePrices({ itemId: initialItemId });
+  const { data: latestManualMeasurePrices, isLoading: manualPricesLoading, error: manualPricesError } = useLatestManualMeasurePrices({
+    itemId: initialItemId,
+  });
   const createPrice = useCreatePrice();
+  const createMeasurePrice = useCreateMeasurePrice();
 
   const [message, setMessage] = useState<string | null>(null);
   const [storeMenuVisible, setStoreMenuVisible] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState(initialStoreId);
+  const [directPriceInput, setDirectPriceInput] = useState('');
+  const [basePriceInput, setBasePriceInput] = useState('');
+  const [manualPriceInputs, setManualPriceInputs] = useState<Record<string, string>>({});
   const toast = useAppToast();
   useToastMessageEffect(message, () => setMessage(null));
 
   const availableStores = useMemo(() => (stores ?? []).sort((a, b) => a.name.localeCompare(b.name)), [stores]);
   const availableMaterials = useMemo(() => (items ?? []).filter((item) => item.item_type === 'material'), [items]);
   const selectedItem = availableMaterials.find((item) => item.id === initialItemId) ?? null;
-
-  const {
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<PriceFormValues>({
-    resolver: zodResolver(priceSchema),
-    defaultValues: {
-      store_id: initialStoreId,
-      item_id: initialItemId,
-      price: 0,
-      currency: 'ARS',
-      observed_at: new Date().toISOString().slice(0, 10),
-      quantity_reference: '',
-      notes: '',
-    },
-  });
-
-  const selectedStoreId = watch('store_id');
+  const itemMeasurements = measurements ?? [];
+  const hasMeasurements = itemMeasurements.length > 0;
+  const calculatedMeasurements = itemMeasurements.filter((measurement) => measurement.pricing_mode === 'calculated');
+  const manualMeasurements = itemMeasurements.filter((measurement) => measurement.pricing_mode === 'manual');
+  const hasCalculatedMeasures = calculatedMeasurements.length > 0;
   const selectedStore = availableStores.find((store) => store.id === selectedStoreId) ?? null;
-  const selectedItemName = selectedItem?.name ?? '';
-  const selectedItemCategory = selectedItem?.category ?? '';
 
-  const materialPrices = useMemo(() => {
-    return availableStores.map((store) => {
-      const latest = (latestPrices ?? []).find((row) => row.item_id === initialItemId && row.store_id === store.id) ?? null;
-      return {
-        storeId: store.id,
-        storeName: store.name,
-        latest,
-      };
+  const latestBasePriceByStoreId = useMemo(() => {
+    const map = new Map<string, LatestStoreItemPrice>();
+    (latestBasePrices ?? [])
+      .filter((row) => row.item_id === initialItemId)
+      .forEach((row) => {
+        map.set(row.store_id, row);
+      });
+    return map;
+  }, [initialItemId, latestBasePrices]);
+
+  const latestMeasureRowsByStoreId = useMemo(() => {
+    const map = new Map<string, LatestStoreItemMeasurementPrice[]>();
+    (latestEffectiveMeasurePrices ?? []).forEach((row) => {
+      const existing = map.get(row.store_id) ?? [];
+      existing.push(row);
+      map.set(row.store_id, existing);
     });
-  }, [availableStores, initialItemId, latestPrices]);
+    map.forEach((rows, storeId) => {
+      map.set(
+        storeId,
+        rows.slice().sort((a, b) => a.item_measurement_label.localeCompare(b.item_measurement_label)),
+      );
+    });
+    return map;
+  }, [latestEffectiveMeasurePrices]);
+
+  const latestManualPriceByMeasurementId = useMemo(() => {
+    const map = new Map<string, LatestStoreItemMeasurementPrice>();
+    (latestManualMeasurePrices ?? [])
+      .filter((row) => !selectedStoreId || row.store_id === selectedStoreId)
+      .forEach((row) => {
+        map.set(row.item_measurement_id, row);
+      });
+    return map;
+  }, [latestManualMeasurePrices, selectedStoreId]);
+
+  const selectedStoreBaseRow = selectedStoreId ? latestBasePriceByStoreId.get(selectedStoreId) ?? null : null;
+  const selectedStoreMeasureRows = selectedStoreId ? latestMeasureRowsByStoreId.get(selectedStoreId) ?? [] : [];
+
+  useEffect(() => {
+    setDirectPriceInput(selectedStoreBaseRow && !hasMeasurements ? String(selectedStoreBaseRow.price) : '');
+    setBasePriceInput(selectedStoreBaseRow && hasCalculatedMeasures ? String(selectedStoreBaseRow.price) : '');
+
+    const nextManualInputs: Record<string, string> = {};
+    manualMeasurements.forEach((measurement) => {
+      const latestRow = latestManualPriceByMeasurementId.get(measurement.id);
+      nextManualInputs[measurement.id] = latestRow ? String(latestRow.price) : '';
+    });
+    setManualPriceInputs(nextManualInputs);
+  }, [hasCalculatedMeasures, hasMeasurements, latestManualPriceByMeasurementId, manualMeasurements, selectedStoreBaseRow]);
 
   const combinedError =
-    storesError ? new Error(storesError.message) : itemsError ? new Error(itemsError.message) : pricesError ? new Error(pricesError.message) : null;
+    storesError ??
+    itemsError ??
+    measurementsError ??
+    basePricesError ??
+    effectivePricesError ??
+    manualPricesError;
+
+  const savePrices = async () => {
+    if (!selectedItem) return;
+    if (!selectedStoreId) {
+      setMessage('Selecciona una tienda.');
+      return;
+    }
+
+    try {
+      if (!hasMeasurements) {
+        const parsedPrice = parsePriceInput(directPriceInput);
+        if (parsedPrice == null || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+          throw new Error('Ingresa un precio valido mayor a 0.');
+        }
+
+        await createPrice.mutateAsync({
+          store_id: selectedStoreId,
+          item_id: selectedItem.id,
+          price: parsedPrice,
+          currency: 'ARS',
+          observed_at: new Date().toISOString(),
+          source_type: 'manual_update',
+          quantity_reference: null,
+          notes: null,
+        });
+
+        toast.success('Precio actualizado.');
+        router.back();
+        return;
+      }
+
+      const operations: Array<Promise<unknown>> = [];
+
+      if (hasCalculatedMeasures) {
+        const parsedBasePrice = parsePriceInput(basePriceInput);
+        if (parsedBasePrice == null || !Number.isFinite(parsedBasePrice) || parsedBasePrice <= 0) {
+          throw new Error('Ingresa el costo base por kg para las medidas calculadas.');
+        }
+
+        operations.push(
+          createPrice.mutateAsync({
+            store_id: selectedStoreId,
+            item_id: selectedItem.id,
+            price: parsedBasePrice,
+            currency: 'ARS',
+            observed_at: new Date().toISOString(),
+            source_type: 'manual_update',
+            quantity_reference: null,
+            notes: `Base de calculo por kg para ${selectedItem.base_price_label?.trim() || selectedItem.name}`,
+          }),
+        );
+      }
+
+      manualMeasurements.forEach((measurement) => {
+        const rawInput = manualPriceInputs[measurement.id] ?? '';
+        if (!rawInput.trim()) return;
+
+        const parsedPrice = parsePriceInput(rawInput);
+        if (parsedPrice == null || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+          throw new Error(`El precio de ${measurement.label} debe ser mayor a 0.`);
+        }
+
+        operations.push(
+          createMeasurePrice.mutateAsync({
+            store_id: selectedStoreId,
+            item_measurement_id: measurement.id,
+            price: parsedPrice,
+            currency: 'ARS',
+            observed_at: new Date().toISOString(),
+            source_type: 'manual_update',
+            notes: null,
+          }),
+        );
+      });
+
+      if (operations.length === 0) {
+        throw new Error('No hay precios para guardar.');
+      }
+
+      await Promise.all(operations);
+      toast.success('Precios actualizados.');
+      router.back();
+    } catch (error) {
+      setMessage(toUserErrorMessage(error, 'No se pudieron guardar los precios.'));
+    }
+  };
+
+  const busy = createPrice.isPending || createMeasurePrice.isPending;
 
   return (
     <AppScreen title="Registrar precio" showHomeButton={false}>
-      <LoadingOrError isLoading={storesLoading || itemsLoading || pricesLoading} error={combinedError} />
+      <LoadingOrError
+        isLoading={storesLoading || itemsLoading || measurementsLoading || basePricesLoading || effectivePricesLoading || manualPricesLoading}
+        error={combinedError ? new Error(combinedError.message) : null}
+      />
 
-      {!storesLoading && !itemsLoading && !pricesLoading && !selectedItem ? (
-        <Card mode="outlined" style={styles.formCard}>
+      {!storesLoading && !itemsLoading && !selectedItem ? (
+        <Card mode="outlined" style={[styles.formCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Card.Content style={styles.emptySelectionContent}>
-            <Text variant="titleSmall">Material no seleccionado</Text>
-            <Text style={styles.helperText}>Para registrar un precio, primero entra al material que queres actualizar.</Text>
+            <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>Material no seleccionado</Text>
+            <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
+              Para registrar precios, primero entra al material que queres actualizar.
+            </Text>
             <Link href="/items" asChild>
               <Button mode="contained">Ir a Materiales</Button>
             </Link>
           </Card.Content>
         </Card>
-      ) : (
+      ) : selectedItem ? (
         <>
-          <Card mode="outlined" style={styles.formCard}>
+          <Card mode="outlined" style={[styles.formCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
             <Card.Content style={styles.formContent}>
               <View style={styles.fieldGroup}>
-                <Text variant="labelMedium">Material</Text>
-                <View style={styles.readonlyField}>
-                  <Text style={styles.readonlyValue}>{selectedItemName}</Text>
-                  {selectedItemCategory ? <Text style={styles.readonlyMeta}>{selectedItemCategory}</Text> : null}
+                <Text variant="labelMedium" style={{ color: theme.colors.onSurface }}>Material</Text>
+                <View style={[styles.readonlyField, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surface }]}>
+                  <Text style={[styles.readonlyValue, { color: theme.colors.onSurface }]}>{selectedItem.name}</Text>
+                  {selectedItem.category ? <Text style={[styles.readonlyMeta, { color: theme.colors.textMuted }]}>{selectedItem.category}</Text> : null}
+                  {hasMeasurements ? (
+                    <Text style={[styles.readonlyMeta, { color: theme.colors.textMuted }]}>
+                      {itemMeasurements.length} medida{itemMeasurements.length === 1 ? '' : 's'} configurada{itemMeasurements.length === 1 ? '' : 's'}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text variant="labelMedium">Local</Text>
+                <Text variant="labelMedium" style={{ color: theme.colors.onSurface }}>Local</Text>
                 <Menu
                   visible={storeMenuVisible}
                   onDismiss={() => setStoreMenuVisible(false)}
@@ -110,8 +288,9 @@ export default function NewPricePage() {
                     <Button
                       mode="outlined"
                       icon="chevron-down"
-                      style={styles.selectButton}
+                      style={[styles.selectButton, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surface }]}
                       contentStyle={styles.selectButtonContent}
+                      textColor={selectedStore ? theme.colors.onSurface : theme.colors.textMuted}
                       onPress={() => setStoreMenuVisible(true)}
                     >
                       {selectedStore?.name ?? 'Seleccionar o crear local'}
@@ -123,7 +302,7 @@ export default function NewPricePage() {
                       key={store.id}
                       title={store.name}
                       onPress={() => {
-                        setValue('store_id', store.id, { shouldValidate: true });
+                        setSelectedStoreId(store.id);
                         setStoreMenuVisible(false);
                       }}
                     />
@@ -142,89 +321,147 @@ export default function NewPricePage() {
                     }}
                   />
                 </Menu>
-                {errors.store_id ? <Text style={styles.errorText}>{errors.store_id.message}</Text> : null}
               </View>
 
-              <Controller
-                control={control}
-                name="price"
-                render={({ field }) => (
+              {!hasMeasurements ? (
+                <View style={styles.priceEditorBlock}>
+                  <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>Precio directo</Text>
                   <TextInput
                     mode="outlined"
                     label="Precio"
-                    placeholder="Ej. 120000"
+                    placeholder="Ej: 120000"
                     keyboardType="decimal-pad"
-                    value={field.value === 0 ? '' : String(field.value)}
-                    onChangeText={field.onChange}
+                    value={directPriceInput}
+                    onChangeText={setDirectPriceInput}
                     outlineStyle={styles.inputOutline}
                   />
-                )}
-              />
-              {errors.price ? <Text style={styles.errorText}>{errors.price.message}</Text> : null}
+                </View>
+              ) : (
+                <>
+                  {hasCalculatedMeasures ? (
+                    <View style={styles.priceEditorBlock}>
+                      <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>Base de calculo</Text>
+                      <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
+                        Este valor se guarda por tienda en {selectedItem.base_price_label?.trim() || 'base'} (kg) y actualiza las medidas calculadas.
+                      </Text>
+                      <TextInput
+                        mode="outlined"
+                        label={`${selectedItem.base_price_label?.trim() || 'Precio base'} / kg`}
+                        placeholder="Ej: 38000"
+                        keyboardType="decimal-pad"
+                        value={basePriceInput}
+                        onChangeText={setBasePriceInput}
+                        outlineStyle={styles.inputOutline}
+                      />
+                    </View>
+                  ) : null}
+
+                  <View style={styles.priceEditorBlock}>
+                    <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>Medidas</Text>
+                    {itemMeasurements.map((measurement) => {
+                      const effectiveRow = selectedStoreMeasureRows.find((row) => row.item_measurement_id === measurement.id) ?? null;
+
+                      return (
+                        <View key={measurement.id} style={[styles.measurementEditorRow, { borderColor: theme.colors.borderSoft }]}>
+                          <View style={styles.measurementEditorInfo}>
+                            <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{measurement.label}</Text>
+                            <Text style={{ color: theme.colors.textMuted }}>
+                              {measurement.pricing_mode === 'calculated'
+                                ? `${measurement.grams_per_meter} gr/mt`
+                                : 'Carga manual por metro'}
+                            </Text>
+                            {effectiveRow ? (
+                              <Text style={{ color: theme.colors.textMuted }}>
+                                Actual: {formatCurrencyArs(effectiveRow.price)} / mt
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          {measurement.pricing_mode === 'manual' ? (
+                            <TextInput
+                              mode="outlined"
+                              label="$ / mt"
+                              keyboardType="decimal-pad"
+                              value={manualPriceInputs[measurement.id] ?? ''}
+                              onChangeText={(value) =>
+                                setManualPriceInputs((current) => ({
+                                  ...current,
+                                  [measurement.id]: value,
+                                }))
+                              }
+                              outlineStyle={styles.inputOutline}
+                              style={styles.measurementPriceInput}
+                            />
+                          ) : (
+                            <View style={[styles.calculatedPriceChip, { backgroundColor: theme.colors.softGreen }]}>
+                              <Text style={{ color: theme.colors.titleOnSoft, fontWeight: '700' }}>
+                                {effectiveRow ? `${formatCurrencyArs(effectiveRow.price)} / mt` : 'Completa la base'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
 
               <Button
                 mode="contained"
-                loading={createPrice.isPending}
-                disabled={createPrice.isPending}
-                onPress={handleSubmit(async (values) => {
-                  try {
-                    await createPrice.mutateAsync({
-                      store_id: values.store_id,
-                      item_id: initialItemId,
-                      price: values.price,
-                      currency: 'ARS',
-                      observed_at: new Date().toISOString(),
-                      source_type: 'manual_update',
-                      quantity_reference: null,
-                      notes: null,
-                    });
-                    toast.success('Precio actualizado.');
-                    router.back();
-                  } catch (error) {
-                    setMessage(toUserErrorMessage(error, 'No se pudo registrar el precio.'));
-                  }
-                })}
+                loading={busy}
+                disabled={busy}
+                onPress={savePrices}
                 style={styles.saveButton}
                 contentStyle={styles.saveButtonContent}
               >
-                Actualizar
+                Guardar precios
               </Button>
             </Card.Content>
           </Card>
 
-          <Card mode="outlined" style={styles.tableCard}>
+          <Card mode="outlined" style={[styles.tableCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
             <Card.Content style={styles.tableContent}>
               <View style={styles.tableHeaderBlock}>
-                <Text variant="titleSmall">Locales y precios</Text>
-                <Text style={styles.helperText}>Toca un local para seleccionarlo.</Text>
+                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>Locales y estado</Text>
+                <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Toca un local para seleccionarlo.</Text>
               </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScrollContent}>
                 <View style={styles.tableFrame}>
-                  <View style={styles.tableHeader}>
-                    <Text style={[styles.headerCell, styles.storeColumn]}>Local</Text>
-                    <Text style={[styles.headerCell, styles.priceColumn]}>Precio</Text>
-                    <Text style={[styles.headerCell, styles.dateColumn]}>Fecha</Text>
+                  <View style={[styles.tableHeader, { backgroundColor: theme.colors.softGreen }]}>
+                    <Text style={[styles.headerCell, styles.storeColumn, { color: theme.colors.titleOnSoft }]}>Local</Text>
+                    <Text style={[styles.headerCell, styles.statusColumn, { color: theme.colors.titleOnSoft }]}>Estado</Text>
+                    <Text style={[styles.headerCell, styles.dateColumn, { color: theme.colors.titleOnSoft }]}>Fecha</Text>
                   </View>
 
-                  {materialPrices.map(({ storeId, storeName, latest }, index) => {
-                    const selected = storeId === selectedStoreId;
+                  {availableStores.map((store, index) => {
+                    const selected = store.id === selectedStoreId;
+                    const baseRow = latestBasePriceByStoreId.get(store.id) ?? null;
+                    const measureRows = latestMeasureRowsByStoreId.get(store.id) ?? [];
+                    const summary = formatStoreSummary(measureRows, baseRow, hasCalculatedMeasures, selectedItem.base_price_label);
+                    const referenceDate = measureRows[0]?.observed_at ?? baseRow?.observed_at ?? null;
 
                     return (
                       <Pressable
-                        key={storeId}
-                        onPress={() => setValue('store_id', storeId, { shouldValidate: true })}
-                        style={[
+                        key={store.id}
+                        onPress={() => setSelectedStoreId(store.id)}
+                        style={({ pressed }) => [
                           styles.tableRow,
-                          index % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd,
-                          selected && styles.tableRowSelected,
+                          { borderColor: theme.colors.borderSoft },
+                          index % 2 === 0 ? { backgroundColor: theme.colors.surface } : { backgroundColor: theme.colors.surfaceSoft },
+                          selected && { borderColor: theme.colors.softGreenStrong, backgroundColor: theme.colors.softGreen },
+                          pressed && !selected && { backgroundColor: theme.colors.surfaceMuted },
+                          pressed && selected && { backgroundColor: theme.colors.softGreenStrong },
                         ]}
                       >
-                        <Text style={[styles.rowCell, styles.storeColumn, styles.storeNameCell]}>{storeName}</Text>
-                        <Text style={[styles.rowCell, styles.priceColumn, styles.priceValue]}>
-                          {latest ? formatCurrencyArs(latest.price) : 'Sin precio'}
+                        <Text style={[styles.rowCell, styles.storeColumn, styles.storeNameCell, { color: theme.colors.onSurface }]}>{store.name}</Text>
+                        <View style={styles.statusColumn}>
+                          <Text style={[styles.rowCell, { color: theme.colors.onSurface }]}>{summary.primary}</Text>
+                          {summary.secondary ? <Text style={[styles.rowMeta, { color: theme.colors.textMuted }]}>{summary.secondary}</Text> : null}
+                        </View>
+                        <Text style={[styles.rowCell, styles.dateColumn, { color: theme.colors.textMuted }]}>
+                          {referenceDate ? formatDateAr(referenceDate) : '-'}
                         </Text>
-                        <Text style={[styles.rowCell, styles.dateColumn]}>{latest ? formatDateAr(latest.observed_at) : '-'}</Text>
                       </Pressable>
                     );
                   })}
@@ -233,8 +470,7 @@ export default function NewPricePage() {
             </Card.Content>
           </Card>
         </>
-      )}
-
+      ) : null}
     </AppScreen>
   );
 }
@@ -256,11 +492,9 @@ const styles = StyleSheet.create({
   },
   readonlyField: {
     borderWidth: 1,
-    borderColor: '#C9D7E6',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#F8FBFF',
     gap: 2,
   },
   readonlyValue: {
@@ -271,7 +505,6 @@ const styles = StyleSheet.create({
   readonlyMeta: {
     fontSize: 12,
     lineHeight: 16,
-    color: '#5f6368',
   },
   selectButton: {
     borderRadius: 10,
@@ -284,6 +517,33 @@ const styles = StyleSheet.create({
   },
   inputOutline: {
     borderRadius: 10,
+  },
+  priceEditorBlock: {
+    gap: 10,
+  },
+  measurementEditorRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  measurementEditorInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  measurementPriceInput: {
+    width: 128,
+  },
+  calculatedPriceChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 128,
+    alignItems: 'center',
   },
   saveButton: {
     borderRadius: 10,
@@ -303,7 +563,6 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   helperText: {
-    color: '#5f6368',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -311,13 +570,12 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   tableFrame: {
-    minWidth: 430,
+    minWidth: 520,
     gap: 8,
   },
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BRAND_GREEN_SOFT,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -326,7 +584,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',
-    color: BRAND_GREEN,
   },
   tableRow: {
     flexDirection: 'row',
@@ -335,42 +592,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#DCE4EC',
-  },
-  tableRowEven: {
-    backgroundColor: '#FFFFFF',
-  },
-  tableRowOdd: {
-    backgroundColor: '#F8FBFF',
-  },
-  tableRowSelected: {
-    borderColor: BRAND_GREEN,
-    backgroundColor: BRAND_GREEN_SOFT,
   },
   rowCell: {
     fontSize: 13,
     lineHeight: 18,
   },
+  rowMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
   storeColumn: {
-    width: 165,
+    width: 160,
     paddingRight: 8,
   },
-  priceColumn: {
-    width: 110,
+  statusColumn: {
+    width: 240,
     paddingRight: 8,
+    gap: 2,
   },
   dateColumn: {
     width: 90,
   },
   storeNameCell: {
     fontWeight: '500',
-  },
-  priceValue: {
-    fontWeight: '600',
-  },
-  errorText: {
-    color: '#B00020',
-    fontSize: 12,
-    lineHeight: 16,
   },
 });

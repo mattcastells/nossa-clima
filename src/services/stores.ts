@@ -57,5 +57,5 @@ export const listStoreLatestPrices = async (storeId: string): Promise<LatestStor
     .eq('store_id', storeId)
     .order('item_name');
   if (error) throw error;
-  return data;
+  return data ?? [];
 };

@@ -10,7 +10,7 @@ import { quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { formatIsoDate, getCalendarCells, maskTimeInput, monthLabel, normalizeOptionalTimeInput, toHumanDate } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatTimeShort } from '@/lib/format';
-import { BRAND_BLUE, BRAND_BLUE_MID, BRAND_BLUE_SOFT } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
@@ -37,6 +37,7 @@ const getCurrentSelectedDate = (): string => formatIsoDate(new Date());
 
 export const WorkCalendarCard = () => {
   const router = useRouter();
+  const theme = useAppTheme();
   const isFocused = useIsFocused();
   const [monthAnchor, setMonthAnchor] = useState(getCurrentMonthAnchor);
   const [selectedDate, setSelectedDate] = useState(getCurrentSelectedDate);
@@ -116,12 +117,15 @@ export const WorkCalendarCard = () => {
                     onPress={() => setSelectedDate(dateKey)}
                     style={({ pressed }) => [styles.dayPressable, pressed && styles.dayPressablePressed]}
                   >
-                    <View style={[styles.dayBubble, selected && styles.dayBubbleSelected]}>
-                      <Text style={[styles.dayNumber, selected && styles.dayNumberSelected]}>{day}</Text>
+                    <View style={[styles.dayBubble, selected && { backgroundColor: theme.colors.softBlue }]}>
+                      <Text style={[styles.dayNumber, { color: selected ? theme.colors.primary : theme.colors.titleOnSoft }]}>{day}</Text>
                     </View>
                     <View style={styles.dayMarkersRow}>
                       {Array.from({ length: markers }).map((_, markerIndex) => (
-                        <View key={`${dateKey}-marker-${markerIndex}`} style={[styles.dayMarker, selected && styles.dayMarkerSelected]} />
+                        <View
+                          key={`${dateKey}-marker-${markerIndex}`}
+                          style={[styles.dayMarker, { backgroundColor: selected ? theme.colors.secondary : theme.colors.primary }]}
+                        />
                       ))}
                     </View>
                   </Pressable>
@@ -132,9 +136,9 @@ export const WorkCalendarCard = () => {
         </View>
 
         <Text variant="titleMedium">Trabajos del {toHumanDate(selectedDate)}</Text>
-        {appointmentsQuery.isLoading && <Text>Cargando trabajos...</Text>}
+        {appointmentsQuery.isLoading && <Text style={{ color: theme.colors.textMuted }}>Cargando trabajos...</Text>}
         {!appointmentsQuery.isLoading && selectedDateAppointments.length === 0 && (
-          <Text>No hay trabajos cargados para esta fecha.</Text>
+          <Text style={{ color: theme.colors.textMuted }}>No hay trabajos cargados para esta fecha.</Text>
         )}
         {!appointmentsQuery.isLoading &&
           selectedDateAppointments.map((appointment) => (
@@ -142,7 +146,7 @@ export const WorkCalendarCard = () => {
               <Card.Content style={styles.appointmentContent}>
                 {appointment.quote ? (
                   <View style={styles.appointmentHeaderRow}>
-                    <Text style={styles.appointmentTitle} numberOfLines={1}>
+                    <Text style={[styles.appointmentTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
                       {appointment.quote.title}
                     </Text>
                     <View
@@ -160,23 +164,23 @@ export const WorkCalendarCard = () => {
                     </View>
                   </View>
                 ) : (
-                  <Text style={styles.appointmentTitle} numberOfLines={1}>
+                  <Text style={[styles.appointmentTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
                     {appointment.title}
                   </Text>
                 )}
                 <View style={styles.metaBlock}>
-                  <Text style={styles.metaLabel}>Cliente:</Text>
-                  <Text style={styles.metaValue}>{getAppointmentClientLabel(appointment)}</Text>
+                  <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Cliente:</Text>
+                  <Text style={{ color: theme.colors.onSurface }}>{getAppointmentClientLabel(appointment)}</Text>
                 </View>
                 <View style={styles.metaBlock}>
-                  <Text style={styles.metaLabel}>Fecha y hora:</Text>
-                  <Text style={styles.metaValue}>
+                  <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Fecha y hora:</Text>
+                  <Text style={{ color: theme.colors.onSurface }}>
                     {`${formatDateAr(appointment.scheduled_for)}${appointment.starts_at ? ` - ${formatTimeShort(appointment.starts_at)}` : ''}`}
                   </Text>
                 </View>
                 <View style={styles.metaBlock}>
-                  <Text style={styles.metaLabel}>Descripcion:</Text>
-                  <Text style={styles.metaValue}>{getAppointmentDescription(appointment)}</Text>
+                  <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Descripcion:</Text>
+                  <Text style={{ color: theme.colors.onSurface }}>{getAppointmentDescription(appointment)}</Text>
                 </View>
                 <View style={styles.appointmentActions}>
                   {appointment.quote_id ? (
@@ -310,7 +314,6 @@ const styles = StyleSheet.create({
     width: `${100 / 7}%`,
     textAlign: 'center',
     fontWeight: '600',
-    color: '#4B5563',
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -342,14 +345,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '500',
-    color: '#164E63',
-  },
-  dayBubbleSelected: {
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
-  dayNumberSelected: {
-    fontWeight: '700',
-    color: BRAND_BLUE,
   },
   dayMarkersRow: {
     minHeight: 8,
@@ -363,10 +358,6 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 999,
-    backgroundColor: BRAND_BLUE,
-  },
-  dayMarkerSelected: {
-    backgroundColor: BRAND_BLUE_MID,
   },
   appointmentCard: {
     marginTop: 2,
@@ -385,7 +376,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     fontWeight: '600',
-    color: '#1F2937',
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -404,11 +394,6 @@ const styles = StyleSheet.create({
   metaLabel: {
     fontSize: 12,
     lineHeight: 16,
-    color: '#5f6368',
-  },
-  metaValue: {
-    fontSize: 14,
-    lineHeight: 20,
   },
   appointmentActions: {
     marginTop: 6,

@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useAppTheme } from '@/theme';
 
 interface ToastPayload {
   id: number;
@@ -16,11 +18,13 @@ interface AppToastContextValue {
 }
 
 const TOAST_DURATION_MS = 1800;
+const CAN_USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 const AppToastContext = createContext<AppToastContextValue | null>(null);
 
 export const AppToastProvider = ({ children }: PropsWithChildren) => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const translateY = useRef(new Animated.Value(-64)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,12 +42,12 @@ export const AppToastProvider = ({ children }: PropsWithChildren) => {
         Animated.timing(opacity, {
           toValue: 0,
           duration: 140,
-          useNativeDriver: true,
+          useNativeDriver: CAN_USE_NATIVE_DRIVER,
         }),
         Animated.timing(translateY, {
           toValue: -64,
           duration: 180,
-          useNativeDriver: true,
+          useNativeDriver: CAN_USE_NATIVE_DRIVER,
         }),
       ]).start(() => {
         setToast((current) => {
@@ -74,14 +78,14 @@ export const AppToastProvider = ({ children }: PropsWithChildren) => {
         Animated.timing(opacity, {
           toValue: 1,
           duration: 160,
-          useNativeDriver: true,
+          useNativeDriver: CAN_USE_NATIVE_DRIVER,
         }),
         Animated.spring(translateY, {
           toValue: 0,
           damping: 18,
           stiffness: 210,
           mass: 0.8,
-          useNativeDriver: true,
+          useNativeDriver: CAN_USE_NATIVE_DRIVER,
         }),
       ]).start();
 
@@ -103,18 +107,27 @@ export const AppToastProvider = ({ children }: PropsWithChildren) => {
     [showToast],
   );
 
-  const toneStyle = toast?.tone === 'error' ? styles.errorToast : styles.successToast;
-  const toneTextStyle = toast?.tone === 'error' ? styles.errorText : styles.successText;
+  const toneStyle =
+    toast?.tone === 'error'
+      ? {
+          backgroundColor: theme.colors.toastErrorSurface,
+          borderColor: theme.colors.error,
+        }
+      : {
+          backgroundColor: theme.colors.toastSuccessSurface,
+          borderColor: theme.colors.primary,
+        };
+  const toneTextStyle = toast?.tone === 'error' ? { color: theme.colors.toastErrorText } : { color: theme.colors.toastSuccessText };
 
   return (
     <AppToastContext.Provider value={value}>
       {children}
-      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <View style={[StyleSheet.absoluteFill, styles.pointerBoxNone]}>
         {toast ? (
           <Animated.View
-            pointerEvents="none"
             style={[
               styles.toastShell,
+              styles.pointerNone,
               {
                 top: insets.top + 10,
                 opacity,
@@ -184,31 +197,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
     elevation: 5,
-  },
-  successToast: {
-    backgroundColor: '#EAF4E6',
-    borderColor: '#C7DEBF',
-  },
-  errorToast: {
-    backgroundColor: '#FBEAEC',
-    borderColor: '#EABBC2',
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 6px 12px rgba(15, 23, 42, 0.12)',
+      },
+      default: {
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+        shadowOffset: {
+          width: 0,
+          height: 6,
+        },
+      },
+    }),
   },
   toastText: {
     fontWeight: '600',
     textAlign: 'center',
   },
-  successText: {
-    color: '#2F5A2B',
+  pointerBoxNone: {
+    pointerEvents: 'box-none',
   },
-  errorText: {
-    color: '#92293C',
+  pointerNone: {
+    pointerEvents: 'none',
   },
 });

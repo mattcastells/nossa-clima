@@ -1,8 +1,11 @@
 import { useRouter, useSegments, type Href } from 'expo-router';
 import { PropsWithChildren } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text, useTheme } from 'react-native-paper';
+
+import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 
 interface Props extends PropsWithChildren {
   title?: string;
@@ -15,6 +18,7 @@ export const AppScreen = ({ title, children, showBackButton = true, showHomeButt
   const router = useRouter();
   const segments = useSegments();
   const theme = useTheme();
+  const isFocused = useIsFocused();
   const inTabs = segments[0] === '(tabs)';
   const inAuth = segments[0] === '(auth)';
   const topLevelTabSection = inTabs && segments.length === 2;
@@ -25,7 +29,7 @@ export const AppScreen = ({ title, children, showBackButton = true, showHomeButt
   const shouldShowHomeButton = showHomeButton && showBackButton && !inAuth && !isHomeScreen && topLevelTabSection;
   const fallback: Href = inTabs && segments[1] ? (`/(tabs)/${segments[1]}` as Href) : '/(tabs)';
   const innerContent = (
-    <View style={scrollable ? styles.container : [styles.container, styles.flexContainer]}>
+    <AnimatedEntrance active={isFocused} delay={20} distance={16} style={scrollable ? styles.container : [styles.container, styles.flexContainer]}>
       <View style={styles.navRow}>
         {showBack && (
           <Button
@@ -56,7 +60,7 @@ export const AppScreen = ({ title, children, showBackButton = true, showHomeButt
         </Text>
       ) : null}
       <View style={[styles.content, !scrollable && styles.flexContent]}>{children}</View>
-    </View>
+    </AnimatedEntrance>
   );
 
   return (

@@ -1,5 +1,6 @@
 export type ItemType = 'product' | 'tool' | 'material' | 'other';
 export type PriceSourceType = 'purchase' | 'manual_update' | 'quote' | 'other';
+export type MeasurePricingMode = 'manual' | 'calculated';
 export type LegacyQuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
 export type JobQuoteStatus = 'pending' | 'completed' | 'cancelled';
 export type QuoteStatus = LegacyQuoteStatus | JobQuoteStatus;
@@ -33,10 +34,30 @@ export interface Item {
   description: string | null;
   notes: string | null;
   category: string | null;
+  base_price_label: string | null;
+  variant_label: string | null;
+  presentation_quantity: number | null;
+  presentation_unit: string | null;
   unit: string | null;
   sku: string | null;
   brand: string | null;
   item_type: ItemType;
+  archived_at: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ItemMeasurement {
+  id: string;
+  item_id: string;
+  user_id: string | null;
+  label: string;
+  unit: string;
+  pricing_mode: MeasurePricingMode;
+  grams_per_meter: number | null;
+  notes: string | null;
+  sort_order: number;
   archived_at: string | null;
   updated_by: string | null;
   created_at: string;
@@ -87,6 +108,8 @@ export interface QuoteMaterialItem {
   quote_id: string;
   user_id: string;
   item_id: string;
+  item_measurement_id: string | null;
+  item_measurement_snapshot: string | null;
   item_name_snapshot: string;
   quantity: number;
   unit: string | null;
@@ -128,9 +151,52 @@ export interface StoreItemPrice {
   created_at: string;
 }
 
+export interface StoreItemMeasurementPrice {
+  id: string;
+  user_id: string | null;
+  store_id: string;
+  item_measurement_id: string;
+  price: number;
+  currency: string;
+  observed_at: string;
+  source_type: PriceSourceType;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface LatestStoreItemPrice extends StoreItemPrice {
   store_name: string;
   item_name: string;
+  item_category?: string | null;
+  base_price_label?: string | null;
+  item_variant_label?: string | null;
+  item_presentation_quantity?: number | null;
+  item_presentation_unit?: string | null;
+  item_unit?: string | null;
+}
+
+export interface LatestStoreItemMeasurementPrice {
+  id: string;
+  user_id: string | null;
+  store_id: string;
+  store_name: string;
+  item_id: string;
+  item_name: string;
+  item_category: string | null;
+  base_price_label: string | null;
+  item_measurement_id: string;
+  item_measurement_label: string;
+  measurement_unit: string;
+  pricing_mode: MeasurePricingMode;
+  grams_per_meter: number | null;
+  price: number;
+  base_price: number | null;
+  currency: string;
+  observed_at: string;
+  source_type: PriceSourceType;
+  notes: string | null;
+  created_at: string;
+  price_origin: 'manual' | 'calculated';
 }
 
 export interface Appointment {

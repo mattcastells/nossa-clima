@@ -4,7 +4,7 @@ import { Dialog, IconButton, Portal, Text } from 'react-native-paper';
 
 import { AppDialog } from '@/components/AppDialog';
 import { formatDisplayDate, formatIsoDate, getCalendarCells, monthLabel, parseDisplayDate } from '@/lib/dateTimeInput';
-import { BRAND_BLUE, BRAND_BLUE_SOFT } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export const CalendarPickerDialog = ({ visible, value, onDismiss, onSelect }: Props) => {
+  const theme = useAppTheme();
   const selectedDate = parseDisplayDate(value) ?? new Date();
   const [monthAnchor, setMonthAnchor] = useState(() => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
   const selectedIso = formatIsoDate(selectedDate);
@@ -46,7 +47,7 @@ export const CalendarPickerDialog = ({ visible, value, onDismiss, onSelect }: Pr
 
           <View style={styles.weekHeader}>
             {WEEKDAY_LABELS.map((label) => (
-              <Text key={label} style={styles.weekLabel}>
+              <Text key={label} style={[styles.weekLabel, { color: theme.colors.textMuted }]}>
                 {label}
               </Text>
             ))}
@@ -68,8 +69,8 @@ export const CalendarPickerDialog = ({ visible, value, onDismiss, onSelect }: Pr
                       }}
                       style={({ pressed }) => [styles.dayPressable, pressed && styles.dayPressablePressed]}
                     >
-                      <View style={[styles.dayBubble, selected && styles.dayBubbleSelected]}>
-                        <Text style={[styles.dayNumber, selected && styles.dayNumberSelected]}>{day}</Text>
+                      <View style={[styles.dayBubble, selected && { backgroundColor: theme.colors.softBlue }]}>
+                        <Text style={[styles.dayNumber, { color: selected ? theme.colors.primary : theme.colors.titleOnSoft }, selected && styles.dayNumberSelected]}>{day}</Text>
                       </View>
                     </Pressable>
                   ) : null}
@@ -110,7 +111,6 @@ const styles = StyleSheet.create({
     width: `${100 / 7}%`,
     textAlign: 'center',
     fontWeight: '600',
-    color: '#4B5563',
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -136,15 +136,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayBubbleSelected: {
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
   dayNumber: {
     textAlign: 'center',
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '500',
-    color: BRAND_BLUE,
   },
   dayNumberSelected: {
     fontWeight: '700',

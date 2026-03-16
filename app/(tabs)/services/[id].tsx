@@ -55,7 +55,7 @@ export default function ServiceDetailPage() {
               }
             }}
           />
-          <Button mode="outlined" textColor="#B3261E" onPress={() => setConfirmArchive(true)} disabled={archive.isPending}>
+          <Button mode="contained" buttonColor="#B3261E" textColor="#FFFFFF" onPress={() => setConfirmArchive(true)} disabled={archive.isPending}>
             Archivar servicio
           </Button>
         </>

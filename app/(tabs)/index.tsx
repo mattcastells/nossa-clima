@@ -3,8 +3,9 @@ import { useRouter, type Href } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 
+import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
-import { BRAND_BLUE } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 type HomeAction = {
   title: string;
@@ -25,23 +26,28 @@ const HOME_ACTIONS: HomeAction[] = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
 
   return (
     <AppScreen showBackButton={false}>
-      <View style={styles.bannerBand}>
-        <Image source={require('../../assets/banner.png')} style={styles.banner} resizeMode="contain" />
-      </View>
+      <AnimatedEntrance delay={40} distance={10}>
+        <View style={[styles.bannerBand, { backgroundColor: theme.colors.background }]}>
+          <Image source={require('../../assets/banner.png')} style={styles.banner} resizeMode="contain" />
+        </View>
+      </AnimatedEntrance>
       <View style={styles.grid}>
-        {HOME_ACTIONS.map((action) => (
-          <Card key={action.title} mode="contained" style={styles.tile} onPress={() => router.push(action.href)}>
-            <Card.Content style={styles.tileContent}>
-              <MaterialCommunityIcons name={action.icon} size={34} color={BRAND_BLUE} />
-              <Text variant="titleMedium" style={styles.tileTitle}>
-                {action.title}
-              </Text>
-              <Text style={styles.tileSubtitle}>{action.subtitle}</Text>
-            </Card.Content>
-          </Card>
+        {HOME_ACTIONS.map((action, index) => (
+          <AnimatedEntrance key={action.title} delay={90 + index * 45} distance={14} style={styles.tileShell}>
+            <Card mode="contained" style={[styles.tile, { borderColor: theme.colors.borderSoft }]} onPress={() => router.push(action.href)}>
+              <Card.Content style={styles.tileContent}>
+                <MaterialCommunityIcons name={action.icon} size={34} color={theme.colors.primary} />
+                <Text variant="titleMedium" style={styles.tileTitle}>
+                  {action.title}
+                </Text>
+                <Text style={[styles.tileSubtitle, { color: theme.colors.textMuted }]}>{action.subtitle}</Text>
+              </Card.Content>
+            </Card>
+          </AnimatedEntrance>
         ))}
       </View>
     </AppScreen>
@@ -69,13 +75,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  tile: {
+  tileShell: {
     width: '48%',
+    marginBottom: 12,
+  },
+  tile: {
+    width: '100%',
     aspectRatio: 1,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#DCE4EC',
-    marginBottom: 12,
   },
   tileContent: {
     flex: 1,

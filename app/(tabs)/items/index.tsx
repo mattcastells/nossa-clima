@@ -3,15 +3,20 @@ import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, Searchbar, Text } from 'react-native-paper';
 
+import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems } from '@/features/items/hooks';
-import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
+import { formatItemDisplayName } from '@/lib/itemDisplay';
+import { BRAND_GREEN, BRAND_GREEN_MID, useAppTheme } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
 
 export default function ItemsScreen() {
   const { data, isLoading, error } = useItems();
+  const theme = useAppTheme();
+  const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_GREEN;
+  const filterChipBorderColor = theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID;
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
 
@@ -43,14 +48,26 @@ export default function ItemsScreen() {
         item.name.toLowerCase().includes(q) ||
         (item.description ?? '').toLowerCase().includes(q) ||
         (item.notes ?? '').toLowerCase().includes(q) ||
-        (item.category ?? '').toLowerCase().includes(q)
+        (item.category ?? '').toLowerCase().includes(q) ||
+        (item.base_price_label ?? '').toLowerCase().includes(q)
       );
     });
   }, [materials, search, selectedCategory]);
 
   return (
     <AppScreen title="Materiales">
-      <Searchbar placeholder="Buscar material" value={search} onChangeText={setSearch} style={styles.searchbar} />
+      <Searchbar
+        placeholder="Buscar material"
+        value={search}
+        onChangeText={setSearch}
+        style={[
+          styles.searchbar,
+          {
+            backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
+            borderColor: theme.colors.borderSoft,
+          },
+        ]}
+      />
 
       <View style={styles.topActions}>
         <Link href="/items/new" asChild>
@@ -59,16 +76,41 @@ export default function ItemsScreen() {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-        <Chip selected={selectedCategory === ALL_CATEGORIES} onPress={() => setSelectedCategory(ALL_CATEGORIES)}>
+        <Chip
+          selected={selectedCategory === ALL_CATEGORIES}
+          selectedColor={filterChipTextColor}
+          style={StyleSheet.flatten([
+            styles.filterChip,
+            {
+              backgroundColor: selectedCategory === ALL_CATEGORIES ? theme.colors.softGreenStrong : theme.colors.softGreen,
+              borderColor: filterChipBorderColor,
+            },
+          ])}
+          textStyle={StyleSheet.flatten([styles.filterChipText, { color: filterChipTextColor }])}
+          onPress={() => setSelectedCategory(ALL_CATEGORIES)}
+        >
           Todas
         </Chip>
         {categories.map((category) => (
-          <Chip key={category} selected={selectedCategory === category} onPress={() => setSelectedCategory(category)}>
+          <Chip
+            key={category}
+            selected={selectedCategory === category}
+            selectedColor={filterChipTextColor}
+            style={StyleSheet.flatten([
+              styles.filterChip,
+              {
+                backgroundColor: selectedCategory === category ? theme.colors.softGreenStrong : theme.colors.softGreen,
+                borderColor: filterChipBorderColor,
+              },
+            ])}
+            textStyle={StyleSheet.flatten([styles.filterChipText, { color: filterChipTextColor }])}
+            onPress={() => setSelectedCategory(category)}
+          >
             {category}
           </Chip>
         ))}
       </ScrollView>
-      <Text style={styles.helperText}>Las categorias se crean al guardar un material con una categoria nueva.</Text>
+      <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Las categorias se crean al guardar un material con una categoria nueva.</Text>
 
       <LoadingOrError isLoading={isLoading} error={error} />
 
@@ -76,23 +118,36 @@ export default function ItemsScreen() {
         data={filteredMaterials}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <Link href={`/items/${item.id}`} asChild>
-            <Card mode="outlined" style={styles.materialCard}>
-              <View style={styles.headerBlock}>
-                <View style={styles.headerMainRow}>
-                  <Text style={styles.headerTitle}>{item.name}</Text>
-                  <Chip compact style={styles.categoryChip} textStyle={styles.categoryChipText}>
-                    {item.category ?? 'Sin categoria'}
-                  </Chip>
+        renderItem={({ item, index }) => (
+          <AnimatedEntrance delay={90 + index * 40} distance={12}>
+            <Link href={`/items/${item.id}`} asChild>
+              <Card mode="outlined" style={styles.materialCard}>
+                <View style={[styles.headerBlock, { backgroundColor: theme.colors.softGreen }]}>
+                  <View style={styles.headerMainRow}>
+                    <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]}>{formatItemDisplayName(item)}</Text>
+                    <Chip
+                      compact
+                      style={StyleSheet.flatten([
+                        styles.categoryChip,
+                        {
+                          backgroundColor: theme.colors.softGreenStrong,
+                          borderColor: filterChipBorderColor,
+                        },
+                      ])}
+                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: theme.colors.titleOnSoft }])}
+                    >
+                      {item.category ?? 'Sin categoria'}
+                    </Chip>
+                  </View>
                 </View>
-              </View>
-              <Card.Content style={styles.materialCardContent}>
-                {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
-                {item.notes ? <Text style={styles.description}>Notas: {item.notes}</Text> : null}
-              </Card.Content>
-            </Card>
-          </Link>
+                <Card.Content style={styles.materialCardContent}>
+                  {item.base_price_label ? <Text style={[styles.presentationText, { color: theme.colors.textMuted }]}>Base calculada: {item.base_price_label}</Text> : null}
+                  {item.description ? <Text style={[styles.description, { color: theme.colors.textMuted }]}>{item.description}</Text> : null}
+                  {item.notes ? <Text style={[styles.description, { color: theme.colors.textMuted }]}>Notas: {item.notes}</Text> : null}
+                </Card.Content>
+              </Card>
+            </Link>
+          </AnimatedEntrance>
         )}
         ListEmptyComponent={<Text>No hay materiales que coincidan con los filtros.</Text>}
       />
@@ -103,6 +158,7 @@ export default function ItemsScreen() {
 const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 14,
+    borderWidth: 1,
   },
   topActions: {
     flexDirection: 'row',
@@ -112,8 +168,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 2,
   },
+  filterChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontWeight: '500',
+  },
   helperText: {
-    color: '#5f6368',
     marginTop: -6,
   },
   listContent: {
@@ -125,7 +187,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerBlock: {
-    backgroundColor: BRAND_GREEN_SOFT,
     paddingHorizontal: 14,
     paddingTop: 6,
     paddingBottom: 8,
@@ -148,7 +209,7 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     borderRadius: 10,
-    backgroundColor: '#DDE8D8',
+    borderWidth: 1,
     minHeight: 24,
   },
   categoryChipText: {
@@ -158,5 +219,8 @@ const styles = StyleSheet.create({
   },
   description: {
     color: '#5f6368',
+  },
+  presentationText: {
+    fontWeight: '500',
   },
 });

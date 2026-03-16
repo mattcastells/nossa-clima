@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import type { Item } from '@/types/db';
 import { isMissingSupabaseColumnError } from './supabaseCompatibility';
+import type { Item } from '@/types/db';
 
 interface ListItemsOptions {
   includeArchivedIds?: string[];
@@ -29,7 +29,18 @@ export const upsertItem = async (payload: Partial<Item> & { name: string }): Pro
   const nextPayload = { ...payload };
   delete nextPayload.user_id;
   delete nextPayload.updated_by;
+
   const { data, error } = await supabase.from('items').upsert(nextPayload).select().single();
-  if (error) throw error;
+  if (error) {
+    if (
+      isMissingSupabaseColumnError(error, 'base_price_label') ||
+      isMissingSupabaseColumnError(error, 'variant_label') ||
+      isMissingSupabaseColumnError(error, 'presentation_quantity') ||
+      isMissingSupabaseColumnError(error, 'presentation_unit')
+    ) {
+      throw new Error('Falta aplicar la migracion de materiales con medidas en Supabase.');
+    }
+    throw error;
+  }
   return data;
 };

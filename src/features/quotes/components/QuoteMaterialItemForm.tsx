@@ -6,6 +6,7 @@ import { Button, Card, Menu, Searchbar, Text, TextInput } from 'react-native-pap
 
 import type { Item, LatestStoreItemPrice, Store } from '@/types/db';
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
+import { formatItemDisplayName, formatItemPresentation } from '@/lib/itemDisplay';
 import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_MID, BRAND_GREEN_SOFT } from '@/theme';
 
 import { QuoteMaterialItemFormValues, quoteMaterialItemSchema } from '../schemas';
@@ -79,7 +80,9 @@ export const QuoteMaterialItemForm = ({
         (item) =>
           item.name.toLowerCase().includes(query) ||
           (item.category ?? '').toLowerCase().includes(query) ||
-          (item.brand ?? '').toLowerCase().includes(query),
+          (item.variant_label ?? '').toLowerCase().includes(query) ||
+          (item.presentation_unit ?? '').toLowerCase().includes(query) ||
+          formatItemPresentation(item)?.toLowerCase().includes(query) === true,
       )
       .slice(0, 12);
   }, [catalogItems, materialSearch]);
@@ -107,7 +110,8 @@ export const QuoteMaterialItemForm = ({
   const effectiveMargin = getEffectiveMaterialMarginPercent(marginPercent, defaultMarginPercent);
   const effectiveUnitPrice = getMaterialEffectiveUnitPrice(unitPrice, marginPercent, defaultMarginPercent);
   const effectiveTotal = getMaterialEffectiveTotalPrice(quantity, unitPrice, marginPercent, defaultMarginPercent);
-  const searchMatchesSelected = selectedItem != null && materialSearch.trim().toLowerCase() === selectedItem.name.trim().toLowerCase();
+  const searchMatchesSelected =
+    selectedItem != null && materialSearch.trim().toLowerCase() === formatItemDisplayName(selectedItem).trim().toLowerCase();
   const shouldShowResults = !selectedItem || !searchMatchesSelected;
 
   useEffect(() => {
@@ -131,7 +135,7 @@ export const QuoteMaterialItemForm = ({
     }
 
     if (!seededSearch) {
-      setMaterialSearch(selectedItem.name);
+      setMaterialSearch(formatItemDisplayName(selectedItem));
       setSeededSearch(true);
     }
   }, [getValues, seededSearch, selectedItem, setValue]);
@@ -150,7 +154,7 @@ export const QuoteMaterialItemForm = ({
     if (sourceStoreId) {
       setValue('unit_price', Number(storePriceByItemId.get(item.id) ?? 0), { shouldValidate: true });
     }
-    setMaterialSearch(item.name);
+    setMaterialSearch(formatItemDisplayName(item));
     setSeededSearch(true);
   };
 
@@ -214,7 +218,7 @@ export const QuoteMaterialItemForm = ({
           <Card mode="outlined" style={styles.selectedItemCard}>
             <Card.Content style={styles.selectedItemContent}>
               <Text variant="titleSmall" style={styles.selectedItemTitle}>
-                {selectedItem.name}
+                {formatItemDisplayName(selectedItem)}
               </Text>
               <View style={styles.selectedItemTagsRow}>
                 <View style={styles.selectedItemBadge}>
@@ -231,7 +235,7 @@ export const QuoteMaterialItemForm = ({
                 ) : null}
               </View>
               <Text style={styles.selectedItemMeta}>
-                {selectedItem.brand ?? 'Sin marca'} · {selectedItem.unit ?? 'Sin unidad'}
+                {[formatItemPresentation(selectedItem) ?? selectedItem.unit ?? 'Sin unidad'].filter(Boolean).join(' · ')}
               </Text>
               <View style={styles.selectedItemPriceRow}>
                 <Text style={styles.selectedItemPriceLabel}>Costo precargado</Text>
@@ -259,10 +263,10 @@ export const QuoteMaterialItemForm = ({
                     <Card mode="outlined" style={[styles.resultCard, selected && styles.resultCardSelected]} onPress={() => selectMaterial(item)}>
                       <Card.Content style={styles.resultCardContent}>
                         <Text variant="titleSmall" style={styles.resultTitle}>
-                          {item.name}
+                          {formatItemDisplayName(item)}
                         </Text>
                         <Text style={styles.resultMeta}>
-                          {item.category ?? 'Sin categoria'} · {item.brand ?? 'Sin marca'}
+                          {[item.category ?? 'Sin categoria', formatItemPresentation(item)].filter(Boolean).join(' · ')}
                         </Text>
                         <Text style={styles.resultPrice}>
                           {sourceStoreId && storePriceByItemId.has(item.id)

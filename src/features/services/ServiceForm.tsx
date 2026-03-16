@@ -3,6 +3,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Text, TextInput } from 'react-native-paper';
 
+import { BRAND_BLUE, BRAND_BLUE_MID, useAppTheme } from '@/theme';
+
 import { ServiceFormValues, serviceSchema } from './schemas';
 
 interface Props {
@@ -12,6 +14,9 @@ interface Props {
 }
 
 export const ServiceForm = ({ defaultValues, categorySuggestions = [], onSubmit }: Props) => {
+  const theme = useAppTheme();
+  const chipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE;
+  const chipBorderColor = theme.dark ? theme.colors.softBlueStrong : BRAND_BLUE_MID;
   const {
     control,
     handleSubmit,
@@ -52,17 +57,30 @@ export const ServiceForm = ({ defaultValues, categorySuggestions = [], onSubmit 
       />
       {categorySuggestions.length > 0 && (
         <View style={styles.categorySuggestions}>
-          <Text variant="labelMedium">Categorias disponibles</Text>
+          <Text variant="labelMedium" style={{ color: theme.colors.onSurface }}>Categorias disponibles</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-            {categorySuggestions.map((category) => (
-              <Chip
-                key={category}
-                selected={selectedCategory.toLowerCase() === category.toLowerCase()}
-                onPress={() => setValue('category', category)}
-              >
-                {category}
-              </Chip>
-            ))}
+            {categorySuggestions.map((category) => {
+              const selected = selectedCategory.toLowerCase() === category.toLowerCase();
+
+              return (
+                <Chip
+                  key={category}
+                  selected={selected}
+                  selectedColor={chipTextColor}
+                  textStyle={StyleSheet.flatten([styles.categoryChipText, { color: chipTextColor }])}
+                  style={StyleSheet.flatten([
+                    styles.categoryChip,
+                    {
+                      backgroundColor: selected ? theme.colors.softBlueStrong : theme.colors.softBlue,
+                      borderColor: chipBorderColor,
+                    },
+                  ])}
+                  onPress={() => setValue('category', category)}
+                >
+                  {category}
+                </Chip>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -102,5 +120,12 @@ const styles = StyleSheet.create({
   chipsRow: {
     gap: 8,
     paddingVertical: 2,
+  },
+  categoryChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  categoryChipText: {
+    fontWeight: '500',
   },
 });

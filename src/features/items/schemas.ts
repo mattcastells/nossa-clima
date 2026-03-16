@@ -7,9 +7,8 @@ export const itemSchema = z.object({
   description: optionalTrimmedText,
   notes: optionalTrimmedText,
   category: optionalTrimmedText,
-  unit: optionalTrimmedText,
+  base_price_label: optionalTrimmedText,
   sku: optionalTrimmedText,
-  brand: optionalTrimmedText,
   item_type: z.enum(['product', 'tool', 'material', 'other']),
 });
 

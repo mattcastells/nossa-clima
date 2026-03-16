@@ -1,5 +1,17 @@
 ﻿import { supabase } from '@/lib/supabase';
-import type { Appointment, Item, JobQuoteStatus, Quote, QuoteMaterialItem, QuoteServiceItem, Service, Store, StoreItemPrice } from '@/types/db';
+import { formatItemDisplayName, formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
+import type {
+  Appointment,
+  Item,
+  ItemMeasurement,
+  JobQuoteStatus,
+  Quote,
+  QuoteMaterialItem,
+  QuoteServiceItem,
+  Service,
+  Store,
+  StoreItemPrice,
+} from '@/types/db';
 import { normalizeQuoteStatus } from '@/features/quotes/status';
 
 import { isInvalidQuoteStatusEnumError, isMissingAppointmentQuoteLinkError, isMissingSupabaseColumnError } from './supabaseCompatibility';
@@ -41,10 +53,17 @@ export interface RefreshQuoteMaterialPricingResult {
 
 const CANCELLED_QUOTE_RETENTION_DAYS = 3;
 
-export type QuoteMaterialItemInput = Omit<
-  QuoteMaterialItem,
-  'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'source_store_name_snapshot' | 'total_price'
->;
+export interface QuoteMaterialItemInput {
+  quote_id: string;
+  item_id: string;
+  item_measurement_id?: string | null;
+  quantity: number;
+  unit?: string | null;
+  unit_price: number;
+  margin_percent?: number | null;
+  source_store_id?: string | null;
+  notes?: string | null;
+}
 
 export type QuoteServiceItemInput = Omit<
   QuoteServiceItem,
@@ -52,7 +71,7 @@ export type QuoteServiceItemInput = Omit<
 >;
 
 export type QuoteMaterialItemUpdate = Partial<
-  Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>
+  Pick<QuoteMaterialItem, 'item_id' | 'item_measurement_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>
 >;
 
 export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'notes'>>;
@@ -287,14 +306,64 @@ const getServiceAndValidate = async (serviceId: string): Promise<Service> => {
   return data;
 };
 
+const getMeasurementAndValidate = async (measurementId: string): Promise<ItemMeasurement> => {
+  const { data, error } = await supabase.from('item_measurements').select('*').eq('id', measurementId).single();
+  if (error) throw error;
+  return data;
+};
+
+const resolveMaterialSnapshot = async (
+  itemId: string,
+  measurementId?: string | null,
+): Promise<{ item: Item; measurement: ItemMeasurement | null; itemNameSnapshot: string; itemMeasurementSnapshot: string | null }> => {
+  const item = await getItemAndValidate(itemId);
+  const measurement = measurementId ? await getMeasurementAndValidate(measurementId) : null;
+
+  if (measurement && measurement.item_id !== item.id) {
+    throw new Error('La medida seleccionada no pertenece al material.');
+  }
+
+  return {
+    item,
+    measurement,
+    itemNameSnapshot: measurement ? formatMeasuredItemDisplayName(item, measurement) : formatItemDisplayName(item),
+    itemMeasurementSnapshot: measurement?.label ?? null,
+  };
+};
+
 export const getSuggestedMaterialPrice = async (
   itemId: string,
+  itemMeasurementId?: string | null,
   marginPercent?: number | null,
   sourceStoreId?: string | null,
 ): Promise<SuggestedMaterialPrice> => {
   let record: Pick<StoreItemPrice, 'price'> | null = null;
 
-  if (sourceStoreId) {
+  if (itemMeasurementId && sourceStoreId) {
+    const byMeasuredStore = await supabase
+      .from('latest_effective_store_item_measure_prices')
+      .select('price')
+      .eq('item_measurement_id', itemMeasurementId)
+      .eq('store_id', sourceStoreId)
+      .maybeSingle();
+    if (byMeasuredStore.error) throw byMeasuredStore.error;
+    record = byMeasuredStore.data;
+  }
+
+  if (!record && itemMeasurementId) {
+    const latestMeasured = await supabase
+      .from('item_measure_price_history')
+      .select('price')
+      .eq('item_measurement_id', itemMeasurementId)
+      .order('observed_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestMeasured.error) throw latestMeasured.error;
+    record = latestMeasured.data;
+  }
+
+  if (!record && sourceStoreId) {
     const byStore = await supabase
       .from('latest_store_item_prices')
       .select('price')
@@ -325,8 +394,8 @@ export const getSuggestedMaterialPrice = async (
 };
 
 export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Promise<QuoteMaterialItem> => {
-  const [item, sourceStore] = await Promise.all([
-    getItemAndValidate(payload.item_id),
+  const [materialContext, sourceStore] = await Promise.all([
+    resolveMaterialSnapshot(payload.item_id, payload.item_measurement_id ?? null),
     payload.source_store_id ? getStoreAndValidate(payload.source_store_id) : Promise.resolve(null),
   ]);
 
@@ -334,7 +403,9 @@ export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Pro
     .from('quote_material_items')
     .insert({
       ...payload,
-      item_name_snapshot: item.name,
+      item_measurement_id: payload.item_measurement_id ?? null,
+      item_measurement_snapshot: materialContext.itemMeasurementSnapshot,
+      item_name_snapshot: materialContext.itemNameSnapshot,
       source_store_name_snapshot: sourceStore?.name ?? null,
     })
     .select()
@@ -346,7 +417,9 @@ export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Pro
       .from('quote_material_items')
       .insert({
         ...payload,
-        item_name_snapshot: item.name,
+        item_measurement_id: payload.item_measurement_id ?? null,
+        item_measurement_snapshot: materialContext.itemMeasurementSnapshot,
+        item_name_snapshot: materialContext.itemNameSnapshot,
       })
       .select()
       .single();
@@ -357,14 +430,26 @@ export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Pro
 };
 
 export const updateQuoteMaterialItem = async (itemId: string, payload: QuoteMaterialItemUpdate): Promise<QuoteMaterialItem> => {
-  let updatePayload: QuoteMaterialItemUpdate & { item_name_snapshot?: string; source_store_name_snapshot?: string | null } = payload;
+  const { data: existing, error: existingError } = await supabase.from('quote_material_items').select('*').eq('id', itemId).single();
+  if (existingError) throw existingError;
 
-  if (payload.item_id) {
-    const item = await getItemAndValidate(payload.item_id);
+  let updatePayload: QuoteMaterialItemUpdate & {
+    item_name_snapshot?: string;
+    item_measurement_snapshot?: string | null;
+    source_store_name_snapshot?: string | null;
+  } = payload;
+
+  const nextItemId = payload.item_id ?? existing.item_id;
+  const nextMeasurementId = payload.item_measurement_id === undefined ? existing.item_measurement_id : payload.item_measurement_id;
+  const shouldRefreshMaterialSnapshot = payload.item_id !== undefined || payload.item_measurement_id !== undefined || payload.unit !== undefined;
+
+  if (shouldRefreshMaterialSnapshot) {
+    const materialContext = await resolveMaterialSnapshot(nextItemId, nextMeasurementId);
     updatePayload = {
       ...payload,
-      item_name_snapshot: item.name,
-      unit: payload.unit ?? item.unit ?? null,
+      item_name_snapshot: materialContext.itemNameSnapshot,
+      item_measurement_snapshot: materialContext.itemMeasurementSnapshot,
+      unit: payload.unit ?? existing.unit ?? materialContext.measurement?.unit ?? materialContext.item.unit ?? 'mt',
     };
   }
 
@@ -410,6 +495,7 @@ export const duplicateQuoteMaterialItem = async (itemId: string): Promise<QuoteM
   const payload: QuoteMaterialItemInput = {
     quote_id: existing.quote_id,
     item_id: existing.item_id,
+    item_measurement_id: existing.item_measurement_id,
     quantity: existing.quantity,
     unit: existing.unit,
     unit_price: existing.unit_price,

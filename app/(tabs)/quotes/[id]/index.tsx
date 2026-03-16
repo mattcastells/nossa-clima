@@ -39,7 +39,7 @@ import {
 } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatTimeShort } from '@/lib/format';
-import { BRAND_BLUE, BRAND_BLUE_MID, BRAND_BLUE_SOFT } from '@/theme';
+import { BRAND_BLUE, BRAND_BLUE_MID, BRAND_BLUE_SOFT, useAppTheme } from '@/theme';
 import type { JobQuoteStatus } from '@/types/db';
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -80,13 +80,13 @@ const CollapsibleSection = ({ title, expanded, onToggle, children }: Collapsible
         <IconButton icon={expanded ? 'chevron-up' : 'chevron-down'} size={22} style={styles.sectionToggle} onPress={onToggle} />
       </View>
       <Animated.View
-        pointerEvents={expanded ? 'auto' : 'none'}
         style={[
           styles.collapsibleBody,
           {
             height: animatedHeight,
             opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
             transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
+            pointerEvents: expanded ? 'auto' : 'none',
           },
         ]}
       >
@@ -119,6 +119,7 @@ const normalizeOptionalPercentInput = (value: string): number | null => {
 };
 
 export default function QuoteDetailPage() {
+  const theme = useAppTheme();
   const { id, linkWarning } = useLocalSearchParams<{ id: string; linkWarning?: string }>();
   const { data, isLoading, error } = useQuoteDetail(id);
   const referencedStoreIds = useMemo(
@@ -658,7 +659,9 @@ export default function QuoteDetailPage() {
                     Estado
                   </Text>
                   {cancelledAutoDeleteDate ? (
-                    <Text style={styles.statusDescription}>Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.</Text>
+                    <Text style={[styles.statusDescription, { color: theme.colors.error }]}>
+                      Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.
+                    </Text>
                   ) : null}
                 </View>
                 <View

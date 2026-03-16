@@ -2,22 +2,26 @@ import { supabase } from '@/lib/supabase';
 import type {
   Appointment,
   Item,
+  ItemMeasurement,
   Quote,
   QuoteMaterialItem,
   QuoteServiceItem,
   Service,
   Store,
+  StoreItemMeasurementPrice,
   StoreItemPrice,
 } from '@/types/db';
-import { isMissingAppointmentQuoteLinkError } from './supabaseCompatibility';
+import { isMissingAppointmentQuoteLinkError, isMissingSupabaseColumnError } from './supabaseCompatibility';
 
 export interface UserBackupPayload {
-  version: 1;
+  version: 2;
   exported_at: string;
   services: Service[];
   stores: Store[];
   items: Item[];
+  item_measurements: ItemMeasurement[];
   store_item_prices: StoreItemPrice[];
+  store_item_measure_prices: StoreItemMeasurementPrice[];
   quotes: Quote[];
   quote_service_items: QuoteServiceItem[];
   quote_material_items: QuoteMaterialItem[];
@@ -25,33 +29,40 @@ export interface UserBackupPayload {
 }
 
 export const exportUserBackup = async (): Promise<UserBackupPayload> => {
-  const [services, stores, items, storeItemPrices, quotes, quoteServiceItems, quoteMaterialItems, appointments] = await Promise.all([
+  const [services, stores, items, itemMeasurements, storeItemPrices, storeItemMeasurePrices, quotes, quoteServiceItems, quoteMaterialItems, appointments] =
+    await Promise.all([
     supabase.from('services').select('*').order('created_at'),
     supabase.from('stores').select('*').order('created_at'),
     supabase.from('items').select('*').order('created_at'),
+    supabase.from('item_measurements').select('*').order('created_at'),
     supabase.from('store_item_prices').select('*').order('created_at'),
+    supabase.from('store_item_measure_prices').select('*').order('created_at'),
     supabase.from('quotes').select('*').order('created_at'),
     supabase.from('quote_service_items').select('*').order('created_at'),
     supabase.from('quote_material_items').select('*').order('created_at'),
     supabase.from('appointments').select('*').order('created_at'),
-  ]);
+    ]);
 
   if (services.error) throw services.error;
   if (stores.error) throw stores.error;
   if (items.error) throw items.error;
+  if (itemMeasurements.error) throw itemMeasurements.error;
   if (storeItemPrices.error) throw storeItemPrices.error;
+  if (storeItemMeasurePrices.error) throw storeItemMeasurePrices.error;
   if (quotes.error) throw quotes.error;
   if (quoteServiceItems.error) throw quoteServiceItems.error;
   if (quoteMaterialItems.error) throw quoteMaterialItems.error;
   if (appointments.error) throw appointments.error;
 
   return {
-    version: 1,
+    version: 2,
     exported_at: new Date().toISOString(),
     services: services.data ?? [],
     stores: stores.data ?? [],
     items: items.data ?? [],
+    item_measurements: itemMeasurements.data ?? [],
     store_item_prices: storeItemPrices.data ?? [],
+    store_item_measure_prices: storeItemMeasurePrices.data ?? [],
     quotes: quotes.data ?? [],
     quote_service_items: quoteServiceItems.data ?? [],
     quote_material_items: quoteMaterialItems.data ?? [],
@@ -71,7 +82,9 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
   const services = normalizeBackupArray<Service>(payload.services);
   const stores = normalizeBackupArray<Store>(payload.stores);
   const items = normalizeBackupArray<Item>(payload.items);
+  const itemMeasurements = normalizeBackupArray<ItemMeasurement>(payload.item_measurements);
   const storeItemPrices = normalizeBackupArray<StoreItemPrice>(payload.store_item_prices);
+  const storeItemMeasurePrices = normalizeBackupArray<StoreItemMeasurementPrice>(payload.store_item_measure_prices);
   const quotes = normalizeBackupArray<Quote>(payload.quotes);
   const quoteServiceItems = normalizeBackupArray<QuoteServiceItem>(payload.quote_service_items);
   const quoteMaterialItems = normalizeBackupArray<QuoteMaterialItem>(payload.quote_material_items);
@@ -84,7 +97,9 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
     await deleteWhereAnyId('appointments'),
     await deleteWhereAnyId('quote_material_items'),
     await deleteWhereAnyId('quote_service_items'),
+    await deleteWhereAnyId('store_item_measure_prices'),
     await deleteWhereAnyId('quotes'),
+    await deleteWhereAnyId('item_measurements'),
     await deleteWhereAnyId('services'),
   ];
 
@@ -124,17 +139,55 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
   }
 
   if (items.length > 0) {
+    const itemRows = items.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      notes: row.notes ?? null,
+      category: row.category,
+      base_price_label: row.base_price_label ?? null,
+      variant_label: row.variant_label ?? null,
+      presentation_quantity: row.presentation_quantity ?? null,
+      presentation_unit: row.presentation_unit ?? null,
+      unit: row.unit,
+      sku: row.sku,
+      brand: row.brand,
+      item_type: row.item_type,
+      archived_at: row.archived_at,
+    }));
+
     const { error } = await supabase.from('items').upsert(
-      items.map((row) => ({
+      itemRows,
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
+    if (
+      error &&
+      (isMissingSupabaseColumnError(error, 'base_price_label') ||
+        isMissingSupabaseColumnError(error, 'variant_label') ||
+        isMissingSupabaseColumnError(error, 'presentation_quantity') ||
+        isMissingSupabaseColumnError(error, 'presentation_unit'))
+    ) {
+      const fallback = await supabase.from('items').upsert(
+        itemRows.map(({ base_price_label, variant_label, presentation_quantity, presentation_unit, ...row }) => row),
+        { onConflict: 'id', ignoreDuplicates: true },
+      );
+      if (fallback.error) throw fallback.error;
+    } else if (error) {
+      throw error;
+    }
+  }
+
+  if (itemMeasurements.length > 0) {
+    const { error } = await supabase.from('item_measurements').upsert(
+      itemMeasurements.map((row) => ({
         id: row.id,
-        name: row.name,
-        description: row.description,
-        notes: row.notes ?? null,
-        category: row.category,
+        item_id: row.item_id,
+        label: row.label,
         unit: row.unit,
-        sku: row.sku,
-        brand: row.brand,
-        item_type: row.item_type,
+        pricing_mode: row.pricing_mode,
+        grams_per_meter: row.grams_per_meter,
+        notes: row.notes,
+        sort_order: row.sort_order,
         archived_at: row.archived_at,
       })),
       { onConflict: 'id', ignoreDuplicates: true },
@@ -180,6 +233,8 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         id: row.id,
         quote_id: row.quote_id,
         item_id: row.item_id,
+        item_measurement_id: row.item_measurement_id,
+        item_measurement_snapshot: row.item_measurement_snapshot,
         item_name_snapshot: row.item_name_snapshot,
         quantity: row.quantity,
         unit: row.unit,
@@ -204,6 +259,23 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         observed_at: row.observed_at,
         source_type: row.source_type,
         quantity_reference: row.quantity_reference,
+        notes: row.notes,
+      })),
+      { onConflict: 'id', ignoreDuplicates: true },
+    );
+    if (error) throw error;
+  }
+
+  if (storeItemMeasurePrices.length > 0) {
+    const { error } = await supabase.from('store_item_measure_prices').upsert(
+      storeItemMeasurePrices.map((row) => ({
+        id: row.id,
+        store_id: row.store_id,
+        item_measurement_id: row.item_measurement_id,
+        price: row.price,
+        currency: row.currency,
+        observed_at: row.observed_at,
+        source_type: row.source_type,
         notes: row.notes,
       })),
       { onConflict: 'id', ignoreDuplicates: true },
@@ -251,10 +323,12 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
       'services',
       'stores',
       'items',
+      'item_measurements',
       'quotes',
       'quote_service_items',
       'quote_material_items',
       'store_item_prices',
+      'store_item_measure_prices',
       'appointments',
     ],
   };

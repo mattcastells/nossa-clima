@@ -1,18 +1,15 @@
 import { Link } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Button, Card, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
 
 import { AppDialog } from '@/components/AppDialog';
-import { useItems } from '@/features/items/hooks';
-import { useLatestPrices } from '@/features/prices/hooks';
 import type { QuoteMaterialItem, QuoteServiceItem, Store } from '@/types/db';
 
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
-import { BRAND_BLUE, BRAND_GREEN } from '@/theme';
+import { BRAND_BLUE, BRAND_GREEN, useAppTheme } from '@/theme';
 
 import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
-import { QuoteMaterialItemForm } from './QuoteMaterialItemForm';
 import { QuoteServiceItemForm } from './QuoteServiceItemForm';
 
 type EditingTarget = { kind: 'service' | 'material'; id: string } | null;
@@ -30,7 +27,7 @@ interface Props {
   onDeleteService: (itemId: string) => void;
   onSaveMaterial: (
     itemId: string,
-    payload: Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>,
+    payload: Partial<Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>>,
   ) => Promise<void>;
   onDeleteMaterial: (itemId: string) => void;
   isBusy?: boolean;
@@ -61,10 +58,17 @@ export const QuoteItemsTable = ({
   savingMaterial = false,
   deletingMaterial = false,
 }: Props) => {
+  const theme = useAppTheme();
   const { width } = useWindowDimensions();
-  const itemsQuery = useItems(materials.map((item) => item.item_id));
-  const latestPricesQuery = useLatestPrices();
+  const tableBackgroundColor = theme.colors.surfaceAlt;
+  const alternateRowColor = theme.colors.surfaceSoft;
+  const serviceTint = theme.colors.softBlue;
+  const materialTint = theme.colors.softGreen;
   const [editingTarget, setEditingTarget] = useState<EditingTarget>(null);
+  const [materialQuantityInput, setMaterialQuantityInput] = useState('');
+  const [materialCostInput, setMaterialCostInput] = useState('');
+  const [materialMarginInput, setMaterialMarginInput] = useState('');
+  const [materialNotesInput, setMaterialNotesInput] = useState('');
   const isCompact = width < 520;
   const serviceActionsBusy = isBusy || savingService || deletingService;
   const materialActionsBusy = isBusy || savingMaterial || deletingMaterial;
@@ -95,6 +99,15 @@ export const QuoteItemsTable = ({
 
   const editingService = editingTarget?.kind === 'service' ? services.find((item) => item.id === editingTarget.id) ?? null : null;
   const editingMaterial = editingTarget?.kind === 'material' ? materials.find((item) => item.id === editingTarget.id) ?? null : null;
+
+  useEffect(() => {
+    if (!editingMaterial) return;
+
+    setMaterialQuantityInput(String(editingMaterial.quantity));
+    setMaterialCostInput(String(editingMaterial.unit_price));
+    setMaterialMarginInput(editingMaterial.margin_percent == null ? '' : String(editingMaterial.margin_percent));
+    setMaterialNotesInput(editingMaterial.notes ?? '');
+  }, [editingMaterial]);
 
   const rows = useMemo(
     () => [
@@ -139,41 +152,41 @@ export const QuoteItemsTable = ({
   );
 
   return (
-    <Card mode="contained" style={styles.card}>
+    <Card mode="contained" style={[styles.card, { borderColor: theme.colors.borderSoft, backgroundColor: tableBackgroundColor }]}>
       <Card.Content style={styles.content}>
         <View style={styles.tableWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator>
-            <View style={tableStyle}>
-            <View style={[styles.row, styles.headerRow]}>
-              <Text variant="labelMedium" style={descriptionHeaderStyle}>
-                Servicios y materiales
-              </Text>
-              <Text variant="labelMedium" style={quantityHeaderStyle}>
-                Cant.
-              </Text>
-              <Text variant="labelMedium" style={baseHeaderStyle}>
-                Costo/Base
-              </Text>
-              <Text variant="labelMedium" style={marginHeaderStyle}>
-                Margen
-              </Text>
-              <Text variant="labelMedium" style={saleHeaderStyle}>
-                Venta unit.
-              </Text>
-              <Text variant="labelMedium" style={totalHeaderStyle}>
-                Total
-              </Text>
-              <Text variant="labelMedium" style={sourceHeaderStyle}>
-                Origen
-              </Text>
-              <Text variant="labelMedium" style={removeHeaderStyle}>
-                Quitar
-              </Text>
-            </View>
+            <View style={[tableStyle, { borderColor: theme.colors.borderSoft, backgroundColor: tableBackgroundColor }]}>
+              <View style={[styles.row, styles.headerRow, { backgroundColor: serviceTint, borderBottomColor: theme.colors.borderSoft }]}>
+                <Text variant="labelMedium" style={[descriptionHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Servicios y materiales
+                </Text>
+                <Text variant="labelMedium" style={[quantityHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Cant.
+                </Text>
+                <Text variant="labelMedium" style={[baseHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Costo/Base
+                </Text>
+                <Text variant="labelMedium" style={[marginHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Margen
+                </Text>
+                <Text variant="labelMedium" style={[saleHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Venta unit.
+                </Text>
+                <Text variant="labelMedium" style={[totalHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Total
+                </Text>
+                <Text variant="labelMedium" style={[sourceHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Origen
+                </Text>
+                <Text variant="labelMedium" style={[removeHeaderStyle, { color: theme.colors.titleOnSoft }]}>
+                  Quitar
+                </Text>
+              </View>
 
               {rows.length === 0 ? (
-                <View style={[styles.row, styles.emptyRow]}>
-                  <Text>No hay items cargados.</Text>
+                <View style={[styles.row, styles.emptyRow, { borderBottomColor: theme.colors.borderSoft, backgroundColor: tableBackgroundColor }]}>
+                  <Text style={{ color: theme.colors.onSurface }}>No hay items cargados.</Text>
                 </View>
               ) : (
                 rows.map((row, index) => (
@@ -181,8 +194,10 @@ export const QuoteItemsTable = ({
                     key={row.key}
                     style={[
                       styles.row,
-                      index % 2 === 0 ? styles.evenRow : styles.oddRow,
-                      row.kind === 'service' ? styles.serviceRow : styles.materialRow,
+                      {
+                        borderBottomColor: theme.colors.borderSoft,
+                        backgroundColor: index % 2 === 0 ? theme.colors.surface : alternateRowColor,
+                      },
                     ]}
                   >
                     <Pressable
@@ -190,21 +205,24 @@ export const QuoteItemsTable = ({
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
                       style={({ pressed }) => [
                         descriptionCellStyle,
-                        row.kind === 'service' ? styles.serviceDescriptionCell : styles.materialDescriptionCell,
-                        pressed && styles.editingCellPressed,
+                        {
+                          borderRightColor: theme.colors.borderSoft,
+                          backgroundColor: row.kind === 'service' ? serviceTint : materialTint,
+                        },
+                        pressed && { backgroundColor: row.kind === 'service' ? theme.colors.softBlueStrong : theme.colors.softGreenStrong },
                       ]}
                     >
                       <Text
                         variant="titleSmall"
                         style={[
                           styles.itemTitle,
-                          row.kind === 'service' ? styles.serviceItemTitle : styles.materialItemTitle,
+                          { color: theme.colors.titleOnSoft },
                         ]}
                       >
                         {row.title}
                       </Text>
                       {row.notes ? (
-                        <Text variant="bodySmall" style={styles.itemNotes}>
+                        <Text variant="bodySmall" style={[styles.itemNotes, { color: theme.colors.textMuted }]}>
                           {row.notes}
                         </Text>
                       ) : null}
@@ -212,44 +230,44 @@ export const QuoteItemsTable = ({
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [quantityCellStyle, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [quantityCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
                     >
-                      <Text style={styles.valueText}>{row.quantity}</Text>
+                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.quantity}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [baseCellStyle, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [baseCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
                     >
-                      <Text style={styles.valueText}>{row.base}</Text>
+                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.base}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [marginCellStyle, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [marginCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
                     >
-                      <Text style={styles.valueText}>{row.margin}</Text>
+                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.margin}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [saleCellStyle, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [saleCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
                     >
-                      <Text style={styles.valueText}>{row.saleUnit}</Text>
+                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.saleUnit}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [totalCellStyle, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [totalCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
                     >
-                      <Text style={styles.strongValue}>{row.total}</Text>
+                      <Text style={[styles.strongValue, { color: theme.colors.primary }]}>{row.total}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [sourceCellStyle, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [sourceCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
                     >
-                      <Text style={styles.valueText}>{row.source}</Text>
+                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.source}</Text>
                     </Pressable>
                     <View style={[actionsCellStyle, styles.deleteCell]}>
                       <IconButton
@@ -276,8 +294,8 @@ export const QuoteItemsTable = ({
                 disabled={isBusy}
                 style={serviceAddButtonStyle}
                 contentStyle={styles.addButtonContent}
-                buttonColor="#D9E6F6"
-                textColor={BRAND_BLUE}
+                buttonColor={theme.colors.softBlue}
+                textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE}
               >
                 Servicio
               </Button>
@@ -289,8 +307,8 @@ export const QuoteItemsTable = ({
                 disabled={isBusy}
                 style={materialAddButtonStyle}
                 contentStyle={styles.addButtonContent}
-                buttonColor="#E2ECD6"
-                textColor={BRAND_GREEN}
+                buttonColor={theme.colors.softGreen}
+                textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_GREEN}
               >
                 Material
               </Button>
@@ -298,7 +316,7 @@ export const QuoteItemsTable = ({
           </View>
 
           <View style={marginBarStyle}>
-            <Text variant="labelMedium" style={marginLabelStyle}>
+            <Text variant="labelMedium" style={[marginLabelStyle, { color: theme.colors.textMuted }]}>
               Margen global %
             </Text>
             <View style={[styles.marginControls, isCompact && styles.marginControlsCompact]}>
@@ -359,36 +377,94 @@ export const QuoteItemsTable = ({
           <Dialog.Title>Editar material</Dialog.Title>
           <Dialog.Content>
             {editingMaterial ? (
-              <QuoteMaterialItemForm
-                stores={stores}
-                items={itemsQuery.data ?? []}
-                latestPrices={latestPricesQuery.data ?? []}
-                isCatalogLoading={itemsQuery.isLoading || latestPricesQuery.isLoading}
-                defaultValues={{
-                  quote_id: editingMaterial.quote_id,
-                  item_id: editingMaterial.item_id,
-                  quantity: editingMaterial.quantity,
-                  unit: editingMaterial.unit ?? '',
-                  unit_price: editingMaterial.unit_price,
-                  margin_percent: editingMaterial.margin_percent,
-                  source_store_id: editingMaterial.source_store_id,
-                  notes: editingMaterial.notes ?? '',
-                }}
-                defaultMarginPercent={defaultMarginPercent}
-                submitLabel="Guardar cambios"
-                onSubmit={async (values) => {
-                  await onSaveMaterial(editingMaterial.id, {
-                    item_id: values.item_id,
-                    quantity: values.quantity,
-                    unit: values.unit ?? null,
-                    unit_price: values.unit_price,
-                    margin_percent: values.margin_percent ?? null,
-                    source_store_id: values.source_store_id ?? null,
-                    notes: values.notes ?? null,
-                  });
-                  setEditingTarget(null);
-                }}
-              />
+              <View style={styles.materialEditor}>
+                <View style={styles.materialEditorSummary}>
+                  <Text variant="titleSmall">{editingMaterial.item_name_snapshot}</Text>
+                  <Text variant="bodySmall" style={styles.materialEditorMeta}>
+                    {editingMaterial.source_store_name_snapshot ?? 'Sin tienda'}{editingMaterial.unit ? ` · ${editingMaterial.unit}` : ''}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.materialEditorMeta}>
+                    La medida del material queda fija. Aqui solo editas cantidad, costo, margen y notas.
+                  </Text>
+                </View>
+
+                <View style={styles.materialEditorRow}>
+                  <TextInput
+                    mode="outlined"
+                    label="Cantidad"
+                    value={materialQuantityInput}
+                    onChangeText={setMaterialQuantityInput}
+                    keyboardType="decimal-pad"
+                    disabled={materialActionsBusy}
+                    style={styles.materialEditorField}
+                    outlineStyle={styles.inputOutline}
+                  />
+                  <TextInput
+                    mode="outlined"
+                    label="Costo"
+                    value={materialCostInput}
+                    onChangeText={setMaterialCostInput}
+                    keyboardType="decimal-pad"
+                    disabled={materialActionsBusy}
+                    style={styles.materialEditorField}
+                    outlineStyle={styles.inputOutline}
+                  />
+                </View>
+
+                <TextInput
+                  mode="outlined"
+                  label="Margen"
+                  value={materialMarginInput}
+                  onChangeText={setMaterialMarginInput}
+                  keyboardType="decimal-pad"
+                  disabled={materialActionsBusy}
+                  outlineStyle={styles.inputOutline}
+                />
+
+                <TextInput
+                  mode="outlined"
+                  label="Notas"
+                  value={materialNotesInput}
+                  onChangeText={setMaterialNotesInput}
+                  multiline
+                  disabled={materialActionsBusy}
+                  outlineStyle={styles.inputOutline}
+                />
+
+                <Button
+                  mode="contained"
+                  disabled={materialActionsBusy}
+                  loading={savingMaterial}
+                  onPress={async () => {
+                    const nextQuantity = Number(materialQuantityInput.trim().replace(',', '.'));
+                    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+                      return;
+                    }
+
+                    const nextUnitPrice = Number(materialCostInput.trim().replace(',', '.'));
+                    if (!Number.isFinite(nextUnitPrice) || nextUnitPrice < 0) {
+                      return;
+                    }
+
+                    const trimmedMargin = materialMarginInput.trim();
+                    const nextMargin = trimmedMargin ? Number(trimmedMargin.replace(',', '.')) : null;
+                    if (trimmedMargin && (nextMargin == null || !Number.isFinite(nextMargin) || nextMargin < 0)) {
+                      return;
+                    }
+
+                    await onSaveMaterial(editingMaterial.id, {
+                      quantity: nextQuantity,
+                      unit: editingMaterial.unit ?? null,
+                      unit_price: nextUnitPrice,
+                      margin_percent: nextMargin,
+                      notes: materialNotesInput.trim() || null,
+                    });
+                    setEditingTarget(null);
+                  }}
+                >
+                  Guardar cambios
+                </Button>
+              </View>
             ) : null}
           </Dialog.Content>
         </AppDialog>
@@ -401,7 +477,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DCE4EC',
   },
   content: {
     gap: 12,
@@ -460,7 +535,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   marginLabel: {
-    color: '#5f6368',
     minWidth: 108,
   },
   marginLabelCompact: {
@@ -494,10 +568,25 @@ const styles = StyleSheet.create({
   inputOutline: {
     borderRadius: 10,
   },
+  materialEditor: {
+    gap: 12,
+  },
+  materialEditorSummary: {
+    gap: 4,
+  },
+  materialEditorMeta: {
+    color: '#5F6A76',
+  },
+  materialEditorRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  materialEditorField: {
+    flex: 1,
+  },
   table: {
     minWidth: 1040,
     borderWidth: 1,
-    borderColor: '#DCE4EC',
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -509,24 +598,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     borderBottomWidth: 1,
-    borderBottomColor: '#DCE4EC',
   },
-  headerRow: {
-    backgroundColor: '#EAF1F8',
-  },
+  headerRow: {},
   headerText: {
     fontWeight: '700',
-    color: '#33506C',
-  },
-  evenRow: {
-    backgroundColor: '#FFFFFF',
-  },
-  oddRow: {
-    backgroundColor: '#F9FBFD',
-  },
-  serviceRow: {
-  },
-  materialRow: {
   },
   emptyRow: {
     justifyContent: 'center',
@@ -537,7 +612,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderRightWidth: 1,
-    borderRightColor: '#E1E7EF',
     justifyContent: 'center',
   },
   descriptionCell: {
@@ -546,12 +620,6 @@ const styles = StyleSheet.create({
   },
   descriptionCellCompact: {
     width: 220,
-  },
-  serviceDescriptionCell: {
-    backgroundColor: '#E8F0FA',
-  },
-  materialDescriptionCell: {
-    backgroundColor: '#ECF3E3',
   },
   quantityCell: {
     width: 64,
@@ -600,20 +668,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editingCellPressed: {
-    backgroundColor: '#F2F7FC',
-  },
   itemTitle: {
     fontWeight: '600',
   },
-  serviceItemTitle: {
-    color: BRAND_BLUE,
-  },
-  materialItemTitle: {
-    color: BRAND_GREEN,
-  },
   itemNotes: {
-    color: '#5f6368',
     lineHeight: 18,
     marginTop: 6,
   },

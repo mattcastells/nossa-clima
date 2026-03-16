@@ -1,25 +1,38 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, IconButton, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Menu, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
-import { useItems, useSaveItem } from '@/features/items/hooks';
-import { useCreatePrice, useLatestPrices } from '@/features/prices/hooks';
+import { useItemMeasurements, useItems, useSaveItem } from '@/features/items/hooks';
+import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
 import { useAddQuoteMaterialItem, useQuoteDetail } from '@/features/quotes/hooks';
 import { getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '@/features/quotes/materialPricing';
-import { QuoteMaterialItemFormValues, quoteMaterialItemSchema } from '@/features/quotes/schemas';
-import { useStoreLatestPrices, useStores } from '@/features/stores/hooks';
+import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
+import { formatMeasurementDisplayLabel, formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
 import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
 
 type MaterialEntryMode = 'catalog' | 'manual';
-const PAGE_SIZE = 5;
+
+const parsePositiveInput = (value: string): number | null => {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) return null;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parseNonNegativeInput = (value: string): number | null => {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) return null;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
 
 export default function AddMaterialToQuotePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,73 +41,52 @@ export default function AddMaterialToQuotePage() {
   const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
   const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
   const latestPricesQuery = useLatestPrices();
-  const saveItem = useSaveItem();
-  const createPrice = useCreatePrice();
   const add = useAddQuoteMaterialItem();
+  const saveItem = useSaveItem();
 
+  const [entryMode, setEntryMode] = useState<MaterialEntryMode>('catalog');
+  const [storeMenuVisible, setStoreMenuVisible] = useState(false);
   const [storeSearch, setStoreSearch] = useState('');
   const [materialSearch, setMaterialSearch] = useState('');
-  const [entryMode, setEntryMode] = useState<MaterialEntryMode>('catalog');
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
+  const [quantityInput, setQuantityInput] = useState('1');
+  const [unitPriceInput, setUnitPriceInput] = useState('');
+  const [notesInput, setNotesInput] = useState('');
   const [manualName, setManualName] = useState('');
   const [manualCategory, setManualCategory] = useState('');
-  const [manualUnit, setManualUnit] = useState('');
-  const [manualBrand, setManualBrand] = useState('');
-  const [snack, setSnack] = useState<string | null>(null);
-  const [storePage, setStorePage] = useState(1);
-  const [materialPage, setMaterialPage] = useState(1);
+  const [message, setMessage] = useState<string | null>(null);
   const toast = useAppToast();
-  useToastMessageEffect(snack, () => setSnack(null));
+  useToastMessageEffect(message, () => setMessage(null));
 
-  const { control, watch, setValue, getValues, trigger } = useForm<QuoteMaterialItemFormValues>({
-    resolver: zodResolver(quoteMaterialItemSchema),
-    defaultValues: {
-      quote_id: id ?? '',
-      item_id: '',
-      quantity: 1,
-      unit_price: 0,
-      margin_percent: null,
-      source_store_id: null,
-      unit: '',
-      notes: '',
-    },
-  });
-
-  const selectedItemId = watch('item_id');
-  const sourceStoreId = watch('source_store_id');
-  const quantity = watch('quantity');
-  const unitPrice = watch('unit_price');
-
-  const defaultMarginPercent = quoteDetail.data?.quote.default_material_margin_percent ?? null;
-  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(unitPrice, null, defaultMarginPercent);
-  const effectiveTotal = getMaterialEffectiveTotalPrice(quantity, unitPrice, null, defaultMarginPercent);
-
-  const storePricesQuery = useStoreLatestPrices(sourceStoreId ?? '');
-  const availableStores = useMemo(() => (stores ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)), [stores]);
-  const latestPriceRows = useMemo(() => latestPricesQuery.data ?? [], [latestPricesQuery.data]);
-  const storePriceRows = useMemo(() => storePricesQuery.data ?? [], [storePricesQuery.data]);
-
-  const latestPriceByItemId = useMemo(() => {
-    const map = new Map<string, number>();
-    latestPriceRows.forEach((row) => {
-      if (!map.has(row.item_id)) {
-        map.set(row.item_id, row.price);
-      }
-    });
-    return map;
-  }, [latestPriceRows]);
-
-  const storePriceByItemId = useMemo(() => new Map(storePriceRows.map((row) => [row.item_id, row.price] as const)), [storePriceRows]);
-  const storeItemIds = useMemo(() => new Set(storePriceRows.map((row) => row.item_id)), [storePriceRows]);
-  const catalogPriceByItemId = useMemo(
-    () => (sourceStoreId ? storePriceByItemId : latestPriceByItemId),
-    [latestPriceByItemId, sourceStoreId, storePriceByItemId],
-  );
+  const { data: measurements, isLoading: measurementsLoading, error: measurementsError } = useItemMeasurements(selectedItemId);
+  const latestMeasurePricesQuery = useLatestMeasurePrices(selectedStoreId ? { storeId: selectedStoreId } : {});
 
   const materialItems = useMemo(() => (items ?? []).filter((item) => item.item_type === 'material'), [items]);
-  const catalogItems = useMemo(
-    () => (sourceStoreId ? materialItems.filter((item) => storeItemIds.has(item.id)) : []),
-    [materialItems, sourceStoreId, storeItemIds],
+  const availableStores = useMemo(() => (stores ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)), [stores]);
+  const selectedStore = availableStores.find((store) => store.id === selectedStoreId) ?? null;
+  const selectedItem = materialItems.find((item) => item.id === selectedItemId) ?? null;
+  const itemMeasurements = measurements ?? [];
+  const selectedMeasurement = itemMeasurements.find((measurement) => measurement.id === selectedMeasurementId) ?? null;
+  const hasMeasurements = itemMeasurements.length > 0;
+
+  const storeBaseRows = useMemo(
+    () => (latestPricesQuery.data ?? []).filter((row) => row.store_id === selectedStoreId),
+    [latestPricesQuery.data, selectedStoreId],
   );
+  const storeMeasureRows = useMemo(
+    () => (selectedStoreId ? (latestMeasurePricesQuery.data ?? []).filter((row) => row.store_id === selectedStoreId) : []),
+    [latestMeasurePricesQuery.data, selectedStoreId],
+  );
+
+  const directPriceByItemId = useMemo(() => new Map(storeBaseRows.map((row) => [row.item_id, Number(row.price)] as const)), [storeBaseRows]);
+  const measurePriceByMeasurementId = useMemo(
+    () => new Map(storeMeasureRows.map((row) => [row.item_measurement_id, Number(row.price)] as const)),
+    [storeMeasureRows],
+  );
+  const measuredItemIds = useMemo(() => new Set(storeMeasureRows.map((row) => row.item_id)), [storeMeasureRows]);
+  const directItemIds = useMemo(() => new Set(storeBaseRows.map((row) => row.item_id)), [storeBaseRows]);
 
   const filteredStores = useMemo(() => {
     const query = storeSearch.trim().toLowerCase();
@@ -108,6 +100,12 @@ export default function AddMaterialToQuotePage() {
     );
   }, [availableStores, storeSearch]);
 
+  const catalogItems = useMemo(() => {
+    if (!selectedStoreId) return [];
+
+    return materialItems.filter((item) => directItemIds.has(item.id) || measuredItemIds.has(item.id));
+  }, [directItemIds, materialItems, measuredItemIds, selectedStoreId]);
+
   const filteredItems = useMemo(() => {
     const query = materialSearch.trim().toLowerCase();
     if (!query) return catalogItems;
@@ -116,212 +114,177 @@ export default function AddMaterialToQuotePage() {
       (item) =>
         item.name.toLowerCase().includes(query) ||
         (item.category ?? '').toLowerCase().includes(query) ||
-        (item.brand ?? '').toLowerCase().includes(query),
+        (item.base_price_label ?? '').toLowerCase().includes(query),
     );
   }, [catalogItems, materialSearch]);
 
-  const selectedItem =
-    filteredItems.find((item) => item.id === selectedItemId) ??
-    catalogItems.find((item) => item.id === selectedItemId) ??
-    materialItems.find((item) => item.id === selectedItemId) ??
-    null;
-
-  const totalStorePages = Math.max(1, Math.ceil(filteredStores.length / PAGE_SIZE));
-  const paginatedStores = useMemo(() => {
-    const startIndex = (storePage - 1) * PAGE_SIZE;
-    return filteredStores.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredStores, storePage]);
-
-  const totalMaterialPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-  const paginatedMaterials = useMemo(() => {
-    const startIndex = (materialPage - 1) * PAGE_SIZE;
-    return filteredItems.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredItems, materialPage]);
-
-  const getListPrice = (itemId: string) => {
-    return Number(catalogPriceByItemId.get(itemId) ?? 0);
-  };
+  const defaultMarginPercent = quoteDetail.data?.quote.default_material_margin_percent ?? null;
+  const parsedQuantity = parsePositiveInput(quantityInput) ?? 0;
+  const parsedUnitPrice = parseNonNegativeInput(unitPriceInput) ?? 0;
+  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(parsedUnitPrice, null, defaultMarginPercent);
+  const effectiveTotal = getMaterialEffectiveTotalPrice(parsedQuantity, parsedUnitPrice, null, defaultMarginPercent);
 
   useEffect(() => {
-    if (entryMode !== 'catalog') return;
-    if (!sourceStoreId || !selectedItemId) return;
-    if (storeItemIds.has(selectedItemId)) return;
-
-    setValue('item_id', '', { shouldValidate: true });
-    setValue('unit', '', { shouldValidate: true });
-    setValue('unit_price', 0, { shouldValidate: true });
-  }, [entryMode, selectedItemId, setValue, sourceStoreId, storeItemIds]);
+    setSelectedItemId('');
+    setSelectedMeasurementId(null);
+    setUnitPriceInput('');
+  }, [entryMode]);
 
   useEffect(() => {
-    if (entryMode !== 'catalog') return;
+    setSelectedItemId('');
+    setSelectedMeasurementId(null);
+    setUnitPriceInput('');
+  }, [selectedStoreId]);
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setSelectedMeasurementId(null);
+      return;
+    }
+
+    if (itemMeasurements.length === 0) {
+      setSelectedMeasurementId(null);
+      const directPrice = directPriceByItemId.get(selectedItem.id);
+      setUnitPriceInput(directPrice != null ? String(directPrice) : '');
+      return;
+    }
+
+    const nextMeasurement =
+      itemMeasurements.find((measurement) => measurement.id === selectedMeasurementId) ??
+      itemMeasurements.find((measurement) => measurePriceByMeasurementId.has(measurement.id)) ??
+      itemMeasurements[0] ??
+      null;
+
+    if (!nextMeasurement) {
+      setSelectedMeasurementId(null);
+      setUnitPriceInput('');
+      return;
+    }
+
+    if (nextMeasurement.id !== selectedMeasurementId) {
+      setSelectedMeasurementId(nextMeasurement.id);
+    }
+  }, [directPriceByItemId, itemMeasurements, measurePriceByMeasurementId, selectedItem, selectedMeasurementId]);
+
+  useEffect(() => {
     if (!selectedItem) return;
 
-    const nextUnit = selectedItem.unit ?? '';
-    if ((getValues('unit') ?? '') !== nextUnit) {
-      setValue('unit', nextUnit, { shouldValidate: true });
-    }
-
-    const nextPrice = Number(catalogPriceByItemId.get(selectedItem.id) ?? 0);
-    if (Number(getValues('unit_price')) !== nextPrice) {
-      setValue('unit_price', nextPrice, { shouldValidate: true });
-    }
-  }, [catalogPriceByItemId, entryMode, getValues, selectedItem, setValue]);
-
-  useEffect(() => {
-    setStorePage(1);
-  }, [storeSearch]);
-
-  useEffect(() => {
-    setMaterialPage(1);
-  }, [materialSearch, sourceStoreId]);
-
-  useEffect(() => {
-    if (storePage > totalStorePages) {
-      setStorePage(totalStorePages);
-    }
-  }, [storePage, totalStorePages]);
-
-  useEffect(() => {
-    if (materialPage > totalMaterialPages) {
-      setMaterialPage(totalMaterialPages);
-    }
-  }, [materialPage, totalMaterialPages]);
-
-  const loading =
-    itemsLoading ||
-    storesLoading ||
-    latestPricesQuery.isLoading ||
-    quoteDetail.isLoading ||
-    (Boolean(sourceStoreId) && storePricesQuery.isLoading);
-
-  const combinedError = itemsError
-    ? new Error(itemsError.message)
-    : storesError
-      ? new Error(storesError.message)
-      : latestPricesQuery.error
-        ? new Error(latestPricesQuery.error.message)
-        : quoteDetail.error
-          ? new Error(quoteDetail.error.message)
-          : storePricesQuery.error
-            ? new Error(storePricesQuery.error.message)
-            : null;
-
-  const selectCatalogItem = (itemId: string) => {
-    const item = materialItems.find((entry) => entry.id === itemId);
-    if (!item) return;
-
-    setValue('item_id', item.id, { shouldValidate: true });
-    setValue('unit', item.unit ?? '', { shouldValidate: true });
-    setValue('unit_price', getListPrice(item.id), { shouldValidate: true });
-  };
-
-  const syncCurrentPriceToStore = async () => {
-    try {
-      if (!sourceStoreId) {
-        throw new Error('Selecciona una tienda antes de actualizar el precio.');
+    if (!selectedMeasurement) {
+      if (itemMeasurements.length === 0) {
+        const directPrice = directPriceByItemId.get(selectedItem.id);
+        setUnitPriceInput(directPrice != null ? String(directPrice) : '');
       }
-
-      if (entryMode !== 'catalog' || !selectedItemId) {
-        throw new Error('Selecciona un material de la lista antes de actualizar el precio.');
-      }
-
-      const parsedPrice = Number(getValues('unit_price'));
-      if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-        throw new Error('Ingresa un costo unitario valido antes de actualizar el precio.');
-      }
-
-      await createPrice.mutateAsync({
-        store_id: sourceStoreId,
-        item_id: selectedItemId,
-        price: parsedPrice,
-        currency: 'ARS',
-        observed_at: new Date().toISOString(),
-        source_type: 'quote',
-        quantity_reference: String(getValues('quantity')),
-        notes: null,
-      });
-
-      setSnack('Precio de tienda actualizado.');
-    } catch (error) {
-      setSnack(toUserErrorMessage(error, 'No se pudo actualizar el precio de la tienda.'));
+      return;
     }
-  };
+
+    const measurePrice = measurePriceByMeasurementId.get(selectedMeasurement.id);
+    setUnitPriceInput(measurePrice != null ? String(measurePrice) : '');
+  }, [directPriceByItemId, itemMeasurements.length, measurePriceByMeasurementId, selectedItem, selectedMeasurement]);
+
+  const combinedError =
+    quoteDetail.error ??
+    itemsError ??
+    storesError ??
+    latestPricesQuery.error ??
+    latestMeasurePricesQuery.error ??
+    measurementsError;
 
   const submit = async () => {
     try {
-      if (entryMode === 'catalog' && !sourceStoreId) {
-        throw new Error('Selecciona una tienda para cargar desde lista.');
+      const quantity = parsePositiveInput(quantityInput);
+      if (quantity == null) {
+        throw new Error('Ingresa una cantidad valida.');
       }
 
-      if (entryMode === 'catalog' && !selectedItemId) {
-        throw new Error('Selecciona un material de la lista.');
+      const unitPrice = parseNonNegativeInput(unitPriceInput);
+      if (unitPrice == null) {
+        throw new Error('Ingresa un costo valido.');
       }
 
-      if (entryMode === 'manual') {
-        const normalizedManualName = manualName.trim();
-        const normalizedManualUnit = manualUnit.trim();
+      let itemId = selectedItemId;
+      let itemMeasurementId: string | null = selectedMeasurementId;
+      let unit = selectedMeasurement?.unit ?? selectedItem?.unit ?? 'mt';
+      let sourceStoreId: string | null = entryMode === 'catalog' ? selectedStoreId : null;
 
-        if (!normalizedManualName) {
+      if (entryMode === 'catalog') {
+        if (!selectedStoreId) {
+          throw new Error('Selecciona una tienda.');
+        }
+
+        if (!selectedItem) {
+          throw new Error('Selecciona un material.');
+        }
+
+        if (hasMeasurements && !selectedMeasurement) {
+          throw new Error('Selecciona una medida.');
+        }
+      } else {
+        const normalizedName = manualName.trim();
+        if (!normalizedName) {
           throw new Error('Ingresa el nombre del material manual.');
         }
 
         const createdItem = await saveItem.mutateAsync({
-          name: normalizedManualName,
+          name: normalizedName,
           item_type: 'material',
           category: manualCategory.trim() || null,
-          unit: normalizedManualUnit || null,
-          brand: manualBrand.trim() || null,
+          unit: 'mt',
+          brand: null,
+          description: null,
           notes: null,
+          base_price_label: null,
         });
 
-        setValue('item_id', createdItem.id, { shouldValidate: true });
-        setValue('unit', normalizedManualUnit || '', { shouldValidate: true });
+        itemId = createdItem.id;
+        itemMeasurementId = null;
+        unit = createdItem.unit ?? 'mt';
+        sourceStoreId = null;
       }
-
-      setValue('margin_percent', null, { shouldValidate: true });
-
-      const isValid = await trigger();
-      if (!isValid) {
-        throw new Error('Completa los campos obligatorios del material.');
-      }
-
-      const values = getValues();
 
       await add.mutateAsync({
-        quote_id: values.quote_id,
-        item_id: values.item_id,
-        quantity: Number(values.quantity),
-        unit: values.unit?.trim() ? values.unit.trim() : null,
-        unit_price: Number(values.unit_price),
+        quote_id: id ?? '',
+        item_id: itemId,
+        item_measurement_id: itemMeasurementId,
+        quantity,
+        unit,
+        unit_price: unitPrice,
         margin_percent: null,
-        source_store_id: entryMode === 'catalog' ? values.source_store_id ?? null : null,
-        notes: values.notes?.trim() ? values.notes.trim() : null,
+        source_store_id: sourceStoreId,
+        notes: notesInput.trim() || null,
       });
 
       toast.success('Material agregado.');
       router.back();
     } catch (error) {
-      setSnack(toUserErrorMessage(error, 'No se pudo agregar el material.'));
+      setMessage(toUserErrorMessage(error, 'No se pudo agregar el material.'));
     }
   };
 
+  const busy = add.isPending || saveItem.isPending;
+  const loading =
+    quoteDetail.isLoading ||
+    itemsLoading ||
+    storesLoading ||
+    latestPricesQuery.isLoading ||
+    (Boolean(selectedStoreId) && latestMeasurePricesQuery.isLoading) ||
+    (Boolean(selectedItemId) && measurementsLoading);
+
+  const selectedMaterialTitle =
+    selectedItem && selectedMeasurement
+      ? formatMeasuredItemDisplayName(selectedItem, selectedMeasurement)
+      : (selectedItem?.name ?? (manualName.trim() || 'Material'));
+  const measurementPriceMissing = entryMode === 'catalog' && hasMeasurements && selectedMeasurement && !unitPriceInput.trim();
+
   return (
     <AppScreen title="Agregar material al trabajo">
-      <LoadingOrError isLoading={loading} error={combinedError} />
+      <LoadingOrError isLoading={loading} error={combinedError ? new Error(combinedError.message) : null} />
 
       <View style={styles.page}>
         <View style={styles.modeBlock}>
           <Text variant="titleMedium">Modo de carga</Text>
           <SegmentedButtons
             value={entryMode}
-            onValueChange={(value) => {
-              const nextMode = value as MaterialEntryMode;
-              setEntryMode(nextMode);
-              setValue('item_id', '', { shouldValidate: true });
-              setValue('unit', '', { shouldValidate: true });
-              setValue('unit_price', 0, { shouldValidate: true });
-              setMaterialSearch('');
-            }}
+            onValueChange={(value) => setEntryMode(value as MaterialEntryMode)}
             buttons={[
               { value: 'catalog', label: 'Desde lista' },
               { value: 'manual', label: 'Manual' },
@@ -329,291 +292,224 @@ export default function AddMaterialToQuotePage() {
           />
         </View>
 
-        <Card mode="outlined" style={styles.tableCard}>
-          <Card.Content style={styles.tableContent}>
-            <View style={styles.tableHeaderBlock}>
-              <Text variant="titleSmall">Tienda de compra</Text>
-              <Text style={styles.helperText}>Selecciona la tienda desde la que queres cargar materiales.</Text>
-            </View>
+        {entryMode === 'catalog' ? (
+          <>
+            <Card mode="outlined" style={styles.sectionCard}>
+              <Card.Content style={styles.sectionContent}>
+                <View style={styles.sectionHeader}>
+                  <Text variant="titleSmall">Tienda</Text>
+                  <Text style={styles.helperText}>Se usa para traer el precio actual del material o de cada medida.</Text>
+                </View>
 
-            <Searchbar placeholder="Buscar tienda" value={storeSearch} onChangeText={setStoreSearch} style={styles.searchbar} />
+                <Menu
+                  visible={storeMenuVisible}
+                  onDismiss={() => setStoreMenuVisible(false)}
+                  anchor={
+                    <Button
+                      mode="outlined"
+                      icon="storefront-outline"
+                      onPress={() => setStoreMenuVisible(true)}
+                      style={styles.selectButton}
+                      contentStyle={styles.selectButtonContent}
+                    >
+                      {selectedStore?.name ?? 'Seleccionar tienda'}
+                    </Button>
+                  }
+                >
+                  {availableStores.map((store) => (
+                    <Menu.Item
+                      key={store.id}
+                      title={store.name}
+                      onPress={() => {
+                        setSelectedStoreId(store.id);
+                        setStoreMenuVisible(false);
+                      }}
+                    />
+                  ))}
+                </Menu>
 
-            <View style={styles.tableShell}>
-              <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScrollContent}>
-                <View style={styles.storeTableFrame}>
-                  <View style={styles.tableHeader}>
-                    <Text style={[styles.headerCell, styles.storeNameColumn]}>Tienda</Text>
-                    <Text style={[styles.headerCell, styles.storeMetaColumn]}>Detalle</Text>
-                  </View>
+                {availableStores.length > 6 ? (
+                  <Searchbar placeholder="Buscar tienda" value={storeSearch} onChangeText={setStoreSearch} style={styles.searchbar} />
+                ) : null}
 
-                  {paginatedStores.length > 0 ? (
-                    paginatedStores.map((item, index) => {
-                      const selected = sourceStoreId === item.id;
-
+                {!selectedStoreId && filteredStores.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storeChipsRow}>
+                    {filteredStores.map((store) => {
+                      const selected = store.id === selectedStoreId;
                       return (
                         <Pressable
-                          key={item.id}
-                          onPress={() => setValue('source_store_id', item.id, { shouldValidate: true })}
-                          style={[
-                            styles.tableRow,
-                            index % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd,
-                            selected && styles.tableRowSelectedBlue,
-                          ]}
+                          key={store.id}
+                          onPress={() => setSelectedStoreId(store.id)}
+                          style={[styles.storeChip, selected ? styles.storeChipSelected : null]}
                         >
-                          <Text style={[styles.rowCell, styles.storeNameColumn, styles.primaryRowValue]}>{item.name}</Text>
-                          <Text style={[styles.rowCell, styles.storeMetaColumn]}>
-                            {item.description?.trim() || item.address?.trim() || 'Sin detalle'}
-                          </Text>
+                          <Text style={selected ? styles.storeChipSelectedText : styles.storeChipText}>{store.name}</Text>
                         </Pressable>
                       );
-                    })
-                  ) : (
-                    <Text style={styles.emptyStateText}>No hay tiendas que coincidan con la busqueda.</Text>
-                  )}
+                    })}
+                  </ScrollView>
+                ) : null}
+              </Card.Content>
+            </Card>
+
+            <Card mode="outlined" style={styles.sectionCard}>
+              <Card.Content style={styles.sectionContent}>
+                <View style={styles.sectionHeader}>
+                  <Text variant="titleSmall">Material</Text>
+                  <Text style={styles.helperText}>
+                    {selectedStoreId ? 'Se muestran solo materiales con precio disponible en la tienda.' : 'Primero selecciona una tienda.'}
+                  </Text>
                 </View>
-              </ScrollView>
-            </View>
 
-            <View style={styles.paginationBar}>
-              <Text style={styles.paginationText}>
-                {filteredStores.length > 0 ? `Mostrando ${(storePage - 1) * PAGE_SIZE + 1}-${Math.min(storePage * PAGE_SIZE, filteredStores.length)} de ${filteredStores.length}` : 'Sin resultados'}
-              </Text>
-              <View style={styles.paginationActions}>
-                <IconButton
-                  icon="arrow-left"
-                  mode="outlined"
-                  size={18}
-                  accessibilityLabel="Pagina anterior de tiendas"
-                  onPress={() => setStorePage((current) => Math.max(1, current - 1))}
-                  disabled={storePage === 1}
-                  style={styles.paginationIcon}
+                <Searchbar
+                  placeholder={selectedStoreId ? 'Buscar material' : 'Selecciona una tienda para buscar'}
+                  value={materialSearch}
+                  onChangeText={setMaterialSearch}
+                  editable={Boolean(selectedStoreId)}
+                  style={styles.searchbar}
                 />
-                <Text style={styles.paginationText}>
-                  {storePage}/{totalStorePages}
-                </Text>
-                <IconButton
-                  icon="arrow-right"
-                  mode="outlined"
-                  size={18}
-                  accessibilityLabel="Pagina siguiente de tiendas"
-                  onPress={() => setStorePage((current) => Math.min(totalStorePages, current + 1))}
-                  disabled={storePage === totalStorePages}
-                  style={styles.paginationIcon}
-                />
-              </View>
-            </View>
-          </Card.Content>
-        </Card>
 
-        {entryMode === 'catalog' ? (
-          <Card mode="outlined" style={styles.tableCard}>
-            <Card.Content style={styles.tableContent}>
-              <View style={styles.tableHeaderBlock}>
-                <Text variant="titleSmall">Materiales</Text>
-                <Text style={styles.helperText}>El precio visible en la lista se usa como base para este trabajo.</Text>
-              </View>
-
-              <Searchbar
-                placeholder={sourceStoreId ? 'Buscar material de la tienda' : 'Buscar material'}
-                value={materialSearch}
-                onChangeText={setMaterialSearch}
-                style={styles.searchbar}
-              />
-
-              <View style={styles.tableShell}>
-                <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScrollContent}>
-                  <View style={styles.materialTableFrame}>
-                    <View style={styles.tableHeader}>
-                      <Text style={[styles.headerCell, styles.materialNameColumn]}>Material</Text>
-                      <Text style={[styles.headerCell, styles.materialCategoryColumn]}>Categoria</Text>
-                      <Text style={[styles.headerCell, styles.materialPriceColumn]}>Precio</Text>
-                    </View>
-
-                    {!sourceStoreId ? (
-                      <Text style={styles.emptyStateText}>Selecciona una tienda para ver materiales de lista.</Text>
-                    ) : paginatedMaterials.length > 0 ? (
-                      paginatedMaterials.map((item, index) => {
-                        const selected = selectedItemId === item.id;
-                        const rowPrice = getListPrice(item.id);
-
+                {selectedStoreId ? (
+                  filteredItems.length > 0 ? (
+                    <View style={styles.resultsList}>
+                      {filteredItems.map((item) => {
+                        const selected = item.id === selectedItemId;
                         return (
                           <Pressable
                             key={item.id}
-                            onPress={() => selectCatalogItem(item.id)}
-                            style={[
-                              styles.tableRow,
-                              index % 2 === 0 ? styles.tableRowEven : styles.tableRowOdd,
-                              selected && styles.tableRowSelectedGreen,
-                            ]}
+                            onPress={() => setSelectedItemId(item.id)}
+                            style={[styles.resultRow, selected ? styles.resultRowSelected : null]}
                           >
-                            <View style={styles.materialNameColumn}>
-                              <Text style={[styles.rowCell, styles.primaryRowValue]} numberOfLines={2}>
-                                {item.name}
+                            <View style={styles.resultInfo}>
+                              <Text style={styles.resultTitle}>{item.name}</Text>
+                              <Text style={styles.resultMeta}>
+                                {[item.category ?? 'Sin categoria', measuredItemIds.has(item.id) ? 'Con medidas' : 'Precio directo por mt'].join(' · ')}
                               </Text>
-                              <Text style={styles.rowMeta}>{item.brand ?? 'Sin marca'}</Text>
                             </View>
-                            <Text style={[styles.rowCell, styles.materialCategoryColumn]} numberOfLines={2}>
-                              {item.category ?? 'Sin categoria'}
-                            </Text>
-                            <Text style={[styles.rowCell, styles.materialPriceColumn, styles.priceValue]}>
-                              {rowPrice > 0 ? formatCurrencyArs(rowPrice) : 'Sin precio'}
-                            </Text>
+                            {!measuredItemIds.has(item.id) && directPriceByItemId.has(item.id) ? (
+                              <Text style={styles.resultPrice}>{formatCurrencyArs(directPriceByItemId.get(item.id) ?? 0)}</Text>
+                            ) : null}
                           </Pressable>
                         );
-                      })
-                    ) : (
-                      <Text style={styles.emptyStateText}>No hay materiales que coincidan con la busqueda.</Text>
-                    )}
+                      })}
+                    </View>
+                  ) : (
+                    <Text style={styles.helperText}>No hay materiales con precio para esa tienda.</Text>
+                  )
+                ) : null}
+              </Card.Content>
+            </Card>
+
+            {selectedItem && hasMeasurements ? (
+              <Card mode="outlined" style={styles.sectionCard}>
+                <Card.Content style={styles.sectionContent}>
+                  <View style={styles.sectionHeader}>
+                    <Text variant="titleSmall">Medida</Text>
+                    <Text style={styles.helperText}>Cada medida usa su precio final por metro.</Text>
                   </View>
-                </ScrollView>
+
+                  <View style={styles.measurementsList}>
+                    {itemMeasurements.map((measurement) => {
+                      const selected = measurement.id === selectedMeasurementId;
+                      const price = measurePriceByMeasurementId.get(measurement.id);
+
+                      return (
+                        <Pressable
+                          key={measurement.id}
+                          onPress={() => setSelectedMeasurementId(measurement.id)}
+                          style={[styles.measurementRow, selected ? styles.measurementRowSelected : null]}
+                        >
+                          <View style={styles.measurementInfo}>
+                            <Text style={styles.measurementTitle}>{formatMeasurementDisplayLabel(measurement) ?? measurement.label}</Text>
+                            <Text style={styles.measurementMeta}>
+                              {measurement.pricing_mode === 'calculated'
+                                ? `${measurement.grams_per_meter ?? 0} gr/mt`
+                                : 'Carga manual por mt'}
+                            </Text>
+                          </View>
+                          <Text style={styles.measurementPrice}>{price != null ? `${formatCurrencyArs(price)} / mt` : 'Sin precio'}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </Card.Content>
+              </Card>
+            ) : null}
+          </>
+        ) : (
+          <Card mode="outlined" style={styles.sectionCard}>
+            <Card.Content style={styles.sectionContent}>
+              <View style={styles.sectionHeader}>
+                <Text variant="titleSmall">Material manual</Text>
+                <Text style={styles.helperText}>Para una carga rapida. Si el material necesita medidas, conviene crearlo desde Materiales.</Text>
               </View>
 
-              <View style={styles.paginationBar}>
-                <Text style={styles.paginationText}>
-                  {sourceStoreId && filteredItems.length > 0
-                    ? `Mostrando ${(materialPage - 1) * PAGE_SIZE + 1}-${Math.min(materialPage * PAGE_SIZE, filteredItems.length)} de ${filteredItems.length}`
-                    : sourceStoreId
-                      ? 'Sin resultados'
-                      : 'Selecciona una tienda'}
-                </Text>
-                <View style={styles.paginationActions}>
-                  <IconButton
-                    icon="arrow-left"
-                    mode="outlined"
-                    size={18}
-                    accessibilityLabel="Pagina anterior de materiales"
-                    onPress={() => setMaterialPage((current) => Math.max(1, current - 1))}
-                    disabled={materialPage === 1 || !sourceStoreId}
-                    style={styles.paginationIcon}
-                  />
-                  <Text style={styles.paginationText}>
-                    {materialPage}/{totalMaterialPages}
-                  </Text>
-                  <IconButton
-                    icon="arrow-right"
-                    mode="outlined"
-                    size={18}
-                    accessibilityLabel="Pagina siguiente de materiales"
-                    onPress={() => setMaterialPage((current) => Math.min(totalMaterialPages, current + 1))}
-                    disabled={materialPage === totalMaterialPages || !sourceStoreId}
-                    style={styles.paginationIcon}
-                  />
-                </View>
-              </View>
-            </Card.Content>
-          </Card>
-        ) : (
-          <Card mode="outlined" style={styles.tableCard}>
-            <Card.Content style={styles.formBlock}>
-              <Text variant="titleSmall">Material manual</Text>
-              <TextInput mode="outlined" label="Nombre del material" value={manualName} onChangeText={setManualName} outlineStyle={styles.inputOutline} />
-              <TextInput mode="outlined" label="Categoria (opcional)" value={manualCategory} onChangeText={setManualCategory} outlineStyle={styles.inputOutline} />
-              <TextInput mode="outlined" label="Unidad (opcional)" value={manualUnit} onChangeText={setManualUnit} outlineStyle={styles.inputOutline} />
-              <TextInput mode="outlined" label="Marca (opcional)" value={manualBrand} onChangeText={setManualBrand} outlineStyle={styles.inputOutline} />
+              <TextInput mode="outlined" label="Nombre" value={manualName} onChangeText={setManualName} outlineStyle={styles.inputOutline} />
+              <TextInput mode="outlined" label="Categoria" value={manualCategory} onChangeText={setManualCategory} outlineStyle={styles.inputOutline} />
             </Card.Content>
           </Card>
         )}
 
-        <Card mode="outlined" style={styles.tableCard}>
-          <Card.Content style={styles.formBlock}>
-            <Text variant="titleSmall">Detalles</Text>
-            {entryMode === 'catalog' && selectedItem ? (
-              <Text style={styles.helperText}>Material seleccionado: {selectedItem.name}</Text>
-            ) : null}
+        <Card mode="outlined" style={styles.sectionCard}>
+          <Card.Content style={styles.sectionContent}>
+            <View style={styles.sectionHeader}>
+              <Text variant="titleSmall">Resumen</Text>
+              <Text style={styles.helperText}>
+                {defaultMarginPercent != null ? `El trabajo aplica un margen global de ${defaultMarginPercent}%.` : 'Sin margen global configurado.'}
+              </Text>
+            </View>
 
-            <Controller
-              control={control}
-              name="quantity"
-              render={({ field }) => (
-                <TextInput
-                  mode="outlined"
-                  label="Cantidad"
-                  keyboardType="decimal-pad"
-                  value={String(field.value)}
-                  onChangeText={field.onChange}
-                  outlineStyle={styles.inputOutline}
-                />
-              )}
-            />
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>{selectedMaterialTitle}</Text>
+              {entryMode === 'catalog' && selectedStore ? <Text style={styles.summaryMeta}>Origen: {selectedStore.name}</Text> : null}
+              {measurementPriceMissing ? <Text style={styles.summaryWarning}>La medida seleccionada todavia no tiene precio cargado en esa tienda.</Text> : null}
+            </View>
 
-            {entryMode === 'manual' ? (
-              <Controller
-                control={control}
-                name="unit"
-                render={({ field }) => (
-                  <TextInput mode="outlined" label="Unidad (opcional)" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
-                )}
-              />
-            ) : null}
-
-            <Controller
-              control={control}
-              name="unit_price"
-              render={({ field }) => (
-                <TextInput
-                  mode="outlined"
-                  label="Costo unitario"
-                  keyboardType="decimal-pad"
-                  value={field.value === 0 ? '' : String(field.value)}
-                  onChangeText={field.onChange}
-                  outlineStyle={styles.inputOutline}
-                />
-              )}
-            />
-
-            {entryMode === 'catalog' && sourceStoreId && selectedItemId ? (
-              <Button
+            <View style={styles.inlineFields}>
+              <TextInput
                 mode="outlined"
-                icon="store-cog-outline"
-                onPress={syncCurrentPriceToStore}
-                loading={createPrice.isPending}
-                disabled={createPrice.isPending || Number(unitPrice) <= 0}
-                style={styles.secondaryActionButton}
-                contentStyle={styles.secondaryActionButtonContent}
-              >
-                Actualizar precio en tienda
-              </Button>
-            ) : null}
+                label="Cantidad"
+                value={quantityInput}
+                onChangeText={setQuantityInput}
+                keyboardType="decimal-pad"
+                outlineStyle={styles.inputOutline}
+                style={styles.inlineField}
+              />
+              <TextInput
+                mode="outlined"
+                label="Costo"
+                value={unitPriceInput}
+                onChangeText={setUnitPriceInput}
+                keyboardType="decimal-pad"
+                outlineStyle={styles.inputOutline}
+                style={styles.inlineField}
+              />
+            </View>
 
-            <Controller
-              control={control}
-              name="notes"
-              render={({ field }) => (
-                <TextInput
-                  mode="outlined"
-                  label="Notas"
-                  value={field.value ?? ''}
-                  onChangeText={field.onChange}
-                  multiline
-                  numberOfLines={3}
-                  outlineStyle={styles.inputOutline}
-                />
-              )}
+            <TextInput
+              mode="outlined"
+              label="Notas"
+              value={notesInput}
+              onChangeText={setNotesInput}
+              outlineStyle={styles.inputOutline}
+              multiline
             />
+
+            <View style={styles.previewBlock}>
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Venta unitaria</Text>
+                <Text style={styles.previewValue}>{formatCurrencyArs(effectiveUnitPrice)}</Text>
+              </View>
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Total</Text>
+                <Text style={styles.previewValue}>{formatCurrencyArs(effectiveTotal)}</Text>
+              </View>
+            </View>
+
+            <Button mode="contained" onPress={submit} loading={busy} disabled={busy}>
+              Agregar material
+            </Button>
           </Card.Content>
         </Card>
-
-        <View style={styles.summaryCard}>
-          <Text variant="titleSmall" style={styles.summaryTitle}>
-            Resumen estimado
-          </Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Costo unitario</Text>
-            <Text style={styles.summaryValue}>{formatCurrencyArs(Number(unitPrice) || 0)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Venta unitaria estimada</Text>
-            <Text style={styles.summaryValue}>{formatCurrencyArs(effectiveUnitPrice)}</Text>
-          </View>
-          <View style={[styles.summaryRow, styles.summaryRowTotal]}>
-            <Text style={styles.summaryTotalLabel}>Total estimado</Text>
-            <Text style={styles.summaryTotalValue}>{formatCurrencyArs(effectiveTotal)}</Text>
-          </View>
-        </View>
-
-        <Button mode="contained" loading={add.isPending || saveItem.isPending} onPress={submit} style={styles.submitButton} contentStyle={styles.submitButtonContent}>
-          Agregar material al trabajo
-        </Button>
       </View>
     </AppScreen>
   );
@@ -626,200 +522,179 @@ const styles = StyleSheet.create({
   modeBlock: {
     gap: 10,
   },
-  tableCard: {
-    borderRadius: 12,
+  sectionCard: {
+    borderRadius: 14,
   },
-  tableContent: {
-    gap: 10,
-    paddingVertical: 8,
-  },
-  formBlock: {
+  sectionContent: {
     gap: 12,
-    paddingVertical: 8,
-  },
-  tableHeaderBlock: {
-    gap: 2,
-  },
-  helperText: {
-    color: '#5f6368',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  searchbar: {
-    borderRadius: 10,
-  },
-  tableShell: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  tableScrollContent: {
-    paddingBottom: 2,
-  },
-  storeTableFrame: {
-    minWidth: 382,
-    gap: 8,
-  },
-  materialTableFrame: {
-    minWidth: 470,
-    gap: 8,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: BRAND_BLUE_SOFT,
-    borderRadius: 10,
-    paddingHorizontal: 10,
     paddingVertical: 10,
   },
-  headerCell: {
+  sectionHeader: {
+    gap: 4,
+  },
+  helperText: {
     fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    color: BRAND_BLUE,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#DCE4EC',
-  },
-  tableRowEven: {
-    backgroundColor: '#FFFFFF',
-  },
-  tableRowOdd: {
-    backgroundColor: '#F8FBFF',
-  },
-  tableRowSelectedBlue: {
-    borderColor: BRAND_BLUE,
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
-  tableRowSelectedGreen: {
-    borderColor: BRAND_GREEN,
-    backgroundColor: BRAND_GREEN_SOFT,
-  },
-  rowCell: {
-    fontSize: 13,
     lineHeight: 18,
-  },
-  primaryRowValue: {
-    fontWeight: '500',
-    color: '#101828',
-  },
-  rowMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#5f6368',
-  },
-  storeNameColumn: {
-    width: 150,
-    paddingRight: 10,
-  },
-  storeMetaColumn: {
-    width: 200,
-  },
-  materialNameColumn: {
-    width: 220,
-    paddingRight: 12,
-  },
-  materialCategoryColumn: {
-    width: 130,
-    paddingRight: 12,
-  },
-  materialPriceColumn: {
-    width: 122,
-  },
-  priceValue: {
-    fontWeight: '600',
-  },
-  emptyStateText: {
-    paddingVertical: 18,
-    textAlign: 'center',
-    color: '#5f6368',
   },
   inputOutline: {
     borderRadius: 10,
   },
-  secondaryActionButton: {
+  selectButton: {
     borderRadius: 10,
-    alignSelf: 'flex-start',
+    borderColor: '#D7E1ED',
   },
-  secondaryActionButtonContent: {
-    minHeight: 40,
-    paddingHorizontal: 8,
+  selectButtonContent: {
+    minHeight: 44,
   },
-  paginationBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
+  searchbar: {
+    borderRadius: 12,
   },
-  paginationActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  storeChipsRow: {
     gap: 8,
   },
-  paginationIcon: {
-    margin: 0,
+  storeChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: BRAND_BLUE_SOFT,
   },
-  paginationText: {
-    color: '#5f6368',
-    fontSize: 12,
-    lineHeight: 18,
+  storeChipSelected: {
+    backgroundColor: BRAND_BLUE,
   },
-  summaryCard: {
-    gap: 10,
-    borderRadius: 14,
+  storeChipText: {
+    color: BRAND_BLUE,
+    fontWeight: '600',
+  },
+  storeChipSelectedText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  resultsList: {
+    gap: 8,
+  },
+  resultRow: {
     borderWidth: 1,
-    borderColor: '#C9DDB7',
-    backgroundColor: BRAND_GREEN_SOFT,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  summaryTitle: {
-    color: BRAND_GREEN,
-    fontWeight: '700',
-  },
-  summaryRow: {
+    borderColor: '#D9E3EE',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
   },
-  summaryLabel: {
-    color: '#4F5E73',
-    flex: 1,
+  resultRowSelected: {
+    borderColor: BRAND_BLUE,
+    backgroundColor: BRAND_BLUE_SOFT,
   },
-  summaryValue: {
-    color: '#253245',
+  resultInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  resultTitle: {
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: '600',
-    textAlign: 'right',
   },
-  summaryRowTotal: {
-    paddingTop: 10,
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#C9DDB7',
+  resultMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#5F6A76',
   },
-  summaryTotalLabel: {
-    color: '#254929',
+  resultPrice: {
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '700',
+    color: BRAND_BLUE,
+  },
+  measurementsList: {
+    gap: 8,
+  },
+  measurementRow: {
+    borderWidth: 1,
+    borderColor: '#D9E3EE',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  measurementRowSelected: {
+    borderColor: BRAND_GREEN,
+    backgroundColor: BRAND_GREEN_SOFT,
+  },
+  measurementInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  measurementTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  measurementMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#5F6A76',
+  },
+  measurementPrice: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: BRAND_GREEN,
+  },
+  summaryCard: {
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#D9E3EE',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  summaryTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  summaryMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#5F6A76',
+  },
+  summaryWarning: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#9A3412',
+  },
+  inlineFields: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  inlineField: {
     flex: 1,
   },
-  summaryTotalValue: {
-    color: '#17351D',
-    fontWeight: '800',
-    fontSize: 18,
-    lineHeight: 24,
-    textAlign: 'right',
+  previewBlock: {
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#F7FAFD',
   },
-  submitButton: {
-    borderRadius: 10,
+  previewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  submitButtonContent: {
-    minHeight: 44,
+  previewLabel: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#5F6A76',
+  },
+  previewValue: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
   },
 });
