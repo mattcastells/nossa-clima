@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Dialog, Portal, Text, TextInput } from 'react-native-paper';
 
+import { AppDialog } from '@/components/AppDialog';
 import { AppScreen } from '@/components/AppScreen';
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import {
   useCreateServiceCategory,
@@ -16,6 +18,7 @@ import { toUserErrorMessage } from '@/lib/errors';
 interface CategoryListItem {
   name: string;
   usageCount: number;
+  isVirtual?: boolean;
 }
 
 const normalizeCategoryName = (value: string): string => value.trim().replace(/\s+/g, ' ');
@@ -32,6 +35,7 @@ export default function ServiceCategoriesPage() {
   const [renameValue, setRenameValue] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<CategoryListItem | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  useToastMessageEffect(message, () => setMessage(null));
 
   const usageByCategory = useMemo(() => {
     const counts = new Map<string, number>();
@@ -44,12 +48,31 @@ export default function ServiceCategoriesPage() {
     return counts;
   }, [servicesData]);
 
+  const uncategorizedCount = useMemo(
+    () =>
+      (servicesData ?? []).filter((service) => {
+        const normalized = normalizeCategoryName(service.category ?? '');
+        return normalized.length === 0;
+      }).length,
+    [servicesData],
+  );
+
   const categories = useMemo<CategoryListItem[]>(() => {
-    return (categoriesData ?? []).map((name) => ({
+    const baseCategories: CategoryListItem[] = (categoriesData ?? []).map((name) => ({
       name,
       usageCount: usageByCategory.get(name.toLowerCase()) ?? 0,
     }));
-  }, [categoriesData, usageByCategory]);
+
+    if (uncategorizedCount > 0) {
+      baseCategories.push({
+        name: 'Sin categorias',
+        usageCount: uncategorizedCount,
+        isVirtual: true,
+      });
+    }
+
+    return baseCategories;
+  }, [categoriesData, usageByCategory, uncategorizedCount]);
 
   const busy = createCategory.isPending || renameCategory.isPending || deleteCategory.isPending;
 
@@ -131,25 +154,33 @@ export default function ServiceCategoriesPage() {
               <View style={styles.categoryInfo}>
                 <Text variant="titleMedium">{item.name}</Text>
                 <Text style={styles.helperText}>
-                  {item.usageCount > 0 ? `${item.usageCount} servicio(s) asociado(s)` : 'Sin servicios asociados'}
+                  {item.isVirtual
+                    ? `${item.usageCount} servicio(s) sin categoria`
+                    : item.usageCount > 0
+                      ? `${item.usageCount} servicio(s) asociado(s)`
+                      : 'Sin servicios asociados'}
                 </Text>
               </View>
-              <View style={styles.actionsRow}>
-                <Button
-                  mode="text"
-                  compact
-                  onPress={() => {
-                    setRenameTarget(item.name);
-                    setRenameValue(item.name);
-                  }}
-                  disabled={busy}
-                >
-                  Editar
-                </Button>
-                <Button mode="text" compact textColor="#B3261E" onPress={() => setDeleteTarget(item)} disabled={busy}>
-                  Borrar
-                </Button>
-              </View>
+              {!item.isVirtual ? (
+                <View style={styles.actionsRow}>
+                  <Button
+                    mode="text"
+                    compact
+                    onPress={() => {
+                      setRenameTarget(item.name);
+                      setRenameValue(item.name);
+                    }}
+                    disabled={busy}
+                  >
+                    Editar
+                  </Button>
+                  <Button mode="text" compact textColor="#B3261E" onPress={() => setDeleteTarget(item)} disabled={busy}>
+                    Borrar
+                  </Button>
+                </View>
+              ) : (
+                <Text style={styles.virtualCategoryHint}>Aparece automaticamente mientras existan servicios sin categoria.</Text>
+              )}
             </Card.Content>
           </Card>
         )}
@@ -157,7 +188,7 @@ export default function ServiceCategoriesPage() {
       />
 
       <Portal>
-        <Dialog visible={Boolean(renameTarget)} onDismiss={() => !busy && setRenameTarget(null)}>
+        <AppDialog visible={Boolean(renameTarget)} onDismiss={() => !busy && setRenameTarget(null)}>
           <Dialog.Title>Editar categoria</Dialog.Title>
           <Dialog.Content style={styles.dialogContent}>
             <TextInput mode="outlined" label="Nuevo nombre" value={renameValue} onChangeText={setRenameValue} outlineStyle={styles.inputOutline} />
@@ -176,9 +207,9 @@ export default function ServiceCategoriesPage() {
               Guardar
             </Button>
           </Dialog.Actions>
-        </Dialog>
+        </AppDialog>
 
-        <Dialog visible={Boolean(deleteTarget)} onDismiss={() => !busy && setDeleteTarget(null)}>
+        <AppDialog visible={Boolean(deleteTarget)} onDismiss={() => !busy && setDeleteTarget(null)}>
           <Dialog.Title>Borrar categoria</Dialog.Title>
           <Dialog.Content style={styles.dialogContent}>
             <Text>Se va a eliminar la categoria {deleteTarget?.name}.</Text>
@@ -194,12 +225,8 @@ export default function ServiceCategoriesPage() {
               Borrar
             </Button>
           </Dialog.Actions>
-        </Dialog>
+        </AppDialog>
       </Portal>
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }
@@ -233,6 +260,11 @@ const styles = StyleSheet.create({
   },
   helperText: {
     color: '#5f6368',
+  },
+  virtualCategoryHint: {
+    color: '#5f6368',
+    fontSize: 12,
+    lineHeight: 17,
   },
   actionsRow: {
     flexDirection: 'row',

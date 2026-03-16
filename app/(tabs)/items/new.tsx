@@ -3,10 +3,11 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Menu, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Chip, Menu, Text, TextInput } from 'react-native-paper';
 import { z } from 'zod';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems, useSaveItem } from '@/features/items/hooks';
 import { useCreatePrice } from '@/features/prices/hooks';
@@ -55,6 +56,8 @@ export default function NewItemPage() {
   const [storeMenuVisible, setStoreMenuVisible] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState('');
   const [initialPriceInput, setInitialPriceInput] = useState('');
+  const toast = useAppToast();
+  useToastMessageEffect(message, () => setMessage(null));
 
   const availableStores = useMemo(() => stores ?? [], [stores]);
   const selectedStore = availableStores.find((store) => store.id === selectedStoreId) ?? null;
@@ -112,6 +115,7 @@ export default function NewItemPage() {
         });
       }
 
+      toast.success('Material guardado.');
       router.back();
     } catch (error) {
       setMessage(toUserErrorMessage(error, 'No se pudo guardar el material.'));
@@ -248,10 +252,6 @@ export default function NewItemPage() {
       <Button mode="contained" onPress={submit} loading={isBusy} disabled={isBusy} style={styles.saveButton} contentStyle={styles.saveButtonContent}>
         Guardar material
       </Button>
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

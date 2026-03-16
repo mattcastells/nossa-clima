@@ -10,7 +10,7 @@ export type LinkAppointmentToQuoteInput = {
   notes?: string | null;
 };
 export type AppointmentListItem = Appointment & {
-  quote: Pick<Quote, 'id' | 'client_name' | 'title' | 'notes'> | null;
+  quote: Pick<Quote, 'id' | 'client_name' | 'title' | 'notes' | 'status'> | null;
 };
 
 const missingQuoteIdColumnMessage = 'Falta aplicar la migracion 202603100004 para poder programar trabajos.';
@@ -34,7 +34,7 @@ export const listAppointmentsInRange = async (dateFrom: string, dateTo: string):
 
   const { data: quotes, error: quotesError } = await supabase
     .from('quotes')
-    .select('id, client_name, title, notes')
+    .select('id, client_name, title, notes, status')
     .in('id', quoteIds);
 
   if (quotesError) throw quotesError;

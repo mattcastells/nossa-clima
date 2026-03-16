@@ -1,15 +1,22 @@
 import { Link } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Searchbar, Snackbar, Text } from 'react-native-paper';
+import { Button, Card, Chip, Searchbar, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useImportDefaultServices, useServiceCategories, useServices } from '@/features/services/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
+import { BRAND_BLUE, BRAND_BLUE_SOFT } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
+const UNCATEGORIZED_CATEGORY = '__uncategorized__';
+type ServiceCategoryOption = {
+  key: string;
+  label: string;
+};
 
 export default function ServicesScreen() {
   const { data, isLoading, error } = useServices();
@@ -19,6 +26,7 @@ export default function ServicesScreen() {
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [message, setMessage] = useState<string | null>(null);
   const autoImportTriggered = useRef(false);
+  useToastMessageEffect(message, () => setMessage(null));
 
   useEffect(() => {
     if (autoImportTriggered.current || isLoading || importDefaults.isPending || Boolean(error)) return;
@@ -36,19 +44,53 @@ export default function ServicesScreen() {
     });
   }, [data, error, importDefaults, isLoading]);
 
-  const categories = useMemo(() => categoryNames ?? [], [categoryNames]);
+  const uncategorizedCount = useMemo(
+    () =>
+      (data ?? []).filter((service) => {
+        const normalized = service.category?.trim() ?? '';
+        return normalized.length === 0;
+      }).length,
+    [data],
+  );
+
+  const categories = useMemo<ServiceCategoryOption[]>(() => {
+    const baseCategories = (categoryNames ?? []).map((category) => ({
+      key: category,
+      label: category,
+    }));
+    if (uncategorizedCount > 0) {
+      baseCategories.push({
+        key: UNCATEGORIZED_CATEGORY,
+        label: 'Sin categorias',
+      });
+    }
+    return baseCategories;
+  }, [categoryNames, uncategorizedCount]);
 
   useEffect(() => {
     if (selectedCategory === ALL_CATEGORIES) return;
-    if (!categories.some((category) => category === selectedCategory)) {
+    if (selectedCategory === UNCATEGORIZED_CATEGORY) {
+      if (uncategorizedCount === 0) {
+        setSelectedCategory(ALL_CATEGORIES);
+      }
+      return;
+    }
+
+    if (!categories.some((category) => category.key === selectedCategory)) {
       setSelectedCategory(ALL_CATEGORIES);
     }
-  }, [categories, selectedCategory]);
+  }, [categories, selectedCategory, uncategorizedCount]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (data ?? []).filter((service) => {
-      if (selectedCategory !== ALL_CATEGORIES && (service.category ?? '') !== selectedCategory) {
+      const normalizedCategory = service.category?.trim() ?? '';
+
+      if (selectedCategory === UNCATEGORIZED_CATEGORY) {
+        if (normalizedCategory.length > 0) {
+          return false;
+        }
+      } else if (selectedCategory !== ALL_CATEGORIES && normalizedCategory !== selectedCategory) {
         return false;
       }
 
@@ -81,8 +123,13 @@ export default function ServicesScreen() {
           Todas
         </Chip>
         {categories.map((category) => (
-          <Chip compact key={category} selected={selectedCategory === category} onPress={() => setSelectedCategory(category)}>
-            {category}
+          <Chip
+            compact
+            key={category.key}
+            selected={selectedCategory === category.key}
+            onPress={() => setSelectedCategory(category.key)}
+          >
+            {category.label}
           </Chip>
         ))}
       </ScrollView>
@@ -113,10 +160,6 @@ export default function ServicesScreen() {
         )}
         ListEmptyComponent={<Text>No hay servicios que coincidan con los filtros.</Text>}
       />
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }
@@ -144,7 +187,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerBlock: {
-    backgroundColor: '#F6F8FB',
+    backgroundColor: BRAND_BLUE_SOFT,
     paddingHorizontal: 14,
     paddingTop: 6,
     paddingBottom: 8,
@@ -167,12 +210,13 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     borderRadius: 10,
-    backgroundColor: '#DCD1EE',
+    backgroundColor: '#D8E4F2',
     minHeight: 24,
   },
   categoryChipText: {
     fontSize: 11,
     lineHeight: 14,
+    color: BRAND_BLUE,
   },
   description: {
     color: '#5f6368',

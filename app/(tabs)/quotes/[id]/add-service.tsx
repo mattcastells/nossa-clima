@@ -3,15 +3,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Card, Searchbar, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Searchbar, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useAddQuoteServiceItem } from '@/features/quotes/hooks';
 import { QuoteServiceItemFormValues, quoteServiceItemSchema } from '@/features/quotes/schemas';
 import { useServices } from '@/features/services/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
+import { BRAND_BLUE } from '@/theme';
 
 export default function AddServiceToQuotePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +25,8 @@ export default function AddServiceToQuotePage() {
 
   const [search, setSearch] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
+  const toast = useAppToast();
+  useToastMessageEffect(snack, () => setSnack(null));
 
   const { control, handleSubmit, watch, setValue } = useForm<QuoteServiceItemFormValues>({
     resolver: zodResolver(quoteServiceItemSchema),
@@ -49,49 +53,54 @@ export default function AddServiceToQuotePage() {
     [services, search],
   );
 
-  const selectedService =
-    filteredServices.find((service) => service.id === selectedServiceId) ??
-    (services ?? []).find((service) => service.id === selectedServiceId);
-
   return (
-    <AppScreen title="Agregar servicio al trabajo">
+    <AppScreen title="Agregar servicio al trabajo" showHomeButton={false} scrollable={false}>
       <LoadingOrError isLoading={servicesLoading} error={serviceError} />
       <View style={styles.container}>
-        <Text style={styles.helperText}>Selecciona el tipo de servicio desde la lista de servicios cargados.</Text>
         <Searchbar
-          placeholder="Buscar servicio por nombre o categoria"
+          placeholder="Buscar servicio"
           value={search}
           onChangeText={setSearch}
           style={styles.searchbar}
         />
 
-        <FlatList
-          data={filteredServices}
-          keyExtractor={(item) => item.id}
-          style={styles.servicesList}
-          contentContainerStyle={styles.servicesListContent}
-          renderItem={({ item }) => (
-            <Card
-              mode="outlined"
-              onPress={() => {
-                setValue('service_id', item.id, { shouldValidate: true });
-                setValue('unit_price', item.base_price, { shouldValidate: true });
-              }}
-              style={[styles.serviceCard, selectedServiceId === item.id && styles.serviceCardSelected]}
-            >
-              <Card.Content style={styles.serviceCardContent}>
-                <Text variant="titleMedium">{item.name}</Text>
-                <Text>{item.category ?? 'Sin categoria'} - Precio base: {formatCurrencyArs(item.base_price)}</Text>
-              </Card.Content>
-            </Card>
-          )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No hay servicios que coincidan con la busqueda.</Text>}
-        />
-
-        <View style={styles.selectionSummary}>
-          <Text>Tipo seleccionado: {selectedService?.name ?? 'Ninguno'}</Text>
-          <Text>Precio base sugerido: {formatCurrencyArs(selectedService?.base_price ?? 0)}</Text>
+        <View style={styles.servicesPanel}>
+          <FlatList
+            data={filteredServices}
+            keyExtractor={(item) => item.id}
+            nestedScrollEnabled
+            style={styles.servicesList}
+            contentContainerStyle={styles.servicesListContent}
+            renderItem={({ item }) => (
+              <Card
+                mode="outlined"
+                onPress={() => {
+                  setValue('service_id', item.id, { shouldValidate: true });
+                  setValue('unit_price', item.base_price, { shouldValidate: true });
+                }}
+                style={[styles.serviceCard, selectedServiceId === item.id && styles.serviceCardSelected]}
+              >
+                <Card.Content style={styles.serviceCardContent}>
+                  <View style={styles.serviceCardHeader}>
+                    <Text variant="titleMedium" style={styles.serviceName}>
+                      {item.name}
+                    </Text>
+                    <View style={styles.categoryTag}>
+                      <Text variant="labelSmall" style={styles.categoryTagText}>
+                        {item.category ?? 'Sin categoria'}
+                      </Text>
+                    </View>
+                  </View>
+                </Card.Content>
+              </Card>
+            )}
+            ListEmptyComponent={<Text style={styles.emptyText}>No hay servicios que coincidan con la busqueda.</Text>}
+          />
         </View>
+
+        <Text variant="titleSmall" style={styles.detailsHeading}>
+          Detalles
+        </Text>
 
         <Controller
           control={control}
@@ -153,7 +162,7 @@ export default function AddServiceToQuotePage() {
                 unit_price: Number(values.unit_price),
                 notes: values.notes?.trim() ? values.notes.trim() : null,
               });
-              setSnack('Servicio agregado');
+              toast.success('Servicio agregado.');
               router.back();
             } catch (mutationError) {
               setSnack(toUserErrorMessage(mutationError, 'No se pudo agregar el servicio'));
@@ -163,53 +172,76 @@ export default function AddServiceToQuotePage() {
           Agregar servicio al trabajo
         </Button>
       </View>
-      <Snackbar visible={Boolean(snack)} onDismiss={() => setSnack(null)} duration={2400}>
-        {snack}
-      </Snackbar>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     gap: 14,
-  },
-  helperText: {
-    color: '#5f6368',
-    lineHeight: 20,
   },
   searchbar: {
     borderRadius: 10,
   },
+  servicesPanel: {
+    flex: 1,
+    minHeight: 280,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D6DEE8',
+    backgroundColor: '#F7FAFC',
+    padding: 8,
+    overflow: 'hidden',
+  },
   servicesList: {
-    maxHeight: 260,
+    flex: 1,
   },
   servicesListContent: {
     paddingTop: 2,
-    paddingBottom: 6,
+    paddingBottom: 10,
+    gap: 10,
   },
   serviceCard: {
-    marginBottom: 10,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#D6DEE8',
   },
   serviceCardSelected: {
     borderWidth: 2,
-    borderColor: '#0B6E4F',
+    borderColor: BRAND_BLUE,
   },
   serviceCardContent: {
     gap: 4,
   },
+  serviceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  serviceName: {
+    flex: 1,
+  },
+  categoryTag: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#EAF0F7',
+    borderWidth: 1,
+    borderColor: '#D5E0EE',
+  },
+  categoryTagText: {
+    color: BRAND_BLUE,
+  },
   emptyText: {
     color: '#5f6368',
-    paddingVertical: 6,
+    paddingVertical: 18,
+    textAlign: 'center',
   },
-  selectionSummary: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#F7FAFC',
-    gap: 4,
+  detailsHeading: {
+    color: '#5f6368',
+    marginTop: -2,
   },
   inputOutline: {
     borderRadius: 10,

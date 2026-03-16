@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { useDeleteAllQuotes, useDeleteOldQuotes } from '@/features/quotes/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr } from '@/lib/format';
@@ -27,6 +28,7 @@ export default function QuotesCleanupPage() {
   const [mode, setMode] = useState<CleanupMode>('180');
   const [confirmText, setConfirmText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  useToastMessageEffect(message, () => setMessage(null));
 
   const isBusy = deleteOldQuotes.isPending || deleteAllQuotes.isPending;
   const canRun = confirmText.trim().toUpperCase() === 'ELIMINAR';
@@ -86,10 +88,6 @@ export default function QuotesCleanupPage() {
           </View>
         </Card.Content>
       </Card>
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

@@ -12,23 +12,25 @@ import {
   getQuoteDetail,
   getSuggestedMaterialPrice,
   listQuotes,
+  refreshQuoteMaterialPricing,
   resetQuoteMaterialItemMarginsToDefault,
   type QuoteMaterialItemInput,
   type QuoteMaterialItemUpdate,
   type QuoteServiceItemInput,
   type QuoteServiceItemUpdate,
+  updateQuoteStatus,
   updateQuoteMaterialItem,
   updateQuoteServiceItem,
   upsertQuote,
 } from '@/services/quotes';
-import type { Quote, QuoteStatus } from '@/types/db';
+import type { JobQuoteStatus, Quote } from '@/types/db';
 
 const invalidateQuoteCaches = (queryClient: ReturnType<typeof useQueryClient>, quoteId: string) => {
   queryClient.invalidateQueries({ queryKey: ['quote-detail', quoteId] });
   queryClient.invalidateQueries({ queryKey: ['quotes'] });
 };
 
-export const useQuotes = (status?: QuoteStatus | 'all') =>
+export const useQuotes = (status?: JobQuoteStatus | 'all') =>
   useQuery({ queryKey: ['quotes', status ?? 'all'], queryFn: () => listQuotes(status) });
 
 export const useQuoteDetail = (quoteId: string) =>
@@ -42,6 +44,14 @@ export const useSaveQuote = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: Partial<Quote> & Pick<Quote, 'client_name' | 'title'>) => upsertQuote(payload),
+    onSuccess: (data) => invalidateQuoteCaches(queryClient, data.id),
+  });
+};
+
+export const useUpdateQuoteStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ quoteId, status }: { quoteId: string; status: JobQuoteStatus }) => updateQuoteStatus(quoteId, status),
     onSuccess: (data) => invalidateQuoteCaches(queryClient, data.id),
   });
 };
@@ -83,6 +93,14 @@ export const useResetQuoteMaterialItemMarginsToDefault = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (quoteId: string) => resetQuoteMaterialItemMarginsToDefault(quoteId),
+    onSuccess: ({ quoteId }) => invalidateQuoteCaches(queryClient, quoteId),
+  });
+};
+
+export const useRefreshQuoteMaterialPricing = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (quoteId: string) => refreshQuoteMaterialPricing(quoteId),
     onSuccess: ({ quoteId }) => invalidateQuoteCaches(queryClient, quoteId),
   });
 };

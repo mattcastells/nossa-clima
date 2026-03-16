@@ -1,6 +1,8 @@
 export type ItemType = 'product' | 'tool' | 'material' | 'other';
 export type PriceSourceType = 'purchase' | 'manual_update' | 'quote' | 'other';
-export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
+export type LegacyQuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
+export type JobQuoteStatus = 'pending' | 'completed' | 'cancelled';
+export type QuoteStatus = LegacyQuoteStatus | JobQuoteStatus;
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export interface Profile {
@@ -12,19 +14,21 @@ export interface Profile {
 
 export interface Store {
   id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   description: string | null;
   address: string | null;
   phone: string | null;
   notes: string | null;
+  archived_at: string | null;
+  updated_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface Item {
   id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   description: string | null;
   notes: string | null;
@@ -33,6 +37,8 @@ export interface Item {
   sku: string | null;
   brand: string | null;
   item_type: ItemType;
+  archived_at: string | null;
+  updated_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +51,7 @@ export interface Service {
   category: string | null;
   base_price: number;
   unit_type: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +74,7 @@ export interface Quote {
   status: QuoteStatus;
   notes: string | null;
   default_material_margin_percent: number | null;
+  cancelled_at: string | null;
   subtotal_materials: number;
   subtotal_services: number;
   total: number;
@@ -86,6 +94,7 @@ export interface QuoteMaterialItem {
   margin_percent: number | null;
   total_price: number;
   source_store_id: string | null;
+  source_store_name_snapshot: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -107,7 +116,7 @@ export interface QuoteServiceItem {
 
 export interface StoreItemPrice {
   id: string;
-  user_id: string;
+  user_id: string | null;
   store_id: string;
   item_id: string;
   price: number;
@@ -137,4 +146,9 @@ export interface Appointment {
   store_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProfileDirectoryEntry {
+  id: string;
+  full_name: string | null;
 }

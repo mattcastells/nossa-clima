@@ -14,6 +14,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="stores" options={{ title: 'Tiendas' }} />
       <Tabs.Screen name="items" options={{ title: 'Materiales' }} />
       <Tabs.Screen name="services" options={{ title: 'Servicios' }} />
+      <Tabs.Screen name="assistant" options={{ title: 'Asistente AI' }} />
       <Tabs.Screen name="settings" options={{ title: 'Opciones' }} />
       <Tabs.Screen name="prices" options={{ href: null }} />
     </Tabs>

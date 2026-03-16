@@ -7,71 +7,157 @@ App mobile (Expo + React Native) para gestion de precios, servicios y presupuest
 - Node.js 18+
 - npm 9+
 - Proyecto de Supabase
-- Expo Go o emulador Android/iOS
+# Precios Tecnicos (Nossa Clima mobile)
 
-## Setup rapido
+Professional mobile application for managing prices, services and technical quotes. The app is part of the Nossa Clima ecosystem and provides a compact interface for creating quotes, managing service and item catalogs, tracking prices and generating PDF exports.
 
-1. Instalar dependencias:
+## What this project is
+
+- A cross-platform mobile application built with Expo (React Native + TypeScript).
+- Intended for technicians and administrators to create, manage and export price estimates and service quotes.
+- Integrates with Supabase as the backend (database and authentication).
+
+This repository contains the client application and assets used by the Nossa Clima initiative for field operations and quoting.
+
+## Key features
+
+- Create and manage services, items and stores.
+- Build and export quotes as PDF.
+- Price history and price comparison screens.
+- Offline-capable client with Supabase sync for authenticated users.
+
+## Tech stack
+
+- Expo / React Native (mobile UI)
+- TypeScript
+- Supabase (Postgres + Auth) via `@supabase/supabase-js`
+- React Query (`@tanstack/react-query`) for remote state and caching
+- React Hook Form + Zod for forms and validation
+- Zustand for lightweight local state
+- jsPDF + jspdf-autotable for PDF export
+- Vitest + Testing Library for tests; ESLint + Prettier for linting/formatting
+
+See `package.json` for exact dependency versions.
+
+## Requirements
+
+- Node.js 18 or later
+- npm 10+ (this project uses npm as package manager)
+- Expo CLI (recommended) or Expo Go for device testing
+- A Supabase project with database and service migrations applied
+
+Do not store or commit any secret keys. Only the Supabase anonymous public key (anon key) should be used in the client app.
+
+## Quickstart (local development)
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/mattcastells/nossa-clima.git
+cd nossa-clima
+```
+
+2. Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Crear archivo `.env`:
+3. Configure environment variables:
 
 ```powershell
 Copy-Item .env.example .env
+# then edit .env and set the required values
 ```
 
-3. Completar variables en `.env`:
+Required environment variables (example keys used by the client):
 
-- `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-- `EXPO_PUBLIC_APP_UPDATE_GITHUB_REPO` (opcional, override del repo publico para updates por APK)
+- EXPO_PUBLIC_SUPABASE_URL
+- EXPO_PUBLIC_SUPABASE_ANON_KEY
+- (optional) EXPO_PUBLIC_APP_UPDATE_GITHUB_REPO
+- (optional) EXPO_PUBLIC_AI_FUNCTION_NAME
 
-4. Aplicar base de datos en Supabase (en este orden):
+4. Prepare the Supabase database
+
+Apply the SQL migration files in the `supabase/migrations/` folder to your Supabase project's database. Files are intended to be applied in chronological order. Example files include:
 
 - `supabase/migrations/202603100001_initial_schema.sql`
 - `supabase/migrations/202603100002_quotes_services.sql`
 - `supabase/migrations/202603100003_appointments.sql`
-- `supabase/migrations/202603100004_jobs_calendar_material_notes.sql`
 
-5. (Opcional) Cargar datos de ejemplo:
+You can apply them with the Supabase dashboard SQL editor or the Supabase CLI.
 
-- `supabase/seed/seed.sql`
-- `supabase/seed/seed_nossa_clima.sql`
-- Para limpiar datos de prueba (manteniendo servicios): `supabase/seed/reset_non_services.sql`
+Optional: load seed data from `supabase/seed/` if you need example records for testing.
 
-6. Levantar app:
+5. Start the app (Expo)
 
 ```bash
 npm run start
 ```
 
-Con Expo CLI:
-- `a` abre Android
-- `w` abre Web
+From the Expo UI you can run on Android, iOS simulator/emulator, or web. Common shortcuts shown in the Expo terminal apply (for example: `a` to open Android).
 
-## Scripts utiles
+## Tests & checks
 
-- `npm run start`
-- `npm run android`
-- `npm run ios`
-- `npm run web`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run test`
+- Run type check: `npm run typecheck`
+- Run lint: `npm run lint`
+- Run tests: `npm run test`
 
-## Release Android
+## Notes and recommendations
 
-- El flujo de APK via GitHub Releases usa tags con formato `vX.Y.Z-bN`.
-- Para este primer corte, el tag correcto es `v0.1.0-b1`.
-- Al pushear ese tag, `.github/workflows/android-release.yml` construye la APK release y la adjunta al release de GitHub.
-- La app ya consulta GitHub Releases con ese formato, asi que no conviene publicar un tag plano `0.1.0`.
+- The repository uses the Supabase anonymous key on the client; never use or expose the service role key in client code.
+- After renaming or moving the repository, update any CI/CD workflows, GitHub Actions, webhooks or external integrations that reference the repository URL.
+- Keep migration files and seed data under `supabase/` to reproduce the schema locally or in staging.
 
-## Notas
+## AI assistant setup
 
-- Usar solo `anon key` en la app cliente. No usar `service role key`.
-- Si el usuario existe en Supabase Auth pero no en `profiles`, la app intenta crear el perfil al iniciar sesion.
-- Documentacion de pre-release: `docs/PRE_RELEASE_SETUP.md`.
-- Documentacion de updates por APK: `docs/APP_UPDATES.md`.
+The app includes an optional `Asistente AI` screen that talks to a Supabase Edge Function using the Gemini API.
+
+Files involved:
+
+- `app/(tabs)/assistant.tsx`
+- `src/services/assistant.ts`
+- `supabase/functions/assistant-chat/index.ts`
+
+### Supabase secrets
+
+Set these in Supabase before using the assistant:
+
+```bash
+supabase secrets set GEMINI_API_KEY=your-gemini-key
+supabase secrets set GEMINI_MODEL=gemini-2.5-flash
+```
+
+Optional:
+
+```bash
+supabase secrets set GEMINI_ASSISTANT_INSTRUCTIONS="Sos el asistente tecnico de Nossa Clima. Ayudas a personas que trabajan con aires acondicionados, refrigeracion, instalaciones tecnicas y electronica aplicada. Responde en espanol claro, concreto y util. Prioriza diagnostico, mantenimiento, materiales, seguridad electrica, herramientas, instalacion y service. Si la imagen o el texto no alcanzan para dar una respuesta confiable, explicalo y pedi el dato faltante. No inventes datos tecnicos."
+```
+
+### Deploy the Edge Function
+
+```bash
+supabase functions deploy assistant-chat
+```
+
+If you want a different public function name in the client:
+
+```bash
+EXPO_PUBLIC_AI_FUNCTION_NAME=assistant-chat
+```
+
+### Current MVP scope
+
+- Text questions
+- One optional image per message
+- Conversation continuity using recent local history
+- No database persistence yet
+
+This keeps the first version simple and avoids storing user images or messages until that is explicitly designed.
+
+## Where to find more documentation
+
+- Pre-release and setup notes: `docs/PRE_RELEASE_SETUP.md`
+- Additional operational notes: `docs/ITERACION_2_QUOTES_SERVICES.md`
+
+If you need the README tailored further (shorter, more examples, or added troubleshooting), tell me which section to expand and I will update it.

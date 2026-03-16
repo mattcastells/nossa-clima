@@ -1,8 +1,10 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, StyleSheet } from 'react-native';
-import { Button, Card, Snackbar, Text } from 'react-native-paper';
+import { Button, Card, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { signOut } from '@/features/auth/service';
 import { toUserErrorMessage } from '@/lib/errors';
 import { getAppVersion } from '@/lib/appVersion';
@@ -18,6 +20,7 @@ export default function SettingsScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  useToastMessageEffect(message, () => setMessage(null));
 
   const isBusy = isSigningOut || isUpdatingApp;
 
@@ -124,11 +127,19 @@ export default function SettingsScreen() {
         </Card.Content>
       </Card>
 
-      <Text style={styles.versionText}>v{appVersion}</Text>
+      <Card mode="outlined">
+        <Card.Content style={styles.cardContent}>
+          <Text variant="titleMedium">Mantenimiento</Text>
+          <Text style={styles.helperText}>Usa esta opcion solo para eliminar trabajos viejos o limpiar datos.</Text>
+          <Link href="/quotes/cleanup" asChild>
+            <Button mode="outlined" icon="delete-sweep-outline" disabled={isBusy}>
+              Limpiar trabajos antiguos
+            </Button>
+          </Link>
+        </Card.Content>
+      </Card>
 
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
+      <Text style={styles.versionText}>v{appVersion}</Text>
     </AppScreen>
   );
 }
@@ -136,6 +147,11 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   cardContent: {
     gap: 12,
+  },
+  helperText: {
+    color: '#6B7280',
+    fontSize: 12,
+    lineHeight: 18,
   },
   versionText: {
     marginTop: 4,

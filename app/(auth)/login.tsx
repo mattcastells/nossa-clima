@@ -3,15 +3,20 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Text, TextInput, useTheme } from 'react-native-paper';
 
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoginFormValues, loginSchema } from '@/features/auth/schemas';
 import { signIn } from '@/features/auth/service';
+import { useAuthStore } from '@/features/auth/store';
 import { toUserErrorMessage } from '@/lib/errors';
 
 export default function LoginScreen() {
   const [authError, setAuthError] = useState<string | null>(null);
   const theme = useTheme();
+  useToastMessageEffect(authError, () => setAuthError(null), 'error');
+  const pendingPath = useAuthStore((s) => s.pendingPath);
+  const clearPendingPath = useAuthStore((s) => s.clearPendingPath);
 
   const {
     control,
@@ -65,7 +70,9 @@ export default function LoginScreen() {
         onPress={handleSubmit(async (values) => {
           try {
             await signIn(values.email, values.password);
-            router.replace('/(tabs)');
+            const destination = pendingPath ?? '/(tabs)';
+            clearPendingPath();
+            router.replace(destination as never);
           } catch (error) {
             setAuthError(toUserErrorMessage(error, 'No se pudo iniciar sesión.'));
           }
@@ -73,10 +80,6 @@ export default function LoginScreen() {
       >
         Ingresar
       </Button>
-
-      <Snackbar visible={Boolean(authError)} onDismiss={() => setAuthError(null)} duration={3000}>
-        {authError}
-      </Snackbar>
     </View>
   );
 }

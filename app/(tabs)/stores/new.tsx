@@ -1,8 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Snackbar } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { StoreForm } from '@/features/stores/StoreForm';
 import { useSaveStore } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
@@ -13,6 +13,8 @@ export default function NewStorePage() {
   const params = useLocalSearchParams<{ returnTo?: string | string[]; itemId?: string | string[] }>();
   const mutation = useSaveStore();
   const [message, setMessage] = useState<string | null>(null);
+  const toast = useAppToast();
+  useToastMessageEffect(message, () => setMessage(null));
   const returnTo = getSingleParam(params.returnTo).trim();
   const itemId = getSingleParam(params.itemId).trim();
 
@@ -30,6 +32,7 @@ export default function NewStorePage() {
             });
 
             if (returnTo === '/prices/new') {
+              toast.success('Tienda guardada.');
               router.replace({
                 pathname: '/prices/new',
                 params: {
@@ -40,15 +43,13 @@ export default function NewStorePage() {
               return;
             }
 
+            toast.success('Tienda guardada.');
             router.back();
           } catch (error) {
             setMessage(toUserErrorMessage(error, 'No se pudo guardar la tienda.'));
           }
         }}
       />
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

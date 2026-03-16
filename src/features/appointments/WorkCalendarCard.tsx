@@ -1,67 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, IconButton, Text, TextInput } from 'react-native-paper';
 
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { useAppointmentsInMonth, useCreateAppointment, useDeleteAppointment } from '@/features/appointments/hooks';
+import { quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
+import { formatIsoDate, getCalendarCells, maskTimeInput, monthLabel, normalizeOptionalTimeInput, toHumanDate } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatTimeShort } from '@/lib/format';
+import { BRAND_BLUE, BRAND_BLUE_MID, BRAND_BLUE_SOFT } from '@/theme';
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-
-const formatLocalDate = (value: Date): string => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const toHumanDate = (isoDate: string): string => {
-  const [rawYear = '1970', rawMonth = '01', rawDay = '01'] = isoDate.split('-');
-  const year = Number(rawYear);
-  const month = Number(rawMonth);
-  const day = Number(rawDay);
-  const date = new Date(
-    Number.isFinite(year) ? year : 1970,
-    Number.isFinite(month) ? month - 1 : 0,
-    Number.isFinite(day) ? day : 1,
-  );
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
-const getCalendarCells = (anchor: Date): Array<number | null> => {
-  const firstDay = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const firstWeekday = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
-
-  const cells: Array<number | null> = Array.from({ length: firstWeekday }, () => null);
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push(day);
-  }
-
-  while (cells.length % 7 !== 0) {
-    cells.push(null);
-  }
-
-  return cells;
-};
-
-const monthLabel = (anchor: Date): string =>
-  anchor.toLocaleDateString('es-AR', {
-    month: 'long',
-    year: 'numeric',
-  });
-
-const normalizeTime = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(trimmed)) {
-    throw new Error('Hora invalida. Usa formato HH:mm.');
-  }
-
-  return `${trimmed}:00`;
-};
 
 const getAppointmentClientLabel = (appointment: { quote: { client_name: string } | null; quote_id: string | null }): string =>
   appointment.quote?.client_name ?? (appointment.quote_id ? '-' : 'Sin cliente');
@@ -80,11 +30,12 @@ const getAppointmentDescription = (
 export const WorkCalendarCard = () => {
   const router = useRouter();
   const [monthAnchor, setMonthAnchor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState(() => formatLocalDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => formatIsoDate(new Date()));
   const [title, setTitle] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  useToastMessageEffect(message, () => setMessage(null));
 
   const appointmentsQuery = useAppointmentsInMonth(monthAnchor);
   const createAppointment = useCreateAppointment();
@@ -111,7 +62,7 @@ export const WorkCalendarCard = () => {
   const moveMonth = (delta: number) => {
     const nextAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + delta, 1);
     setMonthAnchor(nextAnchor);
-    setSelectedDate(formatLocalDate(nextAnchor));
+    setSelectedDate(formatIsoDate(nextAnchor));
   };
 
   return (
@@ -122,12 +73,8 @@ export const WorkCalendarCard = () => {
             {monthLabel(monthAnchor)}
           </Text>
           <View style={styles.monthNav}>
-            <Button compact mode="text" onPress={() => moveMonth(-1)} style={styles.monthButton} contentStyle={styles.monthButtonContent}>
-              Anterior
-            </Button>
-            <Button compact mode="text" onPress={() => moveMonth(1)} style={styles.monthButton} contentStyle={styles.monthButtonContent}>
-              Siguiente
-            </Button>
+            <IconButton icon="arrow-left" size={18} accessibilityLabel="Mes anterior" onPress={() => moveMonth(-1)} style={styles.monthIconButton} />
+            <IconButton icon="arrow-right" size={18} accessibilityLabel="Mes siguiente" onPress={() => moveMonth(1)} style={styles.monthIconButton} />
           </View>
         </View>
 
@@ -141,8 +88,7 @@ export const WorkCalendarCard = () => {
 
         <View style={styles.calendarGrid}>
           {calendarCells.map((day, index) => {
-            const dateKey =
-              day == null ? null : formatLocalDate(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), day));
+            const dateKey = day == null ? null : formatIsoDate(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), day));
             const selected = dateKey != null && dateKey === selectedDate;
             const count = dateKey != null ? appointmentsByDate.get(dateKey) ?? 0 : 0;
             const markers = Math.min(count, 3);
@@ -178,6 +124,30 @@ export const WorkCalendarCard = () => {
           selectedDateAppointments.map((appointment) => (
             <Card key={appointment.id} mode="outlined" style={styles.appointmentCard}>
               <Card.Content style={styles.appointmentContent}>
+                {appointment.quote ? (
+                  <View style={styles.appointmentHeaderRow}>
+                    <Text style={styles.appointmentTitle} numberOfLines={1}>
+                      {appointment.quote.title}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor: quoteStatusAccent(appointment.quote.status).backgroundColor,
+                          borderColor: quoteStatusAccent(appointment.quote.status).borderColor,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.statusBadgeText, { color: quoteStatusAccent(appointment.quote.status).textColor }]}>
+                        {quoteStatusLabel(appointment.quote.status)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.appointmentTitle} numberOfLines={1}>
+                    {appointment.title}
+                  </Text>
+                )}
                 <View style={styles.metaBlock}>
                   <Text style={styles.metaLabel}>Cliente:</Text>
                   <Text style={styles.metaValue}>{getAppointmentClientLabel(appointment)}</Text>
@@ -239,7 +209,15 @@ export const WorkCalendarCard = () => {
         <View style={styles.quickForm}>
           <Text variant="titleMedium">Nuevo turno rapido</Text>
           <TextInput mode="outlined" label="Trabajo / turno" value={title} onChangeText={setTitle} />
-          <TextInput mode="outlined" label="Hora (HH:mm)" value={startsAt} onChangeText={setStartsAt} />
+          <TextInput
+            mode="outlined"
+            label="Hora (HH:mm)"
+            value={startsAt}
+            onChangeText={(value) => setStartsAt(maskTimeInput(value))}
+            placeholder="09:30"
+            keyboardType="number-pad"
+            maxLength={5}
+          />
           <TextInput mode="outlined" label="Notas (opcional)" value={notes} onChangeText={setNotes} multiline />
           <Button
             mode="contained"
@@ -254,7 +232,7 @@ export const WorkCalendarCard = () => {
                   throw new Error('El titulo del turno es obligatorio.');
                 }
 
-                const normalizedStartsAt = normalizeTime(startsAt);
+                const normalizedStartsAt = normalizeOptionalTimeInput(startsAt);
 
                 await createAppointment.mutateAsync({
                   quote_id: null,
@@ -280,10 +258,6 @@ export const WorkCalendarCard = () => {
           </Button>
         </View>
       </Card.Content>
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </Card>
   );
 };
@@ -304,12 +278,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  monthButton: {
-    flex: 1,
-    minWidth: 0,
-  },
-  monthButtonContent: {
-    minHeight: 36,
+  monthIconButton: {
+    margin: 0,
   },
   monthLabel: {
     textAlign: 'center',
@@ -359,11 +329,11 @@ const styles = StyleSheet.create({
     color: '#164E63',
   },
   dayBubbleSelected: {
-    backgroundColor: '#E7DBFF',
+    backgroundColor: BRAND_BLUE_SOFT,
   },
   dayNumberSelected: {
     fontWeight: '700',
-    color: '#36245B',
+    color: BRAND_BLUE,
   },
   dayMarkersRow: {
     minHeight: 8,
@@ -377,16 +347,40 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 999,
-    backgroundColor: '#18A7C7',
+    backgroundColor: BRAND_BLUE,
   },
   dayMarkerSelected: {
-    backgroundColor: '#6A43B7',
+    backgroundColor: BRAND_BLUE_MID,
   },
   appointmentCard: {
     marginTop: 2,
   },
   appointmentContent: {
     gap: 8,
+  },
+  appointmentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  appointmentTitle: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
   },
   metaBlock: {
     gap: 2,

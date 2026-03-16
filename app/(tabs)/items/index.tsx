@@ -6,6 +6,7 @@ import { Button, Card, Chip, Searchbar, Text } from 'react-native-paper';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems } from '@/features/items/hooks';
+import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
 
@@ -87,7 +88,7 @@ export default function ItemsScreen() {
                 </View>
               </View>
               <Card.Content style={styles.materialCardContent}>
-                {item.description ? <Text style={styles.description}>Descripcion: {item.description}</Text> : null}
+                {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
                 {item.notes ? <Text style={styles.description}>Notas: {item.notes}</Text> : null}
               </Card.Content>
             </Card>
@@ -124,7 +125,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerBlock: {
-    backgroundColor: '#F6F8FB',
+    backgroundColor: BRAND_GREEN_SOFT,
     paddingHorizontal: 14,
     paddingTop: 6,
     paddingBottom: 8,
@@ -147,12 +148,13 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     borderRadius: 10,
-    backgroundColor: '#DCD1EE',
+    backgroundColor: '#DDE8D8',
     minHeight: 24,
   },
   categoryChipText: {
     fontSize: 11,
     lineHeight: 14,
+    color: BRAND_GREEN,
   },
   description: {
     color: '#5f6368',

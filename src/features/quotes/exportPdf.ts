@@ -11,7 +11,13 @@ const TEXT_DARK_RGB: [number, number, number] = [17, 24, 39];
 const TEXT_MUTED_RGB: [number, number, number] = [107, 114, 128];
 const BORDER_RGB: [number, number, number] = [220, 228, 236];
 const COMPANY_EMAIL = 'nossaclima@gmail.com';
-const COMPANY_PHONE = '11 6786 9084';
+const COMPANY_PHONE = '11-3001-9957';
+const COMPANY_FOOTER_LINES = [
+  'Instalacion, service, limpieza y mantenimiento',
+  'Domicilios particulares',
+  'Disenos para obras y refrigeracion comercial',
+  'Todas las marcas y modelos',
+];
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const brandBanner = require('../../../assets/nossa-banner.png');
 
@@ -72,6 +78,18 @@ const sanitizeFileName = (value: string): string => {
 
 const buildPdfName = (detail: QuoteDetail): string =>
   `${sanitizeFileName(detail.quote.title)}-${detail.quote.id.slice(0, 8)}.pdf`;
+
+const splitFileName = (value: string): { base: string; extension: string } => {
+  const extensionIndex = value.lastIndexOf('.');
+  if (extensionIndex <= 0) {
+    return { base: value, extension: '' };
+  }
+
+  return {
+    base: value.slice(0, extensionIndex),
+    extension: value.slice(extensionIndex),
+  };
+};
 
 const getQuoteDisplayDate = (detail: QuoteDetail): string =>
   formatDateAr(detail.appointment?.scheduled_for ?? detail.quote.created_at);
@@ -191,6 +209,7 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
   const logoMarkup = Platform.OS === 'web' && brandLogoUri
     ? `<img src="${escapeHtml(brandLogoUri)}" alt="Nossa Clima" />`
     : buildCompanyLogoSvg();
+  const footerItemsMarkup = COMPANY_FOOTER_LINES.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
 
   return `
   <!doctype html>
@@ -211,8 +230,8 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         .brand-logo img, .brand-logo svg { display: block; width: 100%; height: auto; }
         .document-block { margin-top: 14px; }
         .contact-card {
-          min-width: 220px;
-          max-width: 220px;
+          min-width: 280px;
+          max-width: 280px;
           border: 1px solid #dce4ec;
           border-radius: 12px;
           padding: 14px 16px;
@@ -227,7 +246,7 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         }
         .contact-line {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: space-between;
           gap: 16px;
         }
@@ -236,9 +255,19 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         }
         .contact-line .value {
           text-align: right;
-          min-width: 120px;
+          min-width: 0;
+          max-width: 170px;
+          overflow-wrap: anywhere;
         }
         .contact-line + .contact-line { margin-top: 8px; }
+        .footer-list {
+          margin: 18px 0 0;
+          padding-left: 18px;
+          color: #4b5563;
+          font-size: 12px;
+          line-height: 1.45;
+        }
+        .footer-list li + li { margin-top: 4px; }
         .box {
           border: 1px solid #dce4ec;
           border-radius: 12px;
@@ -382,6 +411,10 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           </tbody>
         </table>
       </div>
+
+      <ul class="footer-list">
+        ${footerItemsMarkup}
+      </ul>
     </body>
   </html>`;
 };
@@ -437,7 +470,7 @@ const drawInfoCard = (doc: PdfDocument, detail: QuoteDetail, x: number, y: numbe
 };
 
 const drawContactCard = (doc: PdfDocument, x: number, y: number, width: number): number => {
-  const height = 74;
+  const height = 82;
   const firstRowY = y + 36;
   const secondRowY = y + 58;
 
@@ -463,6 +496,26 @@ const drawContactCard = (doc: PdfDocument, x: number, y: number, width: number):
   doc.text(COMPANY_EMAIL, x + width - 14, secondRowY, { align: 'right' });
 
   return height;
+};
+
+const drawFooterNotes = (doc: PdfDocument, x: number, y: number, width: number): number => {
+  const bulletIndent = 10;
+  const textX = x + bulletIndent;
+  const availableWidth = width - bulletIndent;
+  let cursorY = y;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...TEXT_MUTED_RGB);
+
+  COMPANY_FOOTER_LINES.forEach((line) => {
+    const wrapped = doc.splitTextToSize(line, availableWidth - 8);
+    doc.text('\u2022', x, cursorY);
+    doc.text(wrapped, textX, cursorY);
+    cursorY += wrapped.length * 11;
+  });
+
+  return cursorY - y;
 };
 
 const drawSectionTitle = (doc: PdfDocument, title: string, x: number, y: number, lineEndX: number): number => {
@@ -651,15 +704,44 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   });
 
   cursorY = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? cursorY) + 24;
-  cursorY = ensureVerticalSpace(doc, cursorY, 96);
+  cursorY = ensureVerticalSpace(doc, cursorY, 132);
   const contactCardHeight = drawContactCard(doc, marginX, cursorY, contactCardWidth);
   drawTotalsPanel(doc, detail, pageWidth - marginX - totalsPanelWidth, cursorY, totalsPanelWidth);
-  cursorY += Math.max(contactCardHeight, 72);
+  cursorY += Math.max(contactCardHeight, 72) + 16;
+  drawFooterNotes(doc, marginX, cursorY, pageWidth - marginX * 2);
 
   doc.save(buildPdfName(detail));
 };
 
-export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
+const createNativeQuotePdfFile = async (detail: QuoteDetail): Promise<{ uri: string; fileName: string }> => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Print = require('expo-print') as typeof import('expo-print');
+
+  const html = buildQuotePdfHtml(detail, '');
+  const file = await Print.printToFileAsync({ html });
+
+  return {
+    uri: file.uri,
+    fileName: buildPdfName(detail),
+  };
+};
+
+const createUniqueSafFileUri = async (
+  directoryUri: string,
+  fileName: string,
+  mimeType: string,
+  StorageAccessFramework: typeof import('expo-file-system').StorageAccessFramework,
+): Promise<string> => {
+  try {
+    return await StorageAccessFramework.createFileAsync(directoryUri, fileName, mimeType);
+  } catch {
+    const { base, extension } = splitFileName(fileName);
+    const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
+    return StorageAccessFramework.createFileAsync(directoryUri, `${base}-${timestamp}${extension}`, mimeType);
+  }
+};
+
+export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
   if (Platform.OS === 'web') {
     const brandLogoUri = await resolveBrandLogoUri();
     await exportQuotePdfWeb(detail, brandLogoUri);
@@ -667,22 +749,83 @@ export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Sharing = require('expo-sharing') as typeof import('expo-sharing');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Print = require('expo-print') as typeof import('expo-print');
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const Sharing = require('expo-sharing') as typeof import('expo-sharing');
+  const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
 
-  const html = buildQuotePdfHtml(detail, '');
-  const file = await Print.printToFileAsync({ html });
-  const canShare = await Sharing.isAvailableAsync();
+  const file = await createNativeQuotePdfFile(detail);
 
-  if (canShare) {
-    await Sharing.shareAsync(file.uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: 'Exportar presupuesto',
-      UTI: '.pdf',
-    });
-    return;
+  try {
+    const canShare = await Sharing.isAvailableAsync();
+
+    if (canShare) {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Exportar presupuesto',
+        UTI: '.pdf',
+      });
+      return;
+    }
+
+    await Print.printAsync({ html: buildQuotePdfHtml(detail, '') });
+  } finally {
+    try {
+      // The share sheet already received the file by this point.
+      // Ignore cleanup failures for temp export files.
+      await FileSystem.deleteAsync(file.uri);
+    } catch {
+      // Ignore cleanup errors for generated temp files.
+    }
+  }
+};
+
+export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
+  if (Platform.OS === 'web') {
+    const brandLogoUri = await resolveBrandLogoUri();
+    await exportQuotePdfWeb(detail, brandLogoUri);
+    return buildPdfName(detail);
   }
 
-  await Print.printAsync({ html });
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
+  const { StorageAccessFramework } = FileSystem;
+  const file = await createNativeQuotePdfFile(detail);
+
+  try {
+    if (Platform.OS !== 'android') {
+      const targetDirectory = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+      if (!targetDirectory) {
+        throw new Error('No se encontro una carpeta disponible para guardar el PDF.');
+      }
+
+      const targetUri = `${targetDirectory}${file.fileName}`;
+      await FileSystem.copyAsync({ from: file.uri, to: targetUri });
+      return targetUri;
+    }
+
+    const downloadsRootUri = StorageAccessFramework.getUriForDirectoryInRoot('Download');
+    const permission = await StorageAccessFramework.requestDirectoryPermissionsAsync(downloadsRootUri);
+
+    if (!permission.granted || !permission.directoryUri) {
+      throw new Error('No se otorgo permiso para guardar el PDF en Descargas.');
+    }
+
+    const fileBase64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+    const targetUri = await createUniqueSafFileUri(permission.directoryUri, file.fileName, 'application/pdf', StorageAccessFramework);
+    await StorageAccessFramework.writeAsStringAsync(targetUri, fileBase64, { encoding: FileSystem.EncodingType.Base64 });
+
+    return targetUri;
+  } finally {
+    try {
+      await FileSystem.deleteAsync(file.uri);
+    } catch {
+      // Ignore cleanup errors for generated temp files.
+    }
+  }
+};
+
+export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
+  await shareQuotePdf(detail);
 };

@@ -1,17 +1,25 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Snackbar, Text } from 'react-native-paper';
+import { Button, Card, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { CatalogAuditCard } from '@/components/CatalogAuditCard';
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { ItemForm } from '@/features/items/ItemForm';
 import { useItems, useSaveItem } from '@/features/items/hooks';
+import { useProfileDirectory } from '@/features/profiles/hooks';
 import { useLatestPrices } from '@/features/prices/hooks';
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
-import { formatCurrencyArs, formatDateAr } from '@/lib/format';
+import { formatCurrencyArs, formatDateAr, formatDateTimeAr } from '@/lib/format';
 import type { LatestStoreItemPrice } from '@/types/db';
+
+const formatAuditActor = (userId: string | null | undefined, namesById: Map<string, string>): string => {
+  if (!userId) return 'Usuario eliminado';
+  return namesById.get(userId) ?? `Usuario ${userId.slice(0, 8)}`;
+};
 
 export default function ItemDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,8 +29,21 @@ export default function ItemDetailPage() {
   const { data: latestPrices, isLoading: pricesLoading, error: pricesError } = useLatestPrices();
   const save = useSaveItem();
   const [message, setMessage] = useState<string | null>(null);
+  useToastMessageEffect(message, () => setMessage(null));
 
   const material = items?.find((item) => item.id === id);
+  const auditUserIds = useMemo(
+    () => [material?.user_id, material?.updated_by].filter((value): value is string => Boolean(value)),
+    [material?.updated_by, material?.user_id],
+  );
+  const { data: auditUsers } = useProfileDirectory(auditUserIds);
+  const auditNamesById = useMemo(
+    () =>
+      new Map(
+        (auditUsers ?? []).map((entry) => [entry.id, entry.full_name?.trim() ? entry.full_name.trim() : `Usuario ${entry.id.slice(0, 8)}`]),
+      ),
+    [auditUsers],
+  );
   const categorySuggestions = useMemo(
     () =>
       Array.from(
@@ -83,6 +104,15 @@ export default function ItemDetailPage() {
         />
       )}
 
+      {material ? (
+        <CatalogAuditCard
+          createdBy={formatAuditActor(material.user_id, auditNamesById)}
+          createdAt={formatDateTimeAr(material.created_at)}
+          updatedBy={formatAuditActor(material.updated_by ?? material.user_id, auditNamesById)}
+          updatedAt={formatDateTimeAr(material.updated_at)}
+        />
+      ) : null}
+
       {material && (
         <Card mode="outlined" style={styles.pricesCard}>
           <Card.Content style={styles.pricesContent}>
@@ -115,10 +145,6 @@ export default function ItemDetailPage() {
           </Card.Content>
         </Card>
       )}
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

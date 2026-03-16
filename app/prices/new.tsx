@@ -3,9 +3,10 @@ import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
-import { Button, Card, Menu, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Menu, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItems } from '@/features/items/hooks';
 import { useCreatePrice, useLatestPrices } from '@/features/prices/hooks';
@@ -13,6 +14,7 @@ import { PriceFormValues, priceSchema } from '@/features/prices/schemas';
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
+import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
 
 const getSingleParam = (value: string | string[] | undefined): string => (Array.isArray(value) ? value[0] ?? '' : value ?? '');
 
@@ -28,6 +30,8 @@ export default function NewPricePage() {
 
   const [message, setMessage] = useState<string | null>(null);
   const [storeMenuVisible, setStoreMenuVisible] = useState(false);
+  const toast = useAppToast();
+  useToastMessageEffect(message, () => setMessage(null));
 
   const availableStores = useMemo(() => (stores ?? []).sort((a, b) => a.name.localeCompare(b.name)), [stores]);
   const availableMaterials = useMemo(() => (items ?? []).filter((item) => item.item_type === 'material'), [items]);
@@ -174,6 +178,7 @@ export default function NewPricePage() {
                       quantity_reference: null,
                       notes: null,
                     });
+                    toast.success('Precio actualizado.');
                     router.back();
                   } catch (error) {
                     setMessage(toUserErrorMessage(error, 'No se pudo registrar el precio.'));
@@ -230,9 +235,6 @@ export default function NewPricePage() {
         </>
       )}
 
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EAF2FB',
+    backgroundColor: BRAND_GREEN_SOFT,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -324,7 +326,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',
-    color: '#27486B',
+    color: BRAND_GREEN,
   },
   tableRow: {
     flexDirection: 'row',
@@ -342,8 +344,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FBFF',
   },
   tableRowSelected: {
-    borderColor: '#0F766E',
-    backgroundColor: '#ECFDF5',
+    borderColor: BRAND_GREEN,
+    backgroundColor: BRAND_GREEN_SOFT,
   },
   rowCell: {
     fontSize: 13,

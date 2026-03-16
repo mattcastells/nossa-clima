@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Service } from '@/types/db';
+import { isMissingSupabaseColumnError } from './supabaseCompatibility';
 
 const DEFAULT_SERVICE_CATALOG: Array<{ name: string; base_price: number; category: string }> = [
   { name: 'inst. hasta 3.000 fr', base_price: 160000, category: 'Instalacion' },
@@ -72,8 +73,15 @@ export const listServices = async (): Promise<Service[]> => {
   const { data, error } = await supabase
     .from('services')
     .select('*')
+    .is('archived_at', null)
     .order('name');
-  if (error) throw error;
+  if (error) {
+    if (!isMissingSupabaseColumnError(error, 'archived_at')) throw error;
+
+    const fallback = await supabase.from('services').select('*').order('name');
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
   return data;
 };
 
@@ -84,8 +92,16 @@ export const upsertService = async (payload: Partial<Service> & { name: string }
 };
 
 export const deleteService = async (serviceId: string): Promise<void> => {
-  const { error } = await supabase.from('services').delete().eq('id', serviceId);
-  if (error) throw error;
+  const { error } = await supabase
+    .from('services')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', serviceId);
+  if (error) {
+    if (isMissingSupabaseColumnError(error, 'archived_at')) {
+      throw new Error('Falta aplicar la migracion de archivado de catalogos en Supabase.');
+    }
+    throw error;
+  }
 };
 
 export const listServiceCategoryNames = async (): Promise<string[]> => {

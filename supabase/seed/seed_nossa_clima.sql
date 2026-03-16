@@ -57,7 +57,7 @@ begin
 
   insert into public.quotes (id, user_id, client_name, client_phone, title, status, notes)
   values
-    ('85000000-0000-0000-0000-000000000001', v_user_id, 'Cliente Demo', '11-5555-5555', 'Instalacion equipo living', 'draft', 'Visita acordada por la tarde')
+    ('85000000-0000-0000-0000-000000000001', v_user_id, 'Cliente Demo', '11-5555-5555', 'Instalacion equipo living', 'pending', 'Visita acordada por la tarde')
   on conflict (id) do nothing;
 
   insert into public.quote_service_items (id, quote_id, user_id, service_id, service_name_snapshot, quantity, unit_price, notes)
@@ -65,9 +65,9 @@ begin
     ('86000000-0000-0000-0000-000000000001', '85000000-0000-0000-0000-000000000001', v_user_id, '84000000-0000-0000-0000-000000000001', 'Instalacion split 3000fr', 1, 180000, 'Incluye puesta en marcha')
   on conflict (id) do nothing;
 
-  insert into public.quote_material_items (id, quote_id, user_id, item_id, item_name_snapshot, quantity, unit_price, source_store_id, notes)
+  insert into public.quote_material_items (id, quote_id, user_id, item_id, item_name_snapshot, quantity, unit_price, source_store_id, source_store_name_snapshot, notes)
   values
-    ('87000000-0000-0000-0000-000000000001', '85000000-0000-0000-0000-000000000001', v_user_id, '82000000-0000-0000-0000-000000000002', 'Gas R410A', 1, 98000, '81000000-0000-0000-0000-000000000002', 'Carga inicial')
+    ('87000000-0000-0000-0000-000000000001', '85000000-0000-0000-0000-000000000001', v_user_id, '82000000-0000-0000-0000-000000000002', 'Gas R410A', 1, 98000, '81000000-0000-0000-0000-000000000002', 'Frio Express', 'Carga inicial')
   on conflict (id) do nothing;
 
   insert into public.appointments (id, user_id, quote_id, title, notes, scheduled_for, starts_at, status)

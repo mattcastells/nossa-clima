@@ -1,5 +1,7 @@
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 
+import { AppDialog } from '@/components/AppDialog';
+
 interface Props {
   visible: boolean;
   title: string;
@@ -11,7 +13,7 @@ interface Props {
 
 export const ConfirmDeleteDialog = ({ visible, title, message, loading = false, onCancel, onConfirm }: Props) => (
   <Portal>
-    <Dialog visible={visible} onDismiss={onCancel}>
+    <AppDialog visible={visible} onDismiss={onCancel}>
       <Dialog.Title>{title}</Dialog.Title>
       <Dialog.Content>
         <Text>{message}</Text>
@@ -22,6 +24,6 @@ export const ConfirmDeleteDialog = ({ visible, title, message, loading = false, 
           Eliminar
         </Button>
       </Dialog.Actions>
-    </Dialog>
+    </AppDialog>
   </Portal>
 );

@@ -1,7 +1,8 @@
 ﻿import { supabase } from '@/lib/supabase';
-import type { Appointment, Item, Quote, QuoteMaterialItem, QuoteServiceItem, QuoteStatus, Service, StoreItemPrice } from '@/types/db';
+import type { Appointment, Item, JobQuoteStatus, Quote, QuoteMaterialItem, QuoteServiceItem, Service, Store, StoreItemPrice } from '@/types/db';
+import { normalizeQuoteStatus } from '@/features/quotes/status';
 
-import { isMissingAppointmentQuoteLinkError } from './supabaseCompatibility';
+import { isInvalidQuoteStatusEnumError, isMissingAppointmentQuoteLinkError, isMissingSupabaseColumnError } from './supabaseCompatibility';
 
 export interface QuoteDetail {
   quote: Quote;
@@ -33,9 +34,16 @@ export interface ResetQuoteMaterialMarginsResult {
   updatedCount: number;
 }
 
+export interface RefreshQuoteMaterialPricingResult {
+  quoteId: string;
+  updatedCount: number;
+}
+
+const CANCELLED_QUOTE_RETENTION_DAYS = 3;
+
 export type QuoteMaterialItemInput = Omit<
   QuoteMaterialItem,
-  'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'total_price'
+  'id' | 'user_id' | 'created_at' | 'updated_at' | 'item_name_snapshot' | 'source_store_name_snapshot' | 'total_price'
 >;
 
 export type QuoteServiceItemInput = Omit<
@@ -43,11 +51,38 @@ export type QuoteServiceItemInput = Omit<
   'id' | 'user_id' | 'created_at' | 'updated_at' | 'service_name_snapshot' | 'total_price'
 >;
 
-export type QuoteMaterialItemUpdate = Partial<Pick<QuoteMaterialItem, 'quantity' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>>;
+export type QuoteMaterialItemUpdate = Partial<
+  Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>
+>;
 
 export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'notes'>>;
 
-export const listQuotes = async (status?: QuoteStatus | 'all'): Promise<QuoteListItem[]> => {
+const getCancelledQuoteCutoffIso = (): string => {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - CANCELLED_QUOTE_RETENTION_DAYS);
+  return cutoffDate.toISOString();
+};
+
+export const purgeExpiredCancelledQuotes = async (): Promise<number> => {
+  const { data: quoteRows, error: quoteRowsError } = await supabase
+    .from('quotes')
+    .select('id')
+    .eq('status', 'cancelled')
+    .not('cancelled_at', 'is', null)
+    .lte('cancelled_at', getCancelledQuoteCutoffIso());
+  if (quoteRowsError) {
+    if (isMissingSupabaseColumnError(quoteRowsError, 'cancelled_at')) {
+      return 0;
+    }
+    throw quoteRowsError;
+  }
+
+  return deleteQuotesByIds((quoteRows ?? []).map((row) => row.id));
+};
+
+export const listQuotes = async (status?: JobQuoteStatus | 'all'): Promise<QuoteListItem[]> => {
+  await purgeExpiredCancelledQuotes();
+
   let query = supabase.from('quotes').select('*').order('created_at', { ascending: false });
   if (status && status !== 'all') {
     query = query.eq('status', status);
@@ -84,6 +119,8 @@ export const listQuotes = async (status?: QuoteStatus | 'all'): Promise<QuoteLis
 };
 
 export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
+  await purgeExpiredCancelledQuotes();
+
   const { data: quote, error: quoteError } = await supabase.from('quotes').select('*').eq('id', quoteId).single();
   if (quoteError) throw quoteError;
 
@@ -112,8 +149,59 @@ export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
 };
 
 export const upsertQuote = async (payload: Partial<Quote> & Pick<Quote, 'client_name' | 'title'>): Promise<Quote> => {
-  const { data, error } = await supabase.from('quotes').upsert(payload).select().single();
-  if (error) throw error;
+  const normalizedStatus = payload.status == null ? undefined : normalizeQuoteStatus(payload.status);
+  const nextPayload: Partial<Quote> = {
+    ...payload,
+    ...(normalizedStatus
+      ? {
+          status: normalizedStatus,
+          cancelled_at: normalizedStatus === 'cancelled' ? payload.cancelled_at ?? new Date().toISOString() : null,
+        }
+      : {}),
+  };
+
+  const { data, error } = await supabase.from('quotes').upsert(nextPayload).select().single();
+  if (error) {
+    if (!isInvalidQuoteStatusEnumError(error) && !isMissingSupabaseColumnError(error, 'cancelled_at')) {
+      throw error;
+    }
+
+    const fallbackStatus =
+      normalizedStatus === 'completed' ? 'approved' : normalizedStatus === 'cancelled' ? 'rejected' : normalizedStatus === 'pending' ? 'draft' : undefined;
+    const fallbackPayload: Partial<Quote> = {
+      ...payload,
+      ...(fallbackStatus ? { status: fallbackStatus } : {}),
+    };
+    delete (fallbackPayload as { cancelled_at?: string | null }).cancelled_at;
+
+    const fallback = await supabase.from('quotes').upsert(fallbackPayload).select().single();
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
+  return data;
+};
+
+export const updateQuoteStatus = async (quoteId: string, status: JobQuoteStatus): Promise<Quote> => {
+  const normalizedStatus = normalizeQuoteStatus(status);
+  const { data, error } = await supabase
+    .from('quotes')
+    .update({
+      status: normalizedStatus,
+      cancelled_at: normalizedStatus === 'cancelled' ? new Date().toISOString() : null,
+    })
+    .eq('id', quoteId)
+    .select()
+    .single();
+  if (error) {
+    if (!isInvalidQuoteStatusEnumError(error) && !isMissingSupabaseColumnError(error, 'cancelled_at')) {
+      throw error;
+    }
+
+    const legacyStatus = normalizedStatus === 'completed' ? 'approved' : normalizedStatus === 'cancelled' ? 'rejected' : 'draft';
+    const fallback = await supabase.from('quotes').update({ status: legacyStatus }).eq('id', quoteId).select().single();
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
   return data;
 };
 
@@ -187,6 +275,12 @@ const getItemAndValidate = async (itemId: string): Promise<Item> => {
   return data;
 };
 
+const getStoreAndValidate = async (storeId: string): Promise<Store> => {
+  const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
+  if (error) throw error;
+  return data;
+};
+
 const getServiceAndValidate = async (serviceId: string): Promise<Service> => {
   const { data, error } = await supabase.from('services').select('*').eq('id', serviceId).single();
   if (error) throw error;
@@ -231,20 +325,75 @@ export const getSuggestedMaterialPrice = async (
 };
 
 export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Promise<QuoteMaterialItem> => {
-  const item = await getItemAndValidate(payload.item_id);
+  const [item, sourceStore] = await Promise.all([
+    getItemAndValidate(payload.item_id),
+    payload.source_store_id ? getStoreAndValidate(payload.source_store_id) : Promise.resolve(null),
+  ]);
 
   const { data, error } = await supabase
     .from('quote_material_items')
-    .insert({ ...payload, item_name_snapshot: item.name })
+    .insert({
+      ...payload,
+      item_name_snapshot: item.name,
+      source_store_name_snapshot: sourceStore?.name ?? null,
+    })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (!isMissingSupabaseColumnError(error, 'source_store_name_snapshot')) throw error;
+
+    const fallback = await supabase
+      .from('quote_material_items')
+      .insert({
+        ...payload,
+        item_name_snapshot: item.name,
+      })
+      .select()
+      .single();
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
   return data;
 };
 
 export const updateQuoteMaterialItem = async (itemId: string, payload: QuoteMaterialItemUpdate): Promise<QuoteMaterialItem> => {
-  const { data, error } = await supabase.from('quote_material_items').update(payload).eq('id', itemId).select().single();
-  if (error) throw error;
+  let updatePayload: QuoteMaterialItemUpdate & { item_name_snapshot?: string; source_store_name_snapshot?: string | null } = payload;
+
+  if (payload.item_id) {
+    const item = await getItemAndValidate(payload.item_id);
+    updatePayload = {
+      ...payload,
+      item_name_snapshot: item.name,
+      unit: payload.unit ?? item.unit ?? null,
+    };
+  }
+
+  if (payload.source_store_id !== undefined) {
+    if (!payload.source_store_id) {
+      updatePayload = {
+        ...updatePayload,
+        source_store_name_snapshot: null,
+      };
+    } else {
+      const store = await getStoreAndValidate(payload.source_store_id);
+      updatePayload = {
+        ...updatePayload,
+        source_store_name_snapshot: store.name,
+      };
+    }
+  }
+
+  const { data, error } = await supabase.from('quote_material_items').update(updatePayload).eq('id', itemId).select().single();
+  if (error) {
+    if (!isMissingSupabaseColumnError(error, 'source_store_name_snapshot')) throw error;
+
+    const fallbackPayload = { ...updatePayload };
+    delete fallbackPayload.source_store_name_snapshot;
+
+    const fallback = await supabase.from('quote_material_items').update(fallbackPayload).eq('id', itemId).select().single();
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
   return data;
 };
 
@@ -274,6 +423,20 @@ export const duplicateQuoteMaterialItem = async (itemId: string): Promise<QuoteM
 
 export const resetQuoteMaterialItemMarginsToDefault = async (quoteId: string): Promise<ResetQuoteMaterialMarginsResult> => {
   const { data, error } = await supabase.from('quote_material_items').update({ margin_percent: null }).eq('quote_id', quoteId).select('id');
+  if (error) throw error;
+
+  return {
+    quoteId,
+    updatedCount: data?.length ?? 0,
+  };
+};
+
+export const refreshQuoteMaterialPricing = async (quoteId: string): Promise<RefreshQuoteMaterialPricingResult> => {
+  const { data, error } = await supabase
+    .from('quote_material_items')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('quote_id', quoteId)
+    .select('id');
   if (error) throw error;
 
   return {

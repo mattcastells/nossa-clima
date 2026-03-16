@@ -85,9 +85,6 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
     await deleteWhereAnyId('quote_material_items'),
     await deleteWhereAnyId('quote_service_items'),
     await deleteWhereAnyId('quotes'),
-    await deleteWhereAnyId('store_item_prices'),
-    await deleteWhereAnyId('items'),
-    await deleteWhereAnyId('stores'),
     await deleteWhereAnyId('services'),
   ];
 
@@ -104,13 +101,14 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         category: row.category,
         base_price: row.base_price,
         unit_type: row.unit_type,
+        archived_at: row.archived_at,
       })),
     );
     if (error) throw error;
   }
 
   if (stores.length > 0) {
-    const { error } = await supabase.from('stores').insert(
+    const { error } = await supabase.from('stores').upsert(
       stores.map((row) => ({
         id: row.id,
         name: row.name,
@@ -118,13 +116,15 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         address: row.address,
         phone: row.phone,
         notes: row.notes,
+        archived_at: row.archived_at,
       })),
+      { onConflict: 'id', ignoreDuplicates: true },
     );
     if (error) throw error;
   }
 
   if (items.length > 0) {
-    const { error } = await supabase.from('items').insert(
+    const { error } = await supabase.from('items').upsert(
       items.map((row) => ({
         id: row.id,
         name: row.name,
@@ -135,7 +135,9 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         sku: row.sku,
         brand: row.brand,
         item_type: row.item_type,
+        archived_at: row.archived_at,
       })),
+      { onConflict: 'id', ignoreDuplicates: true },
     );
     if (error) throw error;
   }
@@ -150,6 +152,8 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         description: row.description,
         status: row.status,
         notes: row.notes,
+        default_material_margin_percent: row.default_material_margin_percent,
+        cancelled_at: row.cancelled_at,
       })),
     );
     if (error) throw error;
@@ -182,6 +186,7 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         unit_price: row.unit_price,
         margin_percent: row.margin_percent,
         source_store_id: row.source_store_id,
+        source_store_name_snapshot: row.source_store_name_snapshot,
         notes: row.notes,
       })),
     );
@@ -189,7 +194,7 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
   }
 
   if (storeItemPrices.length > 0) {
-    const { error } = await supabase.from('store_item_prices').insert(
+    const { error } = await supabase.from('store_item_prices').upsert(
       storeItemPrices.map((row) => ({
         id: row.id,
         store_id: row.store_id,
@@ -201,6 +206,7 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         quantity_reference: row.quantity_reference,
         notes: row.notes,
       })),
+      { onConflict: 'id', ignoreDuplicates: true },
     );
     if (error) throw error;
   }

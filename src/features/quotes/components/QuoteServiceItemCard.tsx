@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, Divider, Portal, Text } from 'react-native-paper';
 
+import { AppDialog } from '@/components/AppDialog';
 import type { QuoteServiceItem } from '@/types/db';
 
 import { formatCurrencyArs } from '@/lib/format';
+import { BRAND_BLUE, BRAND_BLUE_SOFT } from '@/theme';
 
 import { QuoteServiceItemForm } from './QuoteServiceItemForm';
 
@@ -93,7 +95,7 @@ export const QuoteServiceItemCard = ({ item, onSave, onDuplicate, onDelete, savi
       </Card.Content>
 
       <Portal>
-        <Dialog visible={editing} onDismiss={() => setEditing(false)}>
+        <AppDialog visible={editing} onDismiss={() => setEditing(false)}>
           <Dialog.Title>Editar servicio</Dialog.Title>
           <Dialog.Content>
             <QuoteServiceItemForm
@@ -115,7 +117,7 @@ export const QuoteServiceItemCard = ({ item, onSave, onDuplicate, onDelete, savi
               }}
             />
           </Dialog.Content>
-        </Dialog>
+        </AppDialog>
       </Portal>
     </Card>
   );
@@ -149,10 +151,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: '#E8F1FB',
+    backgroundColor: BRAND_BLUE_SOFT,
   },
   badgeText: {
-    color: '#1F4D7A',
+    color: BRAND_BLUE,
     fontWeight: '700',
     textTransform: 'uppercase',
   },

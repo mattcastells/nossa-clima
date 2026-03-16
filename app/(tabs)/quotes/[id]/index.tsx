@@ -1,95 +1,109 @@
-import { Link, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Card, Divider, Snackbar, Text, TextInput } from 'react-native-paper';
+import { useLocalSearchParams } from 'expo-router';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Button, Card, Divider, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
-import { useDeleteAppointment, useUpsertQuoteAppointment } from '@/features/appointments/hooks';
+import { useAppointmentsInMonth, useDeleteAppointment, useUpsertQuoteAppointment } from '@/features/appointments/hooks';
 import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
 import { QuoteItemsTable } from '@/features/quotes/components/QuoteItemsTable';
 import { QuoteTotalsSummary } from '@/features/quotes/components/QuoteTotalsSummary';
-import { exportQuotePdf } from '@/features/quotes/exportPdf';
+import { saveQuotePdf, shareQuotePdf } from '@/features/quotes/exportPdf';
 import { QuoteForm } from '@/features/quotes/QuoteForm';
 import {
   useDeleteQuoteMaterialItem,
   useDeleteQuoteServiceItem,
+  useRefreshQuoteMaterialPricing,
   useQuoteDetail,
-  useResetQuoteMaterialItemMarginsToDefault,
   useSaveQuote,
+  useUpdateQuoteStatus,
   useUpdateQuoteMaterialItem,
   useUpdateQuoteServiceItem,
 } from '@/features/quotes/hooks';
+import { normalizeQuoteStatus, quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { useStores } from '@/features/stores/hooks';
+import {
+  formatDisplayDate,
+  formatIsoDate,
+  formatStoredDateForDisplay,
+  getCalendarCells,
+  maskDateInput,
+  maskTimeInput,
+  monthLabel,
+  normalizeDateInput,
+  normalizeOptionalTimeInput,
+  parseDisplayDate,
+  toHumanDate,
+} from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
+import { formatDateAr, formatTimeShort } from '@/lib/format';
+import { BRAND_BLUE, BRAND_BLUE_MID, BRAND_BLUE_SOFT } from '@/theme';
+import type { JobQuoteStatus } from '@/types/db';
 
-const formatDateForInput = (value: Date): string => {
-  const day = String(value.getDate()).padStart(2, '0');
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const year = value.getFullYear();
-  return `${day}-${month}-${year}`;
-};
+const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const STATUS_OPTIONS: Array<{ value: JobQuoteStatus; label: string }> = [
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'completed', label: 'Terminado' },
+  { value: 'cancelled', label: 'Cancelado' },
+];
 
-const formatStoredDateForInput = (value: string): string => {
-  const trimmed = value.trim();
-  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+interface CollapsibleSectionProps {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}
 
-  if (!isoMatch) {
-    return trimmed;
-  }
+const CollapsibleSection = ({ title, expanded, onToggle, children }: CollapsibleSectionProps) => {
+  const [contentHeight, setContentHeight] = useState(0);
+  const progress = useRef(new Animated.Value(expanded ? 1 : 0)).current;
 
-  const [, year, month, day] = isoMatch;
-  return `${day}-${month}-${year}`;
-};
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: expanded ? 1 : 0,
+      duration: expanded ? 220 : 180,
+      easing: expanded ? Easing.out(Easing.cubic) : Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [expanded, progress]);
 
-const isValidDate = (year: number, month: number, day: number): boolean => {
-  const date = new Date(year, month - 1, day);
+  const animatedHeight = contentHeight > 0 ? progress.interpolate({ inputRange: [0, 1], outputRange: [0, contentHeight] }) : expanded ? undefined : 0;
 
-  return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
-};
-
-const normalizeDateInput = (value: string): string => {
-  const trimmed = value.trim();
-  const localMatch = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (localMatch) {
-    const [, rawDay, rawMonth, rawYear] = localMatch;
-    const year = Number(rawYear);
-    const month = Number(rawMonth);
-    const day = Number(rawDay);
-
-    if (!isValidDate(year, month, day)) {
-      throw new Error('La fecha ingresada no es valida.');
-    }
-
-    return `${rawYear}-${rawMonth}-${rawDay}`;
-  }
-
-  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    const [, rawYear, rawMonth, rawDay] = isoMatch;
-    const year = Number(rawYear);
-    const month = Number(rawMonth);
-    const day = Number(rawDay);
-
-    if (!isValidDate(year, month, day)) {
-      throw new Error('La fecha ingresada no es valida.');
-    }
-
-    return trimmed;
-  }
-
-  throw new Error('La fecha debe tener formato DD-MM-AAAA.');
-};
-
-const normalizeTimeInput = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(trimmed)) {
-    throw new Error('La hora debe tener formato HH:mm.');
-  }
-
-  return `${trimmed}:00`;
+  return (
+    <View style={styles.collapsibleSection}>
+      <View style={styles.sectionHeaderRow}>
+        <Text variant="titleMedium" style={styles.sectionHeading}>
+          {title}
+        </Text>
+        <IconButton icon={expanded ? 'chevron-up' : 'chevron-down'} size={22} style={styles.sectionToggle} onPress={onToggle} />
+      </View>
+      <Animated.View
+        pointerEvents={expanded ? 'auto' : 'none'}
+        style={[
+          styles.collapsibleBody,
+          {
+            height: animatedHeight,
+            opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+            transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
+          },
+        ]}
+      >
+        <View
+          onLayout={(event) => {
+            const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+            if (nextHeight !== contentHeight) {
+              setContentHeight(nextHeight);
+            }
+          }}
+          style={styles.collapsibleBodyContent}
+        >
+          {children}
+        </View>
+      </Animated.View>
+    </View>
+  );
 };
 
 const normalizeOptionalPercentInput = (value: string): number | null => {
@@ -107,32 +121,49 @@ const normalizeOptionalPercentInput = (value: string): number | null => {
 export default function QuoteDetailPage() {
   const { id, linkWarning } = useLocalSearchParams<{ id: string; linkWarning?: string }>();
   const { data, isLoading, error } = useQuoteDetail(id);
-  const { data: stores } = useStores();
+  const referencedStoreIds = useMemo(
+    () => Array.from(new Set((data?.materials ?? []).map((item) => item.source_store_id).filter(Boolean) as string[])).sort(),
+    [data?.materials],
+  );
+  const { data: stores } = useStores(referencedStoreIds);
   const save = useSaveQuote();
+  const updateStatus = useUpdateQuoteStatus();
   const scheduleQuote = useUpsertQuoteAppointment();
   const deleteAppointment = useDeleteAppointment();
   const updateMaterial = useUpdateQuoteMaterialItem();
   const updateService = useUpdateQuoteServiceItem();
   const deleteMaterial = useDeleteQuoteMaterialItem();
   const deleteService = useDeleteQuoteServiceItem();
-  const resetMaterialMargins = useResetQuoteMaterialItemMarginsToDefault();
+  const refreshMaterialPricing = useRefreshQuoteMaterialPricing();
 
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSavingPdf, setIsSavingPdf] = useState(false);
+  const [isSharingPdf, setIsSharingPdf] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(formatDateForInput(new Date()));
+  const [scheduleDate, setScheduleDate] = useState(formatDisplayDate(new Date()));
   const [scheduleTime, setScheduleTime] = useState('');
   const [globalMarginInput, setGlobalMarginInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'material' | 'service'; id: string } | null>(null);
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [clientExpanded, setClientExpanded] = useState(false);
+  const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  useToastMessageEffect(snack, () => setSnack(null));
+  const [calendarMonthAnchor, setCalendarMonthAnchor] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => formatIsoDate(new Date()));
+
+  const monthAppointments = useAppointmentsInMonth(calendarMonthAnchor);
 
   useEffect(() => {
     if (!data) return;
     if (!data.appointment) {
-      setScheduleDate(formatDateForInput(new Date()));
+      setScheduleDate(formatDisplayDate(new Date()));
       setScheduleTime('');
       return;
     }
 
-    setScheduleDate(formatStoredDateForInput(data.appointment.scheduled_for));
+    setScheduleDate(formatStoredDateForDisplay(data.appointment.scheduled_for));
     setScheduleTime(data.appointment.starts_at ? data.appointment.starts_at.slice(0, 5) : '');
   }, [data]);
 
@@ -141,21 +172,63 @@ export default function QuoteDetailPage() {
   }, [data]);
 
   useEffect(() => {
+    const parsedDate = parseDisplayDate(scheduleDate);
+    if (!parsedDate) return;
+
+    const nextSelectedDate = formatIsoDate(parsedDate);
+    setCalendarSelectedDate((current) => (current === nextSelectedDate ? current : nextSelectedDate));
+
+    const nextAnchor = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
+    setCalendarMonthAnchor((current) =>
+      current.getFullYear() === nextAnchor.getFullYear() && current.getMonth() === nextAnchor.getMonth() ? current : nextAnchor,
+    );
+  }, [scheduleDate]);
+
+  useEffect(() => {
     if (linkWarning === '1') {
       setSnack('El trabajo se creo, pero no se pudo vincular automaticamente al turno.');
     }
   }, [linkWarning]);
 
+  const calendarCells = useMemo(() => getCalendarCells(calendarMonthAnchor), [calendarMonthAnchor]);
+
+  const appointmentsByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    (monthAppointments.data ?? []).forEach((appointment) => {
+      map.set(appointment.scheduled_for, (map.get(appointment.scheduled_for) ?? 0) + 1);
+    });
+    return map;
+  }, [monthAppointments.data]);
+
+  const selectedDateAppointments = useMemo(
+    () =>
+      (monthAppointments.data ?? [])
+        .filter((appointment) => appointment.scheduled_for === calendarSelectedDate)
+        .sort((a, b) => (a.starts_at ?? '').localeCompare(b.starts_at ?? '')),
+    [calendarSelectedDate, monthAppointments.data],
+  );
+
+  const currentStatus = normalizeQuoteStatus(data?.quote.status);
+  const currentStatusAccent = quoteStatusAccent(data?.quote.status);
+  const cancelledAutoDeleteDate = useMemo(() => {
+    if (!data?.quote.cancelled_at || currentStatus !== 'cancelled') return null;
+    const nextDate = new Date(data.quote.cancelled_at);
+    nextDate.setDate(nextDate.getDate() + 3);
+    return formatDateAr(nextDate.toISOString());
+  }, [currentStatus, data?.quote.cancelled_at]);
+
   const isBusy =
     save.isPending ||
+    updateStatus.isPending ||
     scheduleQuote.isPending ||
     deleteAppointment.isPending ||
     updateMaterial.isPending ||
     updateService.isPending ||
     deleteMaterial.isPending ||
     deleteService.isPending ||
-    resetMaterialMargins.isPending ||
-    isExportingPdf;
+    refreshMaterialPricing.isPending ||
+    isSavingPdf ||
+    isSharingPdf;
 
   const saveCurrentJob = async () => {
     if (!data) return;
@@ -166,7 +239,6 @@ export default function QuoteDetailPage() {
         client_name: data.quote.client_name,
         client_phone: data.quote.client_phone,
         notes: data.quote.notes,
-        status: 'draft',
       });
       setSnack('Trabajo guardado.');
     } catch (mutationError) {
@@ -174,16 +246,45 @@ export default function QuoteDetailPage() {
     }
   };
 
-  const exportCurrentJobPdf = async () => {
+  const changeQuoteStatus = async (nextStatus: JobQuoteStatus) => {
+    if (!data || currentStatus === nextStatus) return;
+
+    try {
+      await updateStatus.mutateAsync({ quoteId: data.quote.id, status: nextStatus });
+      if (nextStatus === 'completed') {
+        setSnack('Trabajo marcado como terminado.');
+      } else if (nextStatus === 'cancelled') {
+        setSnack('Trabajo cancelado.');
+      } else {
+        setSnack('Trabajo marcado como pendiente.');
+      }
+    } catch (mutationError) {
+      setSnack(toUserErrorMessage(mutationError, 'No se pudo actualizar el estado del trabajo.'));
+    }
+  };
+
+  const saveCurrentJobPdf = async () => {
     if (!data) return;
     try {
-      setIsExportingPdf(true);
-      await exportQuotePdf(data);
-      setSnack('PDF generado.');
+      setIsSavingPdf(true);
+      await saveQuotePdf(data);
+      setSnack(Platform.OS === 'android' ? 'PDF guardado en Descargas.' : 'PDF guardado.');
     } catch (exportError) {
-      setSnack(toUserErrorMessage(exportError, 'No se pudo exportar el trabajo.'));
+      setSnack(toUserErrorMessage(exportError, 'No se pudo guardar el PDF.'));
     } finally {
-      setIsExportingPdf(false);
+      setIsSavingPdf(false);
+    }
+  };
+
+  const shareCurrentJobPdf = async () => {
+    if (!data) return;
+    try {
+      setIsSharingPdf(true);
+      await shareQuotePdf(data);
+    } catch (exportError) {
+      setSnack(toUserErrorMessage(exportError, 'No se pudo compartir el PDF.'));
+    } finally {
+      setIsSharingPdf(false);
     }
   };
 
@@ -192,7 +293,7 @@ export default function QuoteDetailPage() {
 
     try {
       const normalizedDate = normalizeDateInput(scheduleDate);
-      const normalizedTime = normalizeTimeInput(scheduleTime);
+      const normalizedTime = normalizeOptionalTimeInput(scheduleTime);
 
       await scheduleQuote.mutateAsync({
         quote_id: data.quote.id,
@@ -232,11 +333,38 @@ export default function QuoteDetailPage() {
         client_name: data.quote.client_name,
         default_material_margin_percent: normalizedMargin,
       });
-      await resetMaterialMargins.mutateAsync(data.quote.id);
+      await refreshMaterialPricing.mutateAsync(data.quote.id);
       setSnack('Margen global aplicado.');
     } catch (mutationError) {
       setSnack(toUserErrorMessage(mutationError, 'No se pudo aplicar el margen global.'));
     }
+  };
+
+  const toggleInlineCalendar = () => {
+    setCalendarVisible((current) => !current);
+  };
+
+  const moveCalendarMonth = (delta: number) => {
+    const nextAnchor = new Date(calendarMonthAnchor.getFullYear(), calendarMonthAnchor.getMonth() + delta, 1);
+    setCalendarMonthAnchor(nextAnchor);
+    const nextDate = formatIsoDate(nextAnchor);
+    setCalendarSelectedDate(nextDate);
+    setScheduleDate(formatDisplayDate(nextAnchor));
+  };
+
+  const handleCalendarDateSelect = (isoDate: string) => {
+    const [rawYear = '1970', rawMonth = '01', rawDay = '01'] = isoDate.split('-');
+    const year = Number(rawYear);
+    const month = Number(rawMonth);
+    const day = Number(rawDay);
+    const nextDate = new Date(
+      Number.isFinite(year) ? year : 1970,
+      Number.isFinite(month) ? month - 1 : 0,
+      Number.isFinite(day) ? day : 1,
+    );
+
+    setCalendarSelectedDate(isoDate);
+    setScheduleDate(formatDisplayDate(nextDate));
   };
 
   return (
@@ -266,17 +394,35 @@ export default function QuoteDetailPage() {
                 >
                   Guardar trabajo
                 </Button>
-                <Button
-                  mode="outlined"
-                  icon="share-variant-outline"
-                  loading={isExportingPdf}
-                  disabled={isBusy}
-                  onPress={exportCurrentJobPdf}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                >
-                  Exportar / compartir PDF
-                </Button>
+                <View style={styles.pdfActionsGroup}>
+                  <View style={[styles.pdfSplitButton, isBusy && styles.pdfSplitButtonDisabled]}>
+                    <Pressable
+                      onPress={saveCurrentJobPdf}
+                      disabled={isBusy}
+                      style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
+                    >
+                      {isSavingPdf ? (
+                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
+                      ) : (
+                        <IconButton icon="file-pdf-box" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
+                      )}
+                      <Text style={styles.pdfSplitActionText}>Descargar</Text>
+                    </Pressable>
+                    <View style={styles.pdfSplitDivider} />
+                    <Pressable
+                      onPress={shareCurrentJobPdf}
+                      disabled={isBusy}
+                      style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
+                    >
+                      {isSharingPdf ? (
+                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
+                      ) : (
+                        <IconButton icon="share-variant-outline" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
+                      )}
+                      <Text style={styles.pdfSplitActionText}>Compartir</Text>
+                    </Pressable>
+                  </View>
+                </View>
               </View>
             </Card.Content>
           </Card>
@@ -285,87 +431,176 @@ export default function QuoteDetailPage() {
             <Divider />
           </View>
 
-          <Text variant="titleMedium" style={styles.sectionHeading}>
-            Cliente
-          </Text>
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
-              <QuoteForm
-                defaultValues={{
-                  client_name: data.quote.client_name,
-                  client_phone: data.quote.client_phone ?? '',
-                  title: data.quote.title,
-                  notes: data.quote.notes ?? '',
-                }}
-                buttonLabel="Guardar cliente"
-                onSubmit={async (values) => {
-                  try {
-                    await save.mutateAsync({
-                      id: data.quote.id,
-                      title: values.title,
-                      client_name: values.client_name,
-                      client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
-                      notes: values.notes?.trim() ? values.notes.trim() : null,
-                      status: 'draft',
-                    });
-                    setSnack('Cliente guardado.');
-                  } catch (mutationError) {
-                    setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el cliente.'));
-                  }
-                }}
-              />
-            </Card.Content>
-          </Card>
+          <CollapsibleSection title="Cliente" expanded={clientExpanded} onToggle={() => setClientExpanded((current) => !current)}>
+            <Card mode="contained" style={styles.sectionCard}>
+              <Card.Content style={styles.sectionContent}>
+                <QuoteForm
+                  defaultValues={{
+                    client_name: data.quote.client_name,
+                    client_phone: data.quote.client_phone ?? '',
+                    title: data.quote.title,
+                    notes: data.quote.notes ?? '',
+                  }}
+                  buttonLabel="Guardar cliente"
+                  onSubmit={async (values) => {
+                    try {
+                      await save.mutateAsync({
+                        id: data.quote.id,
+                        title: values.title,
+                        client_name: values.client_name,
+                        client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
+                        notes: values.notes?.trim() ? values.notes.trim() : null,
+                      });
+                      setSnack('Cliente guardado.');
+                    } catch (mutationError) {
+                      setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el cliente.'));
+                    }
+                  }}
+                />
+              </Card.Content>
+            </Card>
+          </CollapsibleSection>
 
-          <Text variant="titleMedium" style={styles.sectionHeading}>
-            Fecha
-          </Text>
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
-              <TextInput
-                mode="outlined"
-                label="Fecha (DD-MM-AAAA)"
-                value={scheduleDate}
-                onChangeText={setScheduleDate}
-                placeholder="12-03-2026"
-                outlineStyle={styles.inputOutline}
-              />
-              <TextInput
-                mode="outlined"
-                label="Hora (HH:mm, opcional)"
-                value={scheduleTime}
-                onChangeText={setScheduleTime}
-                outlineStyle={styles.inputOutline}
-              />
-              <View style={styles.actionsRow}>
-                <Button
-                  mode="contained"
-                  icon="calendar-check-outline"
-                  disabled={isBusy}
-                  onPress={scheduleCurrentJob}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                >
-                  {data.appointment ? 'Reprogramar trabajo' : 'Programar trabajo'}
-                </Button>
-                {data.appointment && (
+          <CollapsibleSection title="Fecha" expanded={scheduleExpanded} onToggle={() => setScheduleExpanded((current) => !current)}>
+            <Card mode="contained" style={styles.sectionCard}>
+              <Card.Content style={styles.sectionContent}>
+                <TextInput
+                  mode="outlined"
+                  label="Fecha (DD-MM-AAAA)"
+                  value={scheduleDate}
+                  onChangeText={(value) => setScheduleDate(maskDateInput(value))}
+                  placeholder="12-03-2026"
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  outlineStyle={styles.inputOutline}
+                  right={<TextInput.Icon icon="calendar-month-outline" onPress={toggleInlineCalendar} />}
+                />
+                <TextInput
+                  mode="outlined"
+                  label="Hora (HH:mm, opcional)"
+                  value={scheduleTime}
+                  onChangeText={(value) => setScheduleTime(maskTimeInput(value))}
+                  placeholder="09:30"
+                  keyboardType="number-pad"
+                  maxLength={5}
+                  outlineStyle={styles.inputOutline}
+                />
+                {calendarVisible ? (
+                  <Card mode="contained" style={styles.inlineCalendarCard}>
+                    <Card.Content style={styles.inlineCalendarContent}>
+                      <View style={styles.inlineCalendarHeader}>
+                        <Text variant="titleMedium" style={styles.inlineCalendarMonthLabel}>
+                          {monthLabel(calendarMonthAnchor)}
+                        </Text>
+                        <View style={styles.inlineCalendarNav}>
+                          <IconButton
+                            icon="arrow-left"
+                            size={18}
+                            accessibilityLabel="Mes anterior"
+                            onPress={() => moveCalendarMonth(-1)}
+                            style={styles.inlineCalendarNavButton}
+                          />
+                          <IconButton
+                            icon="arrow-right"
+                            size={18}
+                            accessibilityLabel="Mes siguiente"
+                            onPress={() => moveCalendarMonth(1)}
+                            style={styles.inlineCalendarNavButton}
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.inlineCalendarWeekHeader}>
+                        {WEEKDAY_LABELS.map((label) => (
+                          <Text key={label} style={styles.inlineCalendarWeekLabel}>
+                            {label}
+                          </Text>
+                        ))}
+                      </View>
+
+                      <View style={styles.inlineCalendarGrid}>
+                        {calendarCells.map((day, index) => {
+                          const dateKey =
+                            day == null ? null : formatIsoDate(new Date(calendarMonthAnchor.getFullYear(), calendarMonthAnchor.getMonth(), day));
+                          const selected = dateKey != null && dateKey === calendarSelectedDate;
+                          const markers = dateKey != null ? Math.min(appointmentsByDate.get(dateKey) ?? 0, 3) : 0;
+
+                          return (
+                            <View key={`quote-calendar-day-${index}-${day ?? 'empty'}`} style={styles.inlineCalendarDayCell}>
+                              {dateKey ? (
+                                <Pressable
+                                  onPress={() => handleCalendarDateSelect(dateKey)}
+                                  style={({ pressed }) => [styles.inlineCalendarDayPressable, pressed && styles.inlineCalendarDayPressed]}
+                                >
+                                  <View style={[styles.inlineCalendarDayBubble, selected && styles.inlineCalendarDayBubbleSelected]}>
+                                    <Text style={[styles.inlineCalendarDayNumber, selected && styles.inlineCalendarDayNumberSelected]}>{day}</Text>
+                                  </View>
+                                  <View style={styles.inlineCalendarMarkersRow}>
+                                    {Array.from({ length: markers }).map((_, markerIndex) => (
+                                      <View
+                                        key={`${dateKey}-quote-marker-${markerIndex}`}
+                                        style={[styles.inlineCalendarMarker, selected && styles.inlineCalendarMarkerSelected]}
+                                      />
+                                    ))}
+                                  </View>
+                                </Pressable>
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                      </View>
+
+                      <View style={styles.inlineAgendaBlock}>
+                        <Text variant="titleSmall" style={styles.inlineAgendaTitle}>
+                          Trabajos del {toHumanDate(calendarSelectedDate)}
+                        </Text>
+                        {monthAppointments.isLoading ? (
+                          <Text style={styles.inlineAgendaHint}>Cargando trabajos...</Text>
+                        ) : selectedDateAppointments.length === 0 ? (
+                          <Text style={styles.inlineAgendaHint}>No hay trabajos con turno ese dia.</Text>
+                        ) : (
+                          <View style={styles.inlineAgendaList}>
+                            {selectedDateAppointments.map((appointment) => (
+                              <View key={appointment.id} style={styles.inlineAgendaItem}>
+                                <Text style={styles.inlineAgendaTime}>{appointment.starts_at ? formatTimeShort(appointment.starts_at) : 'Sin hora'}</Text>
+                                <Text style={styles.inlineAgendaText} numberOfLines={1}>
+                                  {appointment.title}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </Card.Content>
+                  </Card>
+                ) : null}
+                <View style={styles.actionsRow}>
                   <Button
-                    mode="outlined"
-                    textColor="#B3261E"
+                    mode="contained"
+                    icon="calendar-check-outline"
                     disabled={isBusy}
-                    onPress={unscheduleCurrentJob}
+                    onPress={scheduleCurrentJob}
                     style={styles.actionButton}
                     contentStyle={styles.actionButtonContent}
                   >
-                    Quitar del calendario
+                    {data.appointment ? 'Reprogramar trabajo' : 'Programar trabajo'}
                   </Button>
-                )}
-                <Link href="/(tabs)/calendar" asChild>
-                  <Button mode="text">Ver calendario</Button>
-                </Link>
-              </View>
-            </Card.Content>
-          </Card>
+                  {data.appointment && (
+                    <Button
+                      mode="outlined"
+                      textColor="#B3261E"
+                      disabled={isBusy}
+                      onPress={unscheduleCurrentJob}
+                      style={styles.actionButton}
+                      contentStyle={styles.actionButtonContent}
+                    >
+                      Quitar del calendario
+                    </Button>
+                  )}
+                </View>
+              </Card.Content>
+            </Card>
+          </CollapsibleSection>
 
           <View style={styles.contentDivider}>
             <Divider />
@@ -402,7 +637,7 @@ export default function QuoteDetailPage() {
             }}
             onDeleteMaterial={(itemId) => setDeleteTarget({ kind: 'material', id: itemId })}
             isBusy={isBusy}
-            isApplyingGlobalMargin={save.isPending || resetMaterialMargins.isPending}
+            isApplyingGlobalMargin={save.isPending || refreshMaterialPricing.isPending}
             savingService={updateService.isPending}
             deletingService={deleteService.isPending}
             savingMaterial={updateMaterial.isPending}
@@ -414,6 +649,66 @@ export default function QuoteDetailPage() {
             subtotalServices={data.quote.subtotal_services}
             total={data.quote.total}
           />
+
+          <Card mode="contained" style={styles.sectionCard}>
+            <Card.Content style={styles.statusCardContent}>
+              <View style={styles.statusHeaderRow}>
+                <View style={styles.statusHeadingBlock}>
+                  <Text variant="titleMedium" style={[styles.sectionHeading, styles.statusTitle]}>
+                    Estado
+                  </Text>
+                  {cancelledAutoDeleteDate ? (
+                    <Text style={styles.statusDescription}>Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.</Text>
+                  ) : null}
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor: currentStatusAccent.backgroundColor,
+                      borderColor: currentStatusAccent.borderColor,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.statusBadgeText, { color: currentStatusAccent.textColor }]}>{quoteStatusLabel(data.quote.status)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.statusOptionsRow}>
+                {STATUS_OPTIONS.map((option) => {
+                  const optionAccent = quoteStatusAccent(option.value);
+                  const selected = currentStatus === option.value;
+
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => changeQuoteStatus(option.value)}
+                      disabled={isBusy}
+                      style={({ pressed }) => [
+                        styles.statusOption,
+                        selected && {
+                          backgroundColor: optionAccent.backgroundColor,
+                          borderColor: optionAccent.borderColor,
+                        },
+                        pressed && styles.statusOptionPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusOptionText,
+                          selected && {
+                            color: optionAccent.textColor,
+                          },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Card.Content>
+          </Card>
         </View>
       )}
 
@@ -439,10 +734,6 @@ export default function QuoteDetailPage() {
           }
         }}
       />
-
-      <Snackbar visible={Boolean(snack)} onDismiss={() => setSnack(null)} duration={2600}>
-        {snack}
-      </Snackbar>
     </AppScreen>
   );
 }
@@ -455,13 +746,46 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingVertical: 10,
   },
+  statusCardContent: {
+    gap: 14,
+    paddingVertical: 10,
+  },
+  collapsibleSection: {
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 38, 83, 0.08)',
+    backgroundColor: 'rgba(5, 38, 83, 0.03)',
+  },
+  collapsibleBody: {
+    overflow: 'hidden',
+  },
+  collapsibleBodyContent: {
+    paddingTop: 4,
+  },
   sectionCard: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#DCE4EC',
   },
   sectionHeading: {
-    marginBottom: -6,
+    flex: 1,
+    marginBottom: 0,
+  },
+  statusTitle: {
+    flexGrow: 0,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 40,
+  },
+  sectionToggle: {
+    margin: 0,
   },
   editingDivider: {
     marginTop: 2,
@@ -484,8 +808,225 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 170,
   },
+  pdfActionsGroup: {
+    flex: 1,
+    minWidth: 240,
+  },
+  pdfSplitButton: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderColor: '#BCC6D1',
+    borderRadius: 10,
+    backgroundColor: '#F7FAFD',
+    overflow: 'hidden',
+  },
+  pdfSplitButtonDisabled: {
+    opacity: 0.68,
+  },
+  pdfSplitAction: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  pdfSplitActionPressed: {
+    backgroundColor: '#EEF3F8',
+  },
+  pdfSplitDivider: {
+    width: 1,
+    backgroundColor: '#D7DFE8',
+  },
+  pdfSplitIcon: {
+    margin: 0,
+    width: 18,
+    height: 18,
+  },
+  pdfSplitActionText: {
+    color: '#052653',
+    fontWeight: '500',
+  },
   actionButtonContent: {
     minHeight: 40,
     paddingHorizontal: 8,
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  statusHeadingBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  statusDescription: {
+    color: '#5F6A76',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  statusOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  statusOption: {
+    minWidth: 118,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D7E0EA',
+    backgroundColor: '#FFFFFF',
+  },
+  statusOptionPressed: {
+    opacity: 0.78,
+  },
+  statusOptionText: {
+    color: '#213243',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  inlineCalendarCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 38, 83, 0.08)',
+    backgroundColor: '#F7FAFD',
+  },
+  inlineCalendarContent: {
+    gap: 12,
+    paddingVertical: 8,
+  },
+  inlineCalendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  inlineCalendarMonthLabel: {
+    flex: 1,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  inlineCalendarNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  inlineCalendarNavButton: {
+    margin: 0,
+  },
+  inlineCalendarWeekHeader: {
+    flexDirection: 'row',
+  },
+  inlineCalendarWeekLabel: {
+    width: `${100 / 7}%`,
+    textAlign: 'center',
+    fontWeight: '600',
+    color: '#617082',
+  },
+  inlineCalendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  inlineCalendarDayCell: {
+    width: `${100 / 7}%`,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  inlineCalendarDayPressable: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  inlineCalendarDayPressed: {
+    opacity: 0.76,
+  },
+  inlineCalendarDayBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineCalendarDayBubbleSelected: {
+    backgroundColor: BRAND_BLUE_SOFT,
+  },
+  inlineCalendarDayNumber: {
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: '500',
+    color: '#164E63',
+  },
+  inlineCalendarDayNumberSelected: {
+    fontWeight: '700',
+    color: BRAND_BLUE,
+  },
+  inlineCalendarMarkersRow: {
+    minHeight: 8,
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  inlineCalendarMarker: {
+    width: 4,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: BRAND_BLUE,
+  },
+  inlineCalendarMarkerSelected: {
+    backgroundColor: BRAND_BLUE_MID,
+  },
+  inlineAgendaBlock: {
+    gap: 8,
+    paddingTop: 2,
+  },
+  inlineAgendaTitle: {
+    fontWeight: '600',
+  },
+  inlineAgendaHint: {
+    color: '#5f6368',
+  },
+  inlineAgendaList: {
+    gap: 8,
+  },
+  inlineAgendaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE4EC',
+  },
+  inlineAgendaTime: {
+    width: 62,
+    fontWeight: '700',
+    color: BRAND_BLUE,
+  },
+  inlineAgendaText: {
+    flex: 1,
+    color: '#1F2937',
   },
 });

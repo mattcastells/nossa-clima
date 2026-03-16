@@ -31,3 +31,13 @@ export const formatTimeShort = (value: string | null | undefined): string => {
 
 export const formatPercent = (value: number | null | undefined): string =>
   `${Number(value ?? 0).toFixed(2)}%`;
+
+export const formatDateTimeAr = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return `${date.toLocaleDateString('es-AR')} ${date.toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+};

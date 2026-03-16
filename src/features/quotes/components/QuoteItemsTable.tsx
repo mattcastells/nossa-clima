@@ -3,9 +3,13 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Button, Card, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
 
+import { AppDialog } from '@/components/AppDialog';
+import { useItems } from '@/features/items/hooks';
+import { useLatestPrices } from '@/features/prices/hooks';
 import type { QuoteMaterialItem, QuoteServiceItem, Store } from '@/types/db';
 
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
+import { BRAND_BLUE, BRAND_GREEN } from '@/theme';
 
 import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
 import { QuoteMaterialItemForm } from './QuoteMaterialItemForm';
@@ -26,7 +30,7 @@ interface Props {
   onDeleteService: (itemId: string) => void;
   onSaveMaterial: (
     itemId: string,
-    payload: Pick<QuoteMaterialItem, 'quantity' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>,
+    payload: Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>,
   ) => Promise<void>;
   onDeleteMaterial: (itemId: string) => void;
   isBusy?: boolean;
@@ -58,23 +62,36 @@ export const QuoteItemsTable = ({
   deletingMaterial = false,
 }: Props) => {
   const { width } = useWindowDimensions();
+  const itemsQuery = useItems(materials.map((item) => item.item_id));
+  const latestPricesQuery = useLatestPrices();
   const [editingTarget, setEditingTarget] = useState<EditingTarget>(null);
   const isCompact = width < 520;
   const serviceActionsBusy = isBusy || savingService || deletingService;
   const materialActionsBusy = isBusy || savingMaterial || deletingMaterial;
   const addButtonStyle = StyleSheet.flatten([styles.addButton, isCompact && styles.addButtonCompact]);
+  const serviceAddButtonStyle = StyleSheet.flatten([addButtonStyle, styles.serviceAddButton]);
+  const materialAddButtonStyle = StyleSheet.flatten([addButtonStyle, styles.materialAddButton]);
   const marginBarStyle = StyleSheet.flatten([styles.marginBar, isCompact && styles.marginBarCompact]);
   const marginLabelStyle = StyleSheet.flatten([styles.marginLabel, isCompact && styles.marginLabelCompact]);
   const marginInputStyle = StyleSheet.flatten([styles.marginInput, isCompact && styles.marginInputCompact]);
   const marginButtonStyle = StyleSheet.flatten([styles.marginButton, isCompact && styles.marginButtonCompact]);
-  const descriptionHeaderStyle = StyleSheet.flatten([styles.cell, styles.descriptionCell, styles.headerText]);
-  const quantityHeaderStyle = StyleSheet.flatten([styles.cell, styles.quantityCell, styles.headerText]);
-  const baseHeaderStyle = StyleSheet.flatten([styles.cell, styles.baseCell, styles.headerText]);
-  const marginHeaderStyle = StyleSheet.flatten([styles.cell, styles.marginCell, styles.headerText]);
-  const saleHeaderStyle = StyleSheet.flatten([styles.cell, styles.saleCell, styles.headerText]);
-  const totalHeaderStyle = StyleSheet.flatten([styles.cell, styles.totalCell, styles.headerText]);
-  const sourceHeaderStyle = StyleSheet.flatten([styles.cell, styles.sourceCell, styles.headerText]);
-  const removeHeaderStyle = StyleSheet.flatten([styles.cell, styles.actionsCell, styles.headerText]);
+  const tableStyle = StyleSheet.flatten([styles.table, isCompact && styles.tableCompact]);
+  const descriptionCellStyle = StyleSheet.flatten([styles.cell, styles.descriptionCell, isCompact && styles.descriptionCellCompact]);
+  const quantityCellStyle = StyleSheet.flatten([styles.cell, styles.quantityCell, isCompact && styles.quantityCellCompact]);
+  const baseCellStyle = StyleSheet.flatten([styles.cell, styles.baseCell, isCompact && styles.baseCellCompact]);
+  const marginCellStyle = StyleSheet.flatten([styles.cell, styles.marginCell, isCompact && styles.marginCellCompact]);
+  const saleCellStyle = StyleSheet.flatten([styles.cell, styles.saleCell, isCompact && styles.saleCellCompact]);
+  const totalCellStyle = StyleSheet.flatten([styles.cell, styles.totalCell, isCompact && styles.totalCellCompact]);
+  const sourceCellStyle = StyleSheet.flatten([styles.cell, styles.sourceCell, isCompact && styles.sourceCellCompact]);
+  const actionsCellStyle = StyleSheet.flatten([styles.cell, styles.actionsCell, isCompact && styles.actionsCellCompact]);
+  const descriptionHeaderStyle = StyleSheet.flatten([descriptionCellStyle, styles.headerText]);
+  const quantityHeaderStyle = StyleSheet.flatten([quantityCellStyle, styles.headerText]);
+  const baseHeaderStyle = StyleSheet.flatten([baseCellStyle, styles.headerText]);
+  const marginHeaderStyle = StyleSheet.flatten([marginCellStyle, styles.headerText]);
+  const saleHeaderStyle = StyleSheet.flatten([saleCellStyle, styles.headerText]);
+  const totalHeaderStyle = StyleSheet.flatten([totalCellStyle, styles.headerText]);
+  const sourceHeaderStyle = StyleSheet.flatten([sourceCellStyle, styles.headerText]);
+  const removeHeaderStyle = StyleSheet.flatten([actionsCellStyle, styles.headerText]);
 
   const editingService = editingTarget?.kind === 'service' ? services.find((item) => item.id === editingTarget.id) ?? null : null;
   const editingMaterial = editingTarget?.kind === 'material' ? materials.find((item) => item.id === editingTarget.id) ?? null : null;
@@ -114,7 +131,7 @@ export const QuoteItemsTable = ({
           margin: `${formatPercent(effectiveMargin)}${usesGlobalMargin ? ' global' : ''}`,
           saleUnit: formatCurrencyArs(effectiveUnitPrice),
           total: formatCurrencyArs(effectiveTotalPrice),
-          source: sourceStoreName ?? 'Sin tienda',
+          source: sourceStoreName ?? item.source_store_name_snapshot ?? 'Sin tienda',
         };
       }),
     ],
@@ -126,7 +143,7 @@ export const QuoteItemsTable = ({
       <Card.Content style={styles.content}>
         <View style={styles.tableWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator>
-            <View style={styles.table}>
+            <View style={tableStyle}>
             <View style={[styles.row, styles.headerRow]}>
               <Text variant="labelMedium" style={descriptionHeaderStyle}>
                 Servicios y materiales
@@ -150,7 +167,7 @@ export const QuoteItemsTable = ({
                 Origen
               </Text>
               <Text variant="labelMedium" style={removeHeaderStyle}>
-                Remover
+                Quitar
               </Text>
             </View>
 
@@ -171,9 +188,19 @@ export const QuoteItemsTable = ({
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.descriptionCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [
+                        descriptionCellStyle,
+                        row.kind === 'service' ? styles.serviceDescriptionCell : styles.materialDescriptionCell,
+                        pressed && styles.editingCellPressed,
+                      ]}
                     >
-                      <Text variant="titleSmall" style={styles.itemTitle}>
+                      <Text
+                        variant="titleSmall"
+                        style={[
+                          styles.itemTitle,
+                          row.kind === 'service' ? styles.serviceItemTitle : styles.materialItemTitle,
+                        ]}
+                      >
                         {row.title}
                       </Text>
                       {row.notes ? (
@@ -185,46 +212,46 @@ export const QuoteItemsTable = ({
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.quantityCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [quantityCellStyle, pressed && styles.editingCellPressed]}
                     >
                       <Text style={styles.valueText}>{row.quantity}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.baseCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [baseCellStyle, pressed && styles.editingCellPressed]}
                     >
                       <Text style={styles.valueText}>{row.base}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.marginCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [marginCellStyle, pressed && styles.editingCellPressed]}
                     >
                       <Text style={styles.valueText}>{row.margin}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.saleCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [saleCellStyle, pressed && styles.editingCellPressed]}
                     >
                       <Text style={styles.valueText}>{row.saleUnit}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.totalCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [totalCellStyle, pressed && styles.editingCellPressed]}
                     >
                       <Text style={styles.strongValue}>{row.total}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
                       disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [styles.cell, styles.sourceCell, pressed && styles.editingCellPressed]}
+                      style={({ pressed }) => [sourceCellStyle, pressed && styles.editingCellPressed]}
                     >
                       <Text style={styles.valueText}>{row.source}</Text>
                     </Pressable>
-                    <View style={[styles.cell, styles.actionsCell, styles.deleteCell]}>
+                    <View style={[actionsCellStyle, styles.deleteCell]}>
                       <IconButton
                         icon="trash-can-outline"
                         size={20}
@@ -243,7 +270,15 @@ export const QuoteItemsTable = ({
         <View style={[styles.bottomBar, isCompact && styles.bottomBarCompact]}>
           <View style={[styles.tableActions, isCompact && styles.tableActionsCompact]}>
             <Link href={{ pathname: '/quotes/[id]/add-service', params: { id: quoteId } }} asChild>
-              <Button mode="contained-tonal" icon="plus" compact disabled={isBusy} style={addButtonStyle}>
+              <Button
+                mode="contained-tonal"
+                icon="plus"
+                disabled={isBusy}
+                style={serviceAddButtonStyle}
+                contentStyle={styles.addButtonContent}
+                buttonColor="#D9E6F6"
+                textColor={BRAND_BLUE}
+              >
                 Servicio
               </Button>
             </Link>
@@ -251,9 +286,11 @@ export const QuoteItemsTable = ({
               <Button
                 mode="contained-tonal"
                 icon="plus"
-                compact
-                disabled={isBusy || services.length === 0}
-                style={addButtonStyle}
+                disabled={isBusy}
+                style={materialAddButtonStyle}
+                contentStyle={styles.addButtonContent}
+                buttonColor="#E2ECD6"
+                textColor={BRAND_GREEN}
               >
                 Material
               </Button>
@@ -292,7 +329,7 @@ export const QuoteItemsTable = ({
       </Card.Content>
 
       <Portal>
-        <Dialog visible={Boolean(editingService)} onDismiss={() => setEditingTarget(null)}>
+        <AppDialog visible={Boolean(editingService)} onDismiss={() => setEditingTarget(null)}>
           <Dialog.Title>Editar servicio</Dialog.Title>
           <Dialog.Content>
             {editingService ? (
@@ -316,14 +353,17 @@ export const QuoteItemsTable = ({
               />
             ) : null}
           </Dialog.Content>
-        </Dialog>
+        </AppDialog>
 
-        <Dialog visible={Boolean(editingMaterial)} onDismiss={() => setEditingTarget(null)}>
+        <AppDialog visible={Boolean(editingMaterial)} onDismiss={() => setEditingTarget(null)}>
           <Dialog.Title>Editar material</Dialog.Title>
           <Dialog.Content>
             {editingMaterial ? (
               <QuoteMaterialItemForm
                 stores={stores}
+                items={itemsQuery.data ?? []}
+                latestPrices={latestPricesQuery.data ?? []}
+                isCatalogLoading={itemsQuery.isLoading || latestPricesQuery.isLoading}
                 defaultValues={{
                   quote_id: editingMaterial.quote_id,
                   item_id: editingMaterial.item_id,
@@ -338,7 +378,9 @@ export const QuoteItemsTable = ({
                 submitLabel="Guardar cambios"
                 onSubmit={async (values) => {
                   await onSaveMaterial(editingMaterial.id, {
+                    item_id: values.item_id,
                     quantity: values.quantity,
+                    unit: values.unit ?? null,
                     unit_price: values.unit_price,
                     margin_percent: values.margin_percent ?? null,
                     source_store_id: values.source_store_id ?? null,
@@ -349,7 +391,7 @@ export const QuoteItemsTable = ({
               />
             ) : null}
           </Dialog.Content>
-        </Dialog>
+        </AppDialog>
       </Portal>
     </Card>
   );
@@ -390,6 +432,18 @@ const styles = StyleSheet.create({
   },
   addButton: {
     borderRadius: 10,
+    borderWidth: 1,
+    minWidth: 140,
+  },
+  serviceAddButton: {
+    borderColor: 'rgba(5, 38, 83, 0.14)',
+  },
+  materialAddButton: {
+    borderColor: 'rgba(67, 102, 61, 0.16)',
+  },
+  addButtonContent: {
+    minHeight: 42,
+    paddingHorizontal: 8,
   },
   addButtonCompact: {
     flex: 1,
@@ -447,7 +501,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  tableCompact: {
+    minWidth: 890,
+  },
   row: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'stretch',
     borderBottomWidth: 1,
@@ -467,12 +525,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FBFD',
   },
   serviceRow: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#A9C8E7',
   },
   materialRow: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#C9DDB7',
   },
   emptyRow: {
     justifyContent: 'center',
@@ -490,27 +544,57 @@ const styles = StyleSheet.create({
     width: 280,
     gap: 4,
   },
+  descriptionCellCompact: {
+    width: 220,
+  },
+  serviceDescriptionCell: {
+    backgroundColor: '#E8F0FA',
+  },
+  materialDescriptionCell: {
+    backgroundColor: '#ECF3E3',
+  },
   quantityCell: {
     width: 64,
+  },
+  quantityCellCompact: {
+    width: 72,
   },
   baseCell: {
     width: 128,
   },
+  baseCellCompact: {
+    width: 122,
+  },
   marginCell: {
     width: 92,
+  },
+  marginCellCompact: {
+    width: 108,
   },
   saleCell: {
     width: 132,
   },
+  saleCellCompact: {
+    width: 124,
+  },
   totalCell: {
     width: 138,
+  },
+  totalCellCompact: {
+    width: 128,
   },
   sourceCell: {
     width: 132,
   },
+  sourceCellCompact: {
+    width: 116,
+  },
   actionsCell: {
-    width: 72,
+    width: 84,
     borderRightWidth: 0,
+  },
+  actionsCellCompact: {
+    width: 72,
   },
   deleteCell: {
     alignItems: 'center',
@@ -522,9 +606,16 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontWeight: '600',
   },
+  serviceItemTitle: {
+    color: BRAND_BLUE,
+  },
+  materialItemTitle: {
+    color: BRAND_GREEN,
+  },
   itemNotes: {
     color: '#5f6368',
     lineHeight: 18,
+    marginTop: 6,
   },
   valueText: {
     fontWeight: '500',

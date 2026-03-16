@@ -27,6 +27,7 @@ export const env = {
     'invalid-anon-key',
   ),
   appUpdateGitHubRepo: optionalEnv(process.env.EXPO_PUBLIC_APP_UPDATE_GITHUB_REPO),
+  aiFunctionName: optionalEnv(process.env.EXPO_PUBLIC_AI_FUNCTION_NAME),
 };
 
 export const hasMissingRequiredEnvVars = missingRequiredEnvVars.length > 0;

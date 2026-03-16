@@ -43,7 +43,7 @@ values
     '+54 11 1234-5678',
     'Presupuesto mantenimiento split',
     'Incluye mano de obra y materiales básicos.',
-    'draft',
+    'pending',
     'Seed de prueba E2E'
   )
 on conflict (id) do nothing;
@@ -59,6 +59,7 @@ insert into public.quote_material_items (
   unit_price,
   margin_percent,
   source_store_id,
+  source_store_name_snapshot,
   notes
 )
 values
@@ -73,6 +74,7 @@ values
     130000,
     8,
     '10000000-0000-0000-0000-000000000001',
+    'FrÃ­o Norte',
     'Carga estimada'
   )
 on conflict (id) do nothing;

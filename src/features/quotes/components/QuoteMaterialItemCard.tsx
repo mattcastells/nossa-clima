@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, Divider, Portal, Text } from 'react-native-paper';
 
+import { AppDialog } from '@/components/AppDialog';
+import { useItems } from '@/features/items/hooks';
+import { useLatestPrices } from '@/features/prices/hooks';
 import type { QuoteMaterialItem, Store } from '@/types/db';
 
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
+import { BRAND_GREEN, BRAND_GREEN_MID, BRAND_GREEN_SOFT } from '@/theme';
 
 import { QuoteMaterialItemForm } from './QuoteMaterialItemForm';
 import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
@@ -12,7 +16,10 @@ import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getM
 interface Props {
   item: QuoteMaterialItem;
   stores: Store[];
-  onSave: (itemId: string, payload: Pick<QuoteMaterialItem, 'quantity' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>) => Promise<void>;
+  onSave: (
+    itemId: string,
+    payload: Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>,
+  ) => Promise<void>;
   onDuplicate: (itemId: string) => Promise<void>;
   onDelete: (itemId: string) => void;
   saving?: boolean;
@@ -32,6 +39,8 @@ export const QuoteMaterialItemCard = ({
   deleting = false,
   defaultMarginPercent = null,
 }: Props) => {
+  const itemsQuery = useItems([item.item_id]);
+  const latestPricesQuery = useLatestPrices();
   const [editing, setEditing] = useState(false);
   const sourceStoreName = item.source_store_id ? stores.find((store) => store.id === item.source_store_id)?.name ?? null : null;
   const effectiveMargin = getEffectiveMaterialMarginPercent(item.margin_percent, defaultMarginPercent);
@@ -108,7 +117,7 @@ export const QuoteMaterialItemCard = ({
               Origen
             </Text>
             <Text variant="bodyMedium" style={styles.metricValue}>
-              {sourceStoreName ?? 'Sin tienda'}
+              {sourceStoreName ?? item.source_store_name_snapshot ?? 'Sin tienda'}
             </Text>
           </View>
         </View>
@@ -129,11 +138,14 @@ export const QuoteMaterialItemCard = ({
       </Card.Content>
 
       <Portal>
-        <Dialog visible={editing} onDismiss={() => setEditing(false)}>
+        <AppDialog visible={editing} onDismiss={() => setEditing(false)}>
           <Dialog.Title>Editar material</Dialog.Title>
           <Dialog.Content>
             <QuoteMaterialItemForm
               stores={stores}
+              items={itemsQuery.data ?? []}
+              latestPrices={latestPricesQuery.data ?? []}
+              isCatalogLoading={itemsQuery.isLoading || latestPricesQuery.isLoading}
               defaultValues={{
                 quote_id: item.quote_id,
                 item_id: item.item_id,
@@ -148,7 +160,9 @@ export const QuoteMaterialItemCard = ({
               submitLabel="Guardar cambios"
               onSubmit={async (values) => {
                 await onSave(item.id, {
+                  item_id: values.item_id,
                   quantity: values.quantity,
+                  unit: values.unit ?? null,
                   unit_price: values.unit_price,
                   margin_percent: values.margin_percent ?? null,
                   source_store_id: values.source_store_id ?? null,
@@ -158,7 +172,7 @@ export const QuoteMaterialItemCard = ({
               }}
             />
           </Dialog.Content>
-        </Dialog>
+        </AppDialog>
       </Portal>
     </Card>
   );
@@ -192,10 +206,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: '#EDF3EA',
+    backgroundColor: BRAND_GREEN_SOFT,
   },
   badgeText: {
-    color: '#43663D',
+    color: BRAND_GREEN,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
@@ -211,9 +225,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#F4F7FB',
+    backgroundColor: '#F7FAF6',
     borderWidth: 1,
-    borderColor: '#DCE4EC',
+    borderColor: BRAND_GREEN_MID,
   },
   totalLabel: {
     color: '#5f6368',
@@ -233,9 +247,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#F8FAFD',
+    backgroundColor: '#FBFCFA',
     borderWidth: 1,
-    borderColor: '#E1E7EF',
+    borderColor: BRAND_GREEN_MID,
   },
   metricLabel: {
     color: '#5f6368',

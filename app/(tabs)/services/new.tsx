@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Snackbar } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { ServiceForm } from '@/features/services/ServiceForm';
 import { useSaveService, useServiceCategories } from '@/features/services/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
@@ -11,6 +11,8 @@ export default function NewServicePage() {
   const save = useSaveService();
   const { data: categories } = useServiceCategories();
   const [message, setMessage] = useState<string | null>(null);
+  const toast = useAppToast();
+  useToastMessageEffect(message, () => setMessage(null));
 
   return (
     <AppScreen title="Nuevo servicio">
@@ -25,15 +27,13 @@ export default function NewServicePage() {
               category: values.category?.trim() ? values.category.trim() : null,
               unit_type: values.unit_type?.trim() ? values.unit_type.trim() : null,
             });
+            toast.success('Servicio guardado.');
             router.back();
           } catch (error) {
             setMessage(toUserErrorMessage(error, 'No se pudo guardar el servicio.'));
           }
         }}
       />
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

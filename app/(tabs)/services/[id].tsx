@@ -1,8 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Button, Dialog, Portal, Snackbar, Text } from 'react-native-paper';
+import { Button, Dialog, Portal, Text } from 'react-native-paper';
 
+import { AppDialog } from '@/components/AppDialog';
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { ServiceForm } from '@/features/services/ServiceForm';
 import { useDeleteService, useSaveService, useServiceCategories, useServices } from '@/features/services/hooks';
@@ -14,9 +16,11 @@ export default function ServiceDetailPage() {
   const { data, isLoading, error } = useServices();
   const { data: categories } = useServiceCategories();
   const save = useSaveService();
-  const remove = useDeleteService();
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const archive = useDeleteService();
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const toast = useAppToast();
+  useToastMessageEffect(message, () => setMessage(null));
   const service = data?.find((s) => s.id === id);
 
   return (
@@ -44,52 +48,50 @@ export default function ServiceDetailPage() {
                   category: values.category?.trim() ? values.category.trim() : null,
                   unit_type: values.unit_type?.trim() ? values.unit_type.trim() : null,
                 });
+                toast.success('Servicio guardado.');
                 router.back();
               } catch (saveError) {
                 setMessage(toUserErrorMessage(saveError, 'No se pudo guardar el servicio.'));
               }
             }}
           />
-          <Button mode="outlined" textColor="#B3261E" onPress={() => setConfirmDelete(true)} disabled={remove.isPending}>
-            Borrar servicio
+          <Button mode="outlined" textColor="#B3261E" onPress={() => setConfirmArchive(true)} disabled={archive.isPending}>
+            Archivar servicio
           </Button>
         </>
       )}
 
       <Portal>
-        <Dialog visible={confirmDelete} onDismiss={() => !remove.isPending && setConfirmDelete(false)}>
-          <Dialog.Title>Borrar servicio</Dialog.Title>
+        <AppDialog visible={confirmArchive} onDismiss={() => !archive.isPending && setConfirmArchive(false)}>
+          <Dialog.Title>Archivar servicio</Dialog.Title>
           <Dialog.Content>
-            <Text>¿Seguro que querés borrar este servicio?</Text>
+            <Text>El servicio deja de aparecer en cargas nuevas, pero los trabajos viejos conservan su snapshot.</Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button disabled={remove.isPending} onPress={() => setConfirmDelete(false)}>
+            <Button disabled={archive.isPending} onPress={() => setConfirmArchive(false)}>
               Cancelar
             </Button>
             <Button
-              loading={remove.isPending}
+              loading={archive.isPending}
               textColor="#B3261E"
               onPress={async () => {
                 if (!service) return;
                 try {
-                  await remove.mutateAsync(service.id);
-                  setConfirmDelete(false);
+                  await archive.mutateAsync(service.id);
+                  setConfirmArchive(false);
+                  toast.success('Servicio archivado.');
                   router.back();
-                } catch (deleteError) {
-                  setConfirmDelete(false);
-                  setMessage(toUserErrorMessage(deleteError, 'No se pudo borrar el servicio.'));
+                } catch (archiveError) {
+                  setConfirmArchive(false);
+                  setMessage(toUserErrorMessage(archiveError, 'No se pudo archivar el servicio.'));
                 }
               }}
             >
-              Borrar
+              Archivar
             </Button>
           </Dialog.Actions>
-        </Dialog>
+        </AppDialog>
       </Portal>
-
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

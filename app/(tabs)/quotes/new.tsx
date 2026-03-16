@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { Card, Snackbar, Text } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { useLinkAppointmentToQuote } from '@/features/appointments/hooks';
 import { QuoteForm } from '@/features/quotes/QuoteForm';
 import { useSaveQuote } from '@/features/quotes/hooks';
@@ -23,6 +24,8 @@ export default function NewQuotePage() {
   const save = useSaveQuote();
   const linkAppointment = useLinkAppointmentToQuote();
   const [message, setMessage] = useState<string | null>(null);
+  const toast = useAppToast();
+  useToastMessageEffect(message, () => setMessage(null));
   const appointmentId = getSingleParam(params.appointmentId).trim();
   const scheduledFor = getSingleParam(params.scheduledFor).trim();
   const startsAt = getSingleParam(params.startsAt).trim();
@@ -58,9 +61,10 @@ export default function NewQuotePage() {
                   client_name: values.client_name,
                   client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
                   notes: values.notes?.trim() ? values.notes.trim() : null,
-                  status: 'draft',
+                  status: 'pending',
                 });
                 if (!hasLinkedAppointment) {
+                  toast.success('Trabajo creado.');
                   router.replace(`/quotes/${quote.id}`);
                   return;
                 }
@@ -72,8 +76,10 @@ export default function NewQuotePage() {
                     title: values.title.trim(),
                     notes: values.notes?.trim() ? values.notes.trim() : null,
                   });
+                  toast.success('Trabajo creado y vinculado.');
                   router.replace(`/quotes/${quote.id}`);
                 } catch (linkError) {
+                  toast.error(toUserErrorMessage(linkError, 'El trabajo se creo, pero no se pudo vincular al turno.'));
                   router.replace({
                     pathname: '/quotes/[id]',
                     params: {
@@ -81,7 +87,6 @@ export default function NewQuotePage() {
                       linkWarning: '1',
                     },
                   });
-                  setMessage(toUserErrorMessage(linkError, 'El trabajo se creo, pero no se pudo vincular al turno.'));
                 }
               } catch (error) {
                 setMessage(toUserErrorMessage(error, 'No se pudo guardar el trabajo.'));
@@ -90,9 +95,6 @@ export default function NewQuotePage() {
           />
         </Card.Content>
       </Card>
-      <Snackbar visible={Boolean(message)} onDismiss={() => setMessage(null)}>
-        {message}
-      </Snackbar>
     </AppScreen>
   );
 }

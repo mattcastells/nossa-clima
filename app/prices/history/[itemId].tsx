@@ -6,6 +6,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItemPriceHistory } from '@/features/prices/hooks';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
+import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
 
 export default function ItemHistoryPage() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EAF2FB',
+    backgroundColor: BRAND_GREEN_SOFT,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',
-    color: '#27486B',
+    color: BRAND_GREEN,
   },
   tableRow: {
     flexDirection: 'row',

@@ -1,17 +1,35 @@
 import { supabase } from '@/lib/supabase';
 import type { Item } from '@/types/db';
+import { isMissingSupabaseColumnError } from './supabaseCompatibility';
 
-export const listItems = async (): Promise<Item[]> => {
-  const { data, error } = await supabase
-    .from('items')
-    .select('*')
-    .order('name');
-  if (error) throw error;
+interface ListItemsOptions {
+  includeArchivedIds?: string[];
+}
+
+const normalizeIds = (ids: string[] | undefined): string[] => Array.from(new Set((ids ?? []).filter(Boolean))).sort();
+
+export const listItems = async ({ includeArchivedIds }: ListItemsOptions = {}): Promise<Item[]> => {
+  const archivedIds = normalizeIds(includeArchivedIds);
+  let query = supabase.from('items').select('*');
+
+  query = archivedIds.length > 0 ? query.or(`archived_at.is.null,id.in.(${archivedIds.join(',')})`) : query.is('archived_at', null);
+
+  const { data, error } = await query.order('name');
+  if (error) {
+    if (!isMissingSupabaseColumnError(error, 'archived_at')) throw error;
+
+    const fallback = await supabase.from('items').select('*').order('name');
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
   return data;
 };
 
 export const upsertItem = async (payload: Partial<Item> & { name: string }): Promise<Item> => {
-  const { data, error } = await supabase.from('items').upsert(payload).select().single();
+  const nextPayload = { ...payload };
+  delete nextPayload.user_id;
+  delete nextPayload.updated_by;
+  const { data, error } = await supabase.from('items').upsert(nextPayload).select().single();
   if (error) throw error;
   return data;
 };
