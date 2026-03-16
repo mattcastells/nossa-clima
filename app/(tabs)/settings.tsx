@@ -12,8 +12,8 @@ import { getAppVersion } from '@/lib/appVersion';
 import {
   downloadAndInstallAppUpdate,
   fetchAppUpdateRelease,
+  getAppUpdateStatus,
   getCurrentBuildNumber,
-  isAppUpdateAvailable,
   type AppUpdateRelease,
 } from '@/services/appUpdates';
 import { useAppTheme } from '@/theme';
@@ -28,6 +28,7 @@ export default function SettingsScreen() {
   useToastMessageEffect(message, () => setMessage(null));
 
   const isBusy = isSigningOut || isUpdatingApp;
+  const appVersion = getAppVersion();
 
   const confirmInstallUpdate = (release: AppUpdateRelease): Promise<boolean> =>
     new Promise((resolve) => {
@@ -69,8 +70,16 @@ export default function SettingsScreen() {
 
       setIsUpdatingApp(true);
       const release = await fetchAppUpdateRelease();
+      const updateStatus = getAppUpdateStatus(release);
 
-      if (!isAppUpdateAvailable(release)) {
+      if (updateStatus !== 'update-available') {
+        if (updateStatus === 'newer-release-blocked-by-build') {
+          setMessage(
+            `Se encontro v${release.version} (b${release.buildNumber}), pero tu app esta en v${appVersion} (b${currentBuild}). Para actualizar por APK, la release necesita un build mayor al instalado.`,
+          );
+          return;
+        }
+
         setMessage('La aplicacion ya esta actualizada.');
         return;
       }
@@ -94,7 +103,6 @@ export default function SettingsScreen() {
   };
 
   const isAndroid = Platform.OS === 'android';
-  const appVersion = getAppVersion();
 
   return (
     <AppScreen title="Opciones">

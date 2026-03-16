@@ -13,6 +13,8 @@ const DEFAULT_GITHUB_REPO = 'mattcastells/nossa-clima';
 const GITHUB_API_VERSION = '2022-11-28';
 const RELEASE_TAG_PATTERN = /^v(?<version>\d+\.\d+\.\d+)-b(?<buildNumber>\d+)$/i;
 
+const VERSION_PATTERN = /^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$/;
+
 export interface AppUpdateRelease {
   tagName: string;
   repo: string;
@@ -23,6 +25,12 @@ export interface AppUpdateRelease {
   notes?: string;
   publishedAt?: string;
 }
+
+export type AppUpdateStatus =
+  | 'up-to-date'
+  | 'update-available'
+  | 'newer-release-blocked-by-build'
+  | 'cannot-check-installed-build';
 
 interface GitHubReleaseAsset {
   name?: unknown;
@@ -73,6 +81,43 @@ const parseReleaseTag = (tagName: string): { version: string; buildNumber: numbe
     version,
     buildNumber: parsePositiveInteger(buildNumber, 'buildNumber'),
   };
+};
+
+const parseVersionParts = (version: string): [number, number, number] | null => {
+  const match = VERSION_PATTERN.exec(version);
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const major = Number.parseInt(match.groups.major ?? '', 10);
+  const minor = Number.parseInt(match.groups.minor ?? '', 10);
+  const patch = Number.parseInt(match.groups.patch ?? '', 10);
+
+  if (!Number.isFinite(major) || !Number.isFinite(minor) || !Number.isFinite(patch)) {
+    return null;
+  }
+
+  return [major, minor, patch];
+};
+
+const compareSemanticVersions = (left: string, right: string): number => {
+  const leftParts = parseVersionParts(left);
+  const rightParts = parseVersionParts(right);
+
+  if (!leftParts || !rightParts) {
+    return 0;
+  }
+
+  if (leftParts[0] !== rightParts[0]) {
+    return leftParts[0] - rightParts[0];
+  }
+
+  if (leftParts[1] !== rightParts[1]) {
+    return leftParts[1] - rightParts[1];
+  }
+
+  return leftParts[2] - rightParts[2];
 };
 
 const normalizeGitHubRelease = (raw: unknown, repo: string): AppUpdateRelease | null => {
@@ -143,6 +188,10 @@ export const getCurrentVersionLabel = (): string => {
   return `${version} (${build})`;
 };
 
+export const getCurrentApplicationVersion = (): string | null => {
+  return Application.nativeApplicationVersion ?? null;
+};
+
 export const fetchAppUpdateRelease = async (): Promise<AppUpdateRelease> => {
   const repo = getUpdateRepository();
   const response = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`, {
@@ -172,7 +221,14 @@ export const fetchAppUpdateRelease = async (): Promise<AppUpdateRelease> => {
   const releases = raw
     .map((item) => normalizeGitHubRelease(item, repo))
     .filter((item): item is AppUpdateRelease => Boolean(item))
-    .sort((left, right) => right.buildNumber - left.buildNumber);
+    .sort((left, right) => {
+      const versionComparison = compareSemanticVersions(right.version, left.version);
+      if (versionComparison !== 0) {
+        return versionComparison;
+      }
+
+      return right.buildNumber - left.buildNumber;
+    });
 
   if (releases.length === 0) {
     throw new Error('No hay releases validas con APK en GitHub.');
@@ -188,12 +244,25 @@ export const fetchAppUpdateRelease = async (): Promise<AppUpdateRelease> => {
 };
 
 export const isAppUpdateAvailable = (release: AppUpdateRelease): boolean => {
+  return getAppUpdateStatus(release) === 'update-available';
+};
+
+export const getAppUpdateStatus = (release: AppUpdateRelease): AppUpdateStatus => {
   const currentBuildNumber = getCurrentBuildNumber();
   if (currentBuildNumber == null) {
-    return false;
+    return 'cannot-check-installed-build';
   }
 
-  return release.buildNumber > currentBuildNumber;
+  if (release.buildNumber > currentBuildNumber) {
+    return 'update-available';
+  }
+
+  const installedVersion = getCurrentApplicationVersion();
+  if (installedVersion && compareSemanticVersions(release.version, installedVersion) > 0) {
+    return 'newer-release-blocked-by-build';
+  }
+
+  return 'up-to-date';
 };
 
 export const openUnknownSourcesSettings = async (): Promise<void> => {

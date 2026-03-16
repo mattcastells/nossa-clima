@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.nossaclima.app",
-      "versionCode": 2,
+      "versionCode": 4,
       "permissions": [
         "REQUEST_INSTALL_PACKAGES"
       ],

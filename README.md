@@ -165,6 +165,7 @@ This keeps the first version simple and avoids storing user images or messages u
 
 ## Where to find more documentation
 
+- Release process and tag convention: `RELEASES.md`
 - Pre-release and setup notes: `docs/PRE_RELEASE_SETUP.md`
 - Additional operational notes: `docs/ITERACION_2_QUOTES_SERVICES.md`
 

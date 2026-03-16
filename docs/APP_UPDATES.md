@@ -34,37 +34,25 @@ Rules:
 ## Release flow
 
 1. Commit normal work to `main`.
-2. When you want to publish a mobile release, create a tag:
+2. Prepare release version from tag format:
+   - `npm run release:prepare -- v1.0.1-b2`
+3. Commit `app.json` updated by the script.
+4. Create the tag:
    - `git tag v1.0.1-b2`
-3. Push the tag:
+5. Push branch and tag:
+   - `git push origin main`
    - `git push origin v1.0.1-b2`
-4. GitHub Actions builds the APK and creates a GitHub Release with the APK attached.
-5. The installed app can detect that release and open the installer.
+6. GitHub Actions builds the APK and creates a GitHub Release with the APK attached.
+7. The installed app can detect that release and open the installer.
 
-## First release for this repo
-
-For the current source state, the first public APK release should be:
-
-- `v0.1.0-b1`
-
-Suggested command sequence:
-
-1. Commit the current release-ready changes on `main`.
-2. Push `main`.
-3. Create the first release tag:
-   - `git tag v0.1.0-b1`
-4. Push the tag:
-   - `git push origin v0.1.0-b1`
-5. Wait for `.github/workflows/android-release.yml` to finish.
-6. Download `nossa-clima-v0.1.0-b1.apk` from the generated GitHub Release.
-
-Do not use a plain `0.1.0` tag here. The app update parser expects the build suffix (`-b1`, `-b2`, etc.) so it can compare Android build numbers correctly.
+See `RELEASES.md` in the repository root for the current canonical release checklist and examples.
 
 ## Current configuration
 
 - Public repo used by the app: `mattcastells/nossa-clima`
 - Android package: `com.nossaclima.app`
-- Current base `versionCode` in source: `1`
+- Current app source version: `0.2.1`
+- Build history (tags): `v0.1.0-b1`, `v0.2.0-b2`, `v0.2.0-b3`, `v0.2.1-b1`
 
 ## Important implementation detail
 

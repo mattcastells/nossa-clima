@@ -26,6 +26,19 @@ if (!Number.isFinite(versionCode) || versionCode <= 0) {
 
 const appJsonPath = path.resolve('app.json');
 const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+const currentVersionCode = Number.parseInt(String(appJson?.expo?.android?.versionCode ?? ''), 10);
+
+if (Number.isFinite(currentVersionCode) && versionCode <= currentVersionCode) {
+  console.error(
+    [
+      `Invalid build number: ${versionCode}.`,
+      `Current app.json android.versionCode is ${currentVersionCode}.`,
+      'Release build number must always be greater than the current versionCode.',
+      `Use a tag like v${version}-b${currentVersionCode + 1} or higher.`,
+    ].join(' '),
+  );
+  process.exit(1);
+}
 
 appJson.expo.version = version;
 appJson.expo.android = {
