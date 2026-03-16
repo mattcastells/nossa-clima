@@ -97,6 +97,14 @@ npm run start
 
 From the Expo UI you can run on Android, iOS simulator/emulator, or web. Common shortcuts shown in the Expo terminal apply (for example: `a` to open Android).
 
+### Android development workflow
+
+- Use `npm run android` for the normal development loop. It starts Expo and opens the installed development client without recompiling native Android code.
+- Use `npm run android:build` only when you need to install or rebuild the native Android app, for example after changing native dependencies, Expo config plugins, or files under `android/`.
+- If Metro looks stale, use `npm run start:clear`.
+
+This project also limits local Android builds to 64-bit ABIs by default (`arm64-v8a` and `x86_64`) to reduce cold build time. If you need a legacy 32-bit target, override `reactNativeArchitectures` from the Gradle CLI.
+
 ## Tests & checks
 
 - Run type check: `npm run typecheck`

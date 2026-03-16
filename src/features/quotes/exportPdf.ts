@@ -224,11 +224,24 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         h1 { font-size: 24px; line-height: 1.1; margin: 0; color: ${BRAND_BLUE_HEX}; }
         h2 { font-size: 15px; line-height: 1.2; margin: 0; color: ${BRAND_BLUE_HEX}; }
         .muted { color: #6b7280; font-size: 12px; }
-        .header { display: block; }
-        .brand-block { max-width: 320px; }
-        .brand-logo { width: 100%; max-width: 280px; background: #ffffff; padding-left: 8px; }
+        .header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 20px;
+        }
+        .brand-block {
+          width: 320px;
+          display: flex;
+          justify-content: flex-end;
+          margin-left: auto;
+        }
+        .brand-logo { width: 100%; max-width: 280px; background: #ffffff; }
         .brand-logo img, .brand-logo svg { display: block; width: 100%; height: auto; }
-        .document-block { margin-top: 14px; }
+        .document-block {
+          flex: 1;
+          padding-top: 18px;
+        }
         .contact-card {
           min-width: 280px;
           max-width: 280px;
@@ -312,12 +325,12 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
     </head>
     <body>
       <div class="header">
+        <div class="document-block">
+          <h1>Presupuesto tecnico</h1>
+          <div class="muted">Fecha: ${escapeHtml(quoteDate)}</div>
+        </div>
         <div class="brand-block">
           <div class="brand-logo">${logoMarkup}</div>
-          <div class="document-block">
-            <h1>Presupuesto tecnico</h1>
-            <div class="muted">Fecha: ${escapeHtml(quoteDate)}</div>
-          </div>
         </div>
       </div>
 
@@ -585,19 +598,20 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   const marginX = 44;
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  let cursorY = 38;
+  const headerTopY = 38;
+  let cursorY = headerTopY;
   let logoDrawn = false;
   const bannerWidth = 250;
-  const logoX = marginX + 8;
+  const logoX = pageWidth - marginX - bannerWidth;
   const contactCardWidth = 190;
   const totalsPanelWidth = 240;
+  let logoHeight = 0;
 
   if (brandLogoUri) {
     try {
       const logoImage = await loadWebLogoImage(brandLogoUri);
-      const logoHeight = (bannerWidth * logoImage.height) / logoImage.width;
+      logoHeight = (bannerWidth * logoImage.height) / logoImage.width;
       doc.addImage(logoImage.dataUrl, logoImage.format, logoX, cursorY, bannerWidth, logoHeight, undefined, 'FAST');
-      cursorY += logoHeight;
       logoDrawn = true;
     } catch {
       logoDrawn = false;
@@ -605,22 +619,21 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   }
 
   if (!logoDrawn) {
-    const logoHeight = drawCompanyLogo(doc, logoX, cursorY, bannerWidth);
-    cursorY += logoHeight;
+    logoHeight = drawCompanyLogo(doc, logoX, cursorY, bannerWidth);
   }
 
-  cursorY += 16;
+  const titleY = headerTopY + 34;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(...BRAND_BLUE_RGB);
-  doc.text('Presupuesto tecnico', marginX, cursorY);
+  doc.text('Presupuesto tecnico', marginX, titleY);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...TEXT_MUTED_RGB);
-  doc.text(`Fecha: ${getQuoteDisplayDate(detail)}`, marginX, cursorY + 18);
+  doc.text(`Fecha: ${getQuoteDisplayDate(detail)}`, marginX, titleY + 18);
 
-  cursorY += 36;
+  cursorY = Math.max(headerTopY + logoHeight, titleY + 26) + 20;
   const infoCardHeight = drawInfoCard(doc, detail, marginX, cursorY, pageWidth - marginX * 2);
   cursorY += infoCardHeight + 22;
 

@@ -1,4 +1,3 @@
-import { env } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 
 export interface AssistantReply {
@@ -16,8 +15,7 @@ export interface SendAssistantMessageInput {
   history: AssistantHistoryMessage[];
 }
 
-const ASSISTANT_FUNCTION_NAME = env.aiFunctionName ?? 'assistant-chat';
-const ASSISTANT_FUNCTION_URL = `${env.supabaseUrl}/functions/v1/${ASSISTANT_FUNCTION_NAME}`;
+const ASSISTANT_FUNCTION_NAME = 'assistant-chat';
 
 const toAssistantError = (error: unknown): Error => {
   if (error instanceof Error) {
@@ -49,40 +47,14 @@ export const sendAssistantMessage = async ({ history }: SendAssistantMessageInpu
     throw new Error('Escribi una consulta o adjunta una imagen.');
   }
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token?.trim();
-  if (!accessToken) {
-    throw new Error('Tu sesion no es valida para usar el asistente. Cerra sesion y volve a ingresar.');
-  }
-
-  const response = await fetch(ASSISTANT_FUNCTION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: env.supabaseAnonKey,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke(ASSISTANT_FUNCTION_NAME, {
+    body: {
       history: normalizedHistory,
-    }),
+    },
   });
 
-  let data: unknown = null;
-  try {
-    data = await response.json();
-  } catch {
-    if (!response.ok) {
-      throw toAssistantError(new Error(`${response.status} ${response.statusText}`));
-    }
-    throw new Error('La respuesta del asistente no fue JSON valido.');
-  }
-
-  if (!response.ok) {
-    const message =
-      data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string'
-        ? (data as { error: string }).error
-        : `${response.status} ${response.statusText}`;
-    throw toAssistantError(new Error(message));
+  if (error) {
+    throw toAssistantError(error);
   }
 
   if (!data || typeof data !== 'object') {

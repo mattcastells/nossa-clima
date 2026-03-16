@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, IconButton, Text, TextInput } from 'react-native-paper';
 
@@ -27,15 +28,30 @@ const getAppointmentDescription = (
   return description || 'Sin descripcion';
 };
 
+const getCurrentMonthAnchor = (): Date => {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), 1);
+};
+
+const getCurrentSelectedDate = (): string => formatIsoDate(new Date());
+
 export const WorkCalendarCard = () => {
   const router = useRouter();
-  const [monthAnchor, setMonthAnchor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState(() => formatIsoDate(new Date()));
+  const isFocused = useIsFocused();
+  const [monthAnchor, setMonthAnchor] = useState(getCurrentMonthAnchor);
+  const [selectedDate, setSelectedDate] = useState(getCurrentSelectedDate);
   const [title, setTitle] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   useToastMessageEffect(message, () => setMessage(null));
+
+  useEffect(() => {
+    if (!isFocused) return;
+
+    setMonthAnchor(getCurrentMonthAnchor());
+    setSelectedDate(getCurrentSelectedDate());
+  }, [isFocused]);
 
   const appointmentsQuery = useAppointmentsInMonth(monthAnchor);
   const createAppointment = useCreateAppointment();

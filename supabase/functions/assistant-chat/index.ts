@@ -23,30 +23,6 @@ const json = (body: unknown, status = 200) =>
     },
   });
 
-const getAuthenticatedUserId = async (request: Request): Promise<string | null> => {
-  const authorization = request.headers.get('Authorization')?.trim();
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.trim();
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim();
-
-  if (!authorization || !supabaseUrl || !supabaseAnonKey) {
-    return null;
-  }
-
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      Authorization: authorization,
-      apikey: supabaseAnonKey,
-    },
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const payload = (await response.json()) as { id?: unknown };
-  return typeof payload.id === 'string' && payload.id.trim() ? payload.id : null;
-};
-
 const parseDataUrl = (
   dataUrl: string,
 ): {
@@ -96,11 +72,6 @@ Deno.serve(async (request) => {
 
   if (request.method !== 'POST') {
     return json({ error: 'Metodo no permitido.' }, 405);
-  }
-
-  const userId = await getAuthenticatedUserId(request);
-  if (!userId) {
-    return json({ error: 'No autorizado.' }, 401);
   }
 
   const apiKey = Deno.env.get('GEMINI_API_KEY')?.trim();

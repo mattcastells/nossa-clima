@@ -6,6 +6,7 @@ import { Button, Card, Searchbar, Text } from 'react-native-paper';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
+import { BRAND_BLUE_SOFT } from '@/theme';
 
 export default function StoresScreen() {
   const { data, isLoading, error } = useStores();
@@ -43,8 +44,10 @@ export default function StoresScreen() {
         renderItem={({ item }) => (
           <Link href={`/stores/${item.id}`} asChild>
             <Card mode="outlined" style={styles.storeCard}>
+              <View style={styles.headerBlock}>
+                <Text style={styles.headerTitle}>{item.name}</Text>
+              </View>
               <Card.Content style={styles.storeCardContent}>
-                <Text variant="titleMedium">{item.name}</Text>
                 {item.address ? <Text>Ubicacion: {item.address}</Text> : null}
                 {item.phone ? <Text>Telefono: {item.phone}</Text> : null}
               </Card.Content>
@@ -71,8 +74,21 @@ const styles = StyleSheet.create({
   storeCard: {
     marginBottom: 10,
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  headerBlock: {
+    backgroundColor: BRAND_BLUE_SOFT,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 9,
+  },
+  headerTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   storeCardContent: {
     gap: 4,
+    paddingTop: 12,
   },
 });

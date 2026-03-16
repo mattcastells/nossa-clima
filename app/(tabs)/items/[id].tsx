@@ -104,15 +104,6 @@ export default function ItemDetailPage() {
         />
       )}
 
-      {material ? (
-        <CatalogAuditCard
-          createdBy={formatAuditActor(material.user_id, auditNamesById)}
-          createdAt={formatDateTimeAr(material.created_at)}
-          updatedBy={formatAuditActor(material.updated_by ?? material.user_id, auditNamesById)}
-          updatedAt={formatDateTimeAr(material.updated_at)}
-        />
-      ) : null}
-
       {material && (
         <Card mode="outlined" style={styles.pricesCard}>
           <Card.Content style={styles.pricesContent}>
@@ -145,6 +136,15 @@ export default function ItemDetailPage() {
           </Card.Content>
         </Card>
       )}
+
+      {material ? (
+        <CatalogAuditCard
+          createdBy={formatAuditActor(material.user_id, auditNamesById)}
+          createdAt={formatDateTimeAr(material.created_at)}
+          updatedBy={formatAuditActor(material.updated_by ?? material.user_id, auditNamesById)}
+          updatedAt={formatDateTimeAr(material.updated_at)}
+        />
+      ) : null}
     </AppScreen>
   );
 }

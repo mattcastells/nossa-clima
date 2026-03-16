@@ -75,15 +75,6 @@ export default function StoreDetailPage() {
         />
       )}
 
-      {store ? (
-        <CatalogAuditCard
-          createdBy={formatAuditActor(store.user_id, auditNamesById)}
-          createdAt={formatDateTimeAr(store.created_at)}
-          updatedBy={formatAuditActor(store.updated_by ?? store.user_id, auditNamesById)}
-          updatedAt={formatDateTimeAr(store.updated_at)}
-        />
-      ) : null}
-
       {store && (
         <Button mode="outlined" textColor="#B3261E" onPress={() => setConfirmDelete(true)} disabled={archive.isPending}>
           Archivar tienda
@@ -136,6 +127,15 @@ export default function StoreDetailPage() {
           )}
         </Card.Content>
       </Card>
+
+      {store ? (
+        <CatalogAuditCard
+          createdBy={formatAuditActor(store.user_id, auditNamesById)}
+          createdAt={formatDateTimeAr(store.created_at)}
+          updatedBy={formatAuditActor(store.updated_by ?? store.user_id, auditNamesById)}
+          updatedAt={formatDateTimeAr(store.updated_at)}
+        />
+      ) : null}
 
       <Portal>
         <AppDialog visible={confirmDelete} onDismiss={() => !archive.isPending && setConfirmDelete(false)}>
