@@ -30,18 +30,19 @@ Rules:
 - `1.0.1` becomes the Android app version.
 - `2` becomes `android.versionCode`.
 - `versionCode` must always increase.
+- Deleting old GitHub releases does not reset the installed APK build number.
 
 ## Release flow
 
 1. Commit normal work to `main`.
 2. Prepare release version from tag format:
-   - `npm run release:prepare -- v1.0.1-b2`
+   - `npm run release:prepare -- v1.0.1-b5`
 3. Commit `app.json` updated by the script.
 4. Create the tag:
-   - `git tag v1.0.1-b2`
+   - `git tag v1.0.1-b5`
 5. Push branch and tag:
    - `git push origin main`
-   - `git push origin v1.0.1-b2`
+   - `git push origin v1.0.1-b5`
 6. GitHub Actions builds the APK and creates a GitHub Release with the APK attached.
 7. The installed app can detect that release and open the installer.
 
@@ -52,7 +53,8 @@ See `RELEASES.md` in the repository root for the current canonical release check
 - Public repo used by the app: `mattcastells/nossa-clima`
 - Android package: `com.nossaclima.app`
 - Current app source version: `0.2.1`
-- Build history (tags): `v0.1.0-b1`, `v0.2.0-b2`, `v0.2.0-b3`, `v0.2.1-b1`
+- Build history (tags): `v0.1.0-b1`, `v0.2.0-b2`, `v0.2.0-b3`, `v0.2.1-b1`, `v0.2.1-b4`
+- Next safe Android update build: `v0.2.1-b5`
 
 ## Important implementation detail
 

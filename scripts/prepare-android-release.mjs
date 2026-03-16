@@ -26,9 +26,10 @@ if (!Number.isFinite(versionCode) || versionCode <= 0) {
 
 const appJsonPath = path.resolve('app.json');
 const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+const currentVersion = String(appJson?.expo?.version ?? '').trim();
 const currentVersionCode = Number.parseInt(String(appJson?.expo?.android?.versionCode ?? ''), 10);
 
-if (Number.isFinite(currentVersionCode) && versionCode <= currentVersionCode) {
+if (Number.isFinite(currentVersionCode) && versionCode < currentVersionCode) {
   console.error(
     [
       `Invalid build number: ${versionCode}.`,
@@ -38,6 +39,25 @@ if (Number.isFinite(currentVersionCode) && versionCode <= currentVersionCode) {
     ].join(' '),
   );
   process.exit(1);
+}
+
+if (Number.isFinite(currentVersionCode) && versionCode === currentVersionCode) {
+  if (currentVersion !== version) {
+    console.error(
+      [
+        `Invalid release version for build ${versionCode}.`,
+        `Current app.json version is ${currentVersion || 'missing'}.`,
+        `Build ${versionCode} is already associated with a different app version.`,
+        `Use a tag like v${currentVersion || version}-b${currentVersionCode + 1} or higher.`,
+      ].join(' '),
+    );
+    process.exit(1);
+  }
+
+  console.log(`Android release ${tagName} is already prepared in app.json`);
+  console.log(`version=${version}`);
+  console.log(`versionCode=${versionCode}`);
+  process.exit(0);
 }
 
 appJson.expo.version = version;
