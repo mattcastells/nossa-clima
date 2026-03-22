@@ -74,7 +74,9 @@ Tags detectados en el repo:
 - `v0.2.0-b3`
 - `v0.2.1-b1`
 - `v0.2.1-b4`
+- `v0.2.1-b5`
+- `v0.3.0-b6`
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.2.1-b5`
+- `v0.3.1-b7` (patch) o `v0.4.0-b7` (minor)
