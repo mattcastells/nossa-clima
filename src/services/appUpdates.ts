@@ -9,7 +9,7 @@ const APK_MIME_TYPE = 'application/vnd.android.package-archive';
 const FLAG_GRANT_READ_URI_PERMISSION = 0x00000001;
 const FLAG_ACTIVITY_NEW_TASK = 0x10000000;
 const UNKNOWN_SOURCES_ACTION = 'android.settings.MANAGE_UNKNOWN_APP_SOURCES';
-const DEFAULT_GITHUB_REPO = 'mattcastells/nossa-clima';
+const DEFAULT_GITHUB_REPO = 'mattcastells/nossa-clima-releases';
 const GITHUB_API_VERSION = '2022-11-28';
 const RELEASE_TAG_PATTERN = /^v(?<version>\d+\.\d+\.\d+)-b(?<buildNumber>\d+)$/i;
 
