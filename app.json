@@ -2,14 +2,14 @@
   "expo": {
     "name": "Nossa Clima",
     "slug": "nossa-clima",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "scheme": "nossaclima",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.nossaclima.app",
-      "versionCode": 6,
+      "versionCode": 7,
       "permissions": [
         "REQUEST_INSTALL_PACKAGES",
         "RECEIVE_BOOT_COMPLETED",
