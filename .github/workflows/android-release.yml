@@ -57,6 +57,18 @@ jobs:
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk "nossa-clima-${GITHUB_REF_NAME}.apk"
 
+      # Ensure the releases repo has at least one commit (GitHub requires it for releases).
+      # This is a no-op if the repo is already initialized.
+      - name: Initialize releases repo if empty
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          gh api repos/mattcastells/nossa-clima-releases/contents/ --silent 2>/dev/null || \
+          gh api repos/mattcastells/nossa-clima-releases/contents/README.md \
+            --method PUT \
+            -f message="chore: initialize releases repository" \
+            -f "content=$(printf '# Nossa Clima Releases\n\nPublic APK releases for the Nossa Clima Android app.' | base64 -w 0)"
+
       # Primary: publish to the dedicated public releases repo.
       # Users on b7+ will check this repo for updates.
       - name: Publish to releases repo
