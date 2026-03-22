@@ -67,7 +67,7 @@ export default function StoresScreen() {
             <Link href={`/stores/${item.id}`} asChild>
               <Card mode="outlined" style={styles.storeCard}>
                 <View style={[styles.headerBlock, { backgroundColor: theme.colors.softYellow }]}>
-                  <Text style={[styles.headerTitle, { color: '#1A1A1A' }]}>{item.name}</Text>
+                  <Text style={[styles.headerTitle, { color: theme.dark ? theme.colors.titleOnSoft : '#1A1A1A' }]}>{item.name}</Text>
                 </View>
                 <Card.Content style={styles.storeCardContent}>
                   {item.address ? <Text style={{ color: theme.colors.onSurface }}>Ubicacion: {item.address}</Text> : null}

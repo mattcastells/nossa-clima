@@ -121,10 +121,25 @@ export default function AddServiceToQuotePage() {
           value={search}
           onChangeText={setSearch}
           inputStyle={styles.searchbarInput}
-          style={styles.searchbar}
+          style={[
+            styles.searchbar,
+            {
+              backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
+              borderWidth: 1,
+              borderColor: theme.colors.borderSoft,
+            },
+          ]}
         />
 
-        <View style={styles.servicesPanel}>
+        <View
+          style={[
+            styles.servicesPanel,
+            {
+              backgroundColor: theme.dark ? '#1E2530' : '#F7FAFC',
+              borderColor: theme.dark ? theme.colors.borderSoft : '#D6DEE8',
+            },
+          ]}
+        >
           <FlatList
             data={filteredServices}
             keyExtractor={(item) => item.id}
@@ -138,15 +153,27 @@ export default function AddServiceToQuotePage() {
                   setValue('service_id', item.id, { shouldValidate: true });
                   setValue('unit_price', item.base_price, { shouldValidate: true });
                 }}
-                style={[styles.serviceCard, selectedServiceId === item.id && styles.serviceCardSelected]}
+                style={[
+                  styles.serviceCard,
+                  { borderColor: theme.dark ? theme.colors.borderSoft : '#D6DEE8' },
+                  selectedServiceId === item.id && styles.serviceCardSelected,
+                ]}
               >
                 <Card.Content style={styles.serviceCardContent}>
                   <View style={styles.serviceCardHeader}>
                     <Text variant="titleMedium" style={styles.serviceName}>
                       {item.name}
                     </Text>
-                    <View style={styles.categoryTag}>
-                      <Text variant="labelSmall" style={styles.categoryTagText}>
+                    <View
+                      style={[
+                        styles.categoryTag,
+                        {
+                          backgroundColor: theme.dark ? theme.colors.softBlue : '#EAF0F7',
+                          borderColor: theme.dark ? theme.colors.softBlueStrong : '#D5E0EE',
+                        },
+                      ]}
+                    >
+                      <Text variant="labelSmall" style={[styles.categoryTagText, { color: theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE }]}>
                         {item.category ?? 'Sin categoria'}
                       </Text>
                     </View>

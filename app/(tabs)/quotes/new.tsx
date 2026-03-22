@@ -38,7 +38,7 @@ export default function NewQuotePage() {
       try {
         const quote = await save.mutateAsync({
           title: appointmentTitle || 'Nuevo trabajo',
-          client_name: '-',
+          client_name: '',
           notes: appointmentNotes || null,
           status: 'pending',
         });

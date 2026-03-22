@@ -239,7 +239,7 @@ export default function ServicesScreen() {
               <Card mode="outlined" style={styles.serviceCard}>
                 <View style={[styles.headerBlock, { backgroundColor: theme.colors.softBlue }]}>
                   <View style={styles.headerMainRow}>
-                    <Text style={[styles.headerTitle, { color: '#1A1A1A' }]}>{item.name}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.dark ? theme.colors.titleOnSoft : '#1A1A1A' }]}>{item.name}</Text>
                     <Chip
                       compact
                       style={StyleSheet.flatten([
@@ -249,7 +249,7 @@ export default function ServicesScreen() {
                           borderColor: filterChipBorderColor,
                         },
                       ])}
-                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: '#1A1A1A' }])}
+                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: theme.dark ? theme.colors.titleOnSoft : '#1A1A1A' }])}
                     >
                       {item.category ?? 'Sin categoria'}
                     </Chip>

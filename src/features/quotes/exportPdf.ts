@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Asset } from 'expo-asset';
 import { Platform } from 'react-native';
 
@@ -71,8 +70,13 @@ const sanitizeFileName = (value: string): string => {
   return normalized || 'presupuesto';
 };
 
-const buildPdfName = (detail: QuoteDetail): string =>
-  `${sanitizeFileName(detail.quote.title)}-${detail.quote.id.slice(0, 8)}.pdf`;
+const getQuoteDisplayDate = (detail: QuoteDetail): string =>
+  formatDateAr(detail.appointment?.scheduled_for ?? detail.quote.created_at);
+
+const buildPdfName = (detail: QuoteDetail): string => {
+  const dateStr = sanitizeFileName(getQuoteDisplayDate(detail));
+  return `${sanitizeFileName(detail.quote.title)}-${dateStr}.pdf`;
+};
 
 const splitFileName = (value: string): { base: string; extension: string } => {
   const extensionIndex = value.lastIndexOf('.');
@@ -85,9 +89,6 @@ const splitFileName = (value: string): { base: string; extension: string } => {
     extension: value.slice(extensionIndex),
   };
 };
-
-const getQuoteDisplayDate = (detail: QuoteDetail): string =>
-  formatDateAr(detail.appointment?.scheduled_for ?? detail.quote.created_at);
 
 const renderServicesRows = (detail: QuoteDetail): string => {
   if (detail.services.length === 0) {
@@ -245,6 +246,8 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           text-transform: uppercase;
           letter-spacing: .04em;
           margin-bottom: 10px;
+          text-decoration: underline;
+          font-weight: 700;
         }
         .contact-line {
           display: flex;
@@ -394,7 +397,8 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
 
       <div class="totals-wrap">
         <div class="contact-card">
-          <div class="contact-title">Contacto</div>
+          <div class="contact-title">Contacto:</div>
+          <br />
           <div class="contact-line">
             <div class="label">Telefono</div>
             <div class="value">${escapeHtml(COMPANY_PHONE)}</div>
@@ -476,18 +480,23 @@ const drawInfoCard = (doc: PdfDocument, detail: QuoteDetail, x: number, y: numbe
 };
 
 const drawContactCard = (doc: PdfDocument, x: number, y: number, width: number): number => {
-  const height = 82;
-  const firstRowY = y + 36;
-  const secondRowY = y + 58;
+  const height = 94;
+  const firstRowY = y + 50;
+  const secondRowY = y + 70;
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(...BORDER_RGB);
   doc.roundedRect(x, y, width, height, 10, 10, 'FD');
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...TEXT_MUTED_RGB);
-  doc.text('CONTACTO', x + 14, y + 18);
+  const titleText = 'CONTACTO:';
+  doc.text(titleText, x + 14, y + 18);
+  const titleWidth = doc.getTextWidth(titleText);
+  doc.setDrawColor(...TEXT_MUTED_RGB);
+  doc.setLineWidth(0.5);
+  doc.line(x + 14, y + 20, x + 14 + titleWidth, y + 20);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -754,19 +763,6 @@ const requestAndroidPdfDirectoryUri = async (
   return fallbackPermission.directoryUri;
 };
 
-const loadAndroidPdfDirectorySelection = async (
-  StorageAccessFramework: typeof import('expo-file-system').StorageAccessFramework,
-): Promise<{ directoryUri: string; fromCache: boolean }> => {
-  const cachedDirectoryUri = (await AsyncStorage.getItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY).catch(() => null))?.trim();
-  if (cachedDirectoryUri) {
-    return { directoryUri: cachedDirectoryUri, fromCache: true };
-  }
-
-  const requestedDirectoryUri = await requestAndroidPdfDirectoryUri(StorageAccessFramework);
-  await AsyncStorage.setItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY, requestedDirectoryUri).catch(() => undefined);
-  return { directoryUri: requestedDirectoryUri, fromCache: false };
-};
-
 export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
   if (Platform.OS === 'web') {
     const brandLogoUri = await resolveBrandLogoUri();
@@ -838,21 +834,8 @@ export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
       return targetUri;
     };
 
-    let directorySelection = await loadAndroidPdfDirectorySelection(StorageAccessFramework);
-
-    try {
-      return await writeToSafDirectory(directorySelection.directoryUri);
-    } catch (writeError) {
-      if (!directorySelection.fromCache) {
-        throw writeError;
-      }
-
-      await AsyncStorage.removeItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY).catch(() => undefined);
-      const requestedDirectoryUri = await requestAndroidPdfDirectoryUri(StorageAccessFramework);
-      await AsyncStorage.setItem(ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY, requestedDirectoryUri).catch(() => undefined);
-      directorySelection = { directoryUri: requestedDirectoryUri, fromCache: false };
-      return writeToSafDirectory(directorySelection.directoryUri);
-    }
+    const directoryUri = await requestAndroidPdfDirectoryUri(StorageAccessFramework);
+    return await writeToSafDirectory(directoryUri);
   } finally {
     try {
       await FileSystem.deleteAsync(file.uri);

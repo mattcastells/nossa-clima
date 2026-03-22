@@ -443,9 +443,11 @@ export default function QuoteDetailPage() {
                 onChangeText={(value) => setScheduleDate(maskDateInput(value))}
                 placeholder="12-03-2026"
                 keyboardType="number-pad"
+                showSoftInputOnFocus={false}
                 maxLength={10}
                 outlineStyle={styles.inputOutline}
                 disabled={isCompleted || isBusy}
+                onPressIn={() => { if (!isCompleted && !isBusy) { setCalendarVisible(true); } }}
                 right={<TextInput.Icon icon="calendar-month-outline" onPress={toggleInlineCalendar} />}
               />
               <TextInput

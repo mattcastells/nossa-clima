@@ -17,7 +17,7 @@ interface AppToastContextValue {
   error: (message: string) => void;
 }
 
-const TOAST_DURATION_MS = 1800;
+const TOAST_DURATION_MS = 2800;
 const CAN_USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 const AppToastContext = createContext<AppToastContextValue | null>(null);
