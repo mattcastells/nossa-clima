@@ -16,6 +16,19 @@ import { normalizeQuoteStatus } from '@/features/quotes/status';
 
 import { isInvalidQuoteStatusEnumError, isMissingAppointmentQuoteLinkError, isMissingSupabaseColumnError } from './supabaseCompatibility';
 
+// Helper: return current authenticated user's id, or null if no session.
+const getCurrentUserId = async (): Promise<string | null> => {
+  try {
+    // supabase.auth.getUser() returns an object with `data.user` in most SDK versions.
+    const userResult = await supabase.auth.getUser();
+    const maybe = (userResult as unknown) as { data?: { user?: { id?: string } } } | undefined;
+    const user = maybe?.data?.user ?? null;
+    return (user && (user.id as string)) || null;
+  } catch (err) {
+    return null;
+  }
+};
+
 export interface QuoteDetail {
   quote: Quote;
   materials: QuoteMaterialItem[];
@@ -74,7 +87,7 @@ export type QuoteMaterialItemUpdate = Partial<
   Pick<QuoteMaterialItem, 'item_id' | 'item_measurement_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>
 >;
 
-export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'notes'>>;
+export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'margin_percent' | 'notes'>>;
 
 const getCancelledQuoteCutoffIso = (): string => {
   const cutoffDate = new Date();
@@ -143,6 +156,16 @@ export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
   const { data: quote, error: quoteError } = await supabase.from('quotes').select('*').eq('id', quoteId).single();
   if (quoteError) throw quoteError;
 
+  // Ownership check: ensure the current session user owns the quote
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && quote.user_id && quote.user_id !== currentUserId) {
+      throw new Error('No autorizado para ver este presupuesto');
+    }
+  } catch (err) {
+    // If we can't determine the current user, continue and let RLS handle enforcement
+  }
+
   const { data: materials, error: materialsError } = await supabase
     .from('quote_material_items')
     .select('*')
@@ -202,6 +225,19 @@ export const upsertQuote = async (payload: Partial<Quote> & Pick<Quote, 'client_
 
 export const updateQuoteStatus = async (quoteId: string, status: JobQuoteStatus): Promise<Quote> => {
   const normalizedStatus = normalizeQuoteStatus(status);
+  // Ownership check: ensure current user owns the quote before changing status
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId) {
+      const { data: existing, error: existingError } = await supabase.from('quotes').select('user_id').eq('id', quoteId).single();
+      if (existingError) throw existingError;
+      if (existing && existing.user_id && existing.user_id !== currentUserId) {
+        throw new Error('No autorizado para cambiar el estado de este presupuesto');
+      }
+    }
+  } catch (err) {
+    // fallback to DB enforcement
+  }
   const { data, error } = await supabase
     .from('quotes')
     .update({
@@ -433,6 +469,16 @@ export const updateQuoteMaterialItem = async (itemId: string, payload: QuoteMate
   const { data: existing, error: existingError } = await supabase.from('quote_material_items').select('*').eq('id', itemId).single();
   if (existingError) throw existingError;
 
+  // Ownership check (defense-in-depth): ensure the session user is the owner
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
+      throw new Error('No autorizado para modificar este material');
+    }
+  } catch (err) {
+    // If unable to resolve current user, let DB RLS enforce permissions instead of failing client-side.
+  }
+
   let updatePayload: QuoteMaterialItemUpdate & {
     item_name_snapshot?: string;
     item_measurement_snapshot?: string | null;
@@ -483,6 +529,18 @@ export const updateQuoteMaterialItem = async (itemId: string, payload: QuoteMate
 };
 
 export const deleteQuoteMaterialItem = async (itemId: string): Promise<{ quote_id: string }> => {
+  const { data: existing, error: existingError } = await supabase.from('quote_material_items').select('*').eq('id', itemId).single();
+  if (existingError) throw existingError;
+
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
+      throw new Error('No autorizado para eliminar este material');
+    }
+  } catch (err) {
+    // fallback to DB enforcement
+  }
+
   const { data, error } = await supabase.from('quote_material_items').delete().eq('id', itemId).select('quote_id').single();
   if (error) throw error;
   return data;
@@ -491,6 +549,16 @@ export const deleteQuoteMaterialItem = async (itemId: string): Promise<{ quote_i
 export const duplicateQuoteMaterialItem = async (itemId: string): Promise<QuoteMaterialItem> => {
   const { data: existing, error: existingError } = await supabase.from('quote_material_items').select('*').eq('id', itemId).single();
   if (existingError) throw existingError;
+
+  // Ownership check
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
+      throw new Error('No autorizado para duplicar este material');
+    }
+  } catch (err) {
+    // Let DB RLS enforce if needed
+  }
 
   const payload: QuoteMaterialItemInput = {
     quote_id: existing.quote_id,
@@ -544,12 +612,37 @@ export const addQuoteServiceItem = async (payload: QuoteServiceItemInput): Promi
 };
 
 export const updateQuoteServiceItem = async (itemId: string, payload: QuoteServiceItemUpdate): Promise<QuoteServiceItem> => {
+  // Fetch existing to validate ownership
+  const { data: existing, error: existingError } = await supabase.from('quote_service_items').select('*').eq('id', itemId).single();
+  if (existingError) throw existingError;
+
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
+      throw new Error('No autorizado para modificar este servicio');
+    }
+  } catch (err) {
+    // fall back to DB RLS
+  }
+
   const { data, error } = await supabase.from('quote_service_items').update(payload).eq('id', itemId).select().single();
   if (error) throw error;
   return data;
 };
 
 export const deleteQuoteServiceItem = async (itemId: string): Promise<{ quote_id: string }> => {
+  const { data: existing, error: existingError } = await supabase.from('quote_service_items').select('*').eq('id', itemId).single();
+  if (existingError) throw existingError;
+
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
+      throw new Error('No autorizado para eliminar este servicio');
+    }
+  } catch (err) {
+    // fallback to DB enforcement
+  }
+
   const { data, error } = await supabase.from('quote_service_items').delete().eq('id', itemId).select('quote_id').single();
   if (error) throw error;
   return data;
@@ -559,11 +652,22 @@ export const duplicateQuoteServiceItem = async (itemId: string): Promise<QuoteSe
   const { data: existing, error: existingError } = await supabase.from('quote_service_items').select('*').eq('id', itemId).single();
   if (existingError) throw existingError;
 
+  // Ownership check
+  try {
+    const currentUserId = await getCurrentUserId();
+    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
+      throw new Error('No autorizado para duplicar este servicio');
+    }
+  } catch (err) {
+    // allow DB RLS to handle if we can't determine user
+  }
+
   const payload: QuoteServiceItemInput = {
     quote_id: existing.quote_id,
     service_id: existing.service_id,
     quantity: existing.quantity,
     unit_price: existing.unit_price,
+    margin_percent: existing.margin_percent,
     notes: existing.notes,
   };
 

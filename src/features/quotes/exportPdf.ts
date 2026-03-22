@@ -13,13 +13,6 @@ const TEXT_MUTED_RGB: [number, number, number] = [107, 114, 128];
 const BORDER_RGB: [number, number, number] = [220, 228, 236];
 const COMPANY_EMAIL = 'nossaclima@gmail.com';
 const COMPANY_PHONE = '11-3001-9957';
-const COMPANY_FOOTER_LINES = [
-  'Instalacion, service, limpieza y mantenimiento',
-  'Domicilios particulares',
-  'Disenos para obras y refrigeracion comercial',
-  'Todas las marcas y modelos',
-];
-const ANDROID_PDF_DIRECTORY_URI_STORAGE_KEY = 'nossa-clima:pdf-directory-uri';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const brandBanner = require('../../../assets/nossa-banner.png');
 
@@ -211,7 +204,6 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
   const logoMarkup = Platform.OS === 'web' && brandLogoUri
     ? `<img src="${escapeHtml(brandLogoUri)}" alt="Nossa Clima" />`
     : buildCompanyLogoSvg();
-  const footerItemsMarkup = COMPANY_FOOTER_LINES.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
 
   return `
   <!doctype html>
@@ -275,14 +267,6 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           overflow-wrap: anywhere;
         }
         .contact-line + .contact-line { margin-top: 8px; }
-        .footer-list {
-          margin: 18px 0 0;
-          padding-left: 18px;
-          color: #4b5563;
-          font-size: 12px;
-          line-height: 1.45;
-        }
-        .footer-list li + li { margin-top: 4px; }
         .box {
           border: 1px solid #dce4ec;
           border-radius: 12px;
@@ -303,11 +287,15 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           margin-bottom: 8px;
         }
         .section-line { flex: 1; height: 1px; background: #dce4ec; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 9px 10px; font-size: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        th { background: ${BRAND_BLUE_HEX}; color: #ffffff; font-size: 11px; letter-spacing: .02em; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        col.name { width: 40%; }
+        col.qty  { width: 18%; }
+        col.unit { width: 21%; }
+        col.tot  { width: 21%; }
+        th, td { padding: 9px 10px; font-size: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; word-break: break-word; overflow-wrap: anywhere; }
+        th { background: ${BRAND_BLUE_HEX}; color: #ffffff; font-size: 11px; letter-spacing: .02em; white-space: nowrap; }
         tbody tr:nth-child(even) td { background: #f8fbff; }
-        .right { text-align: right; }
+        .right { text-align: center; white-space: nowrap; }
         .totals-wrap { margin-top: 18px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
         .totals {
           width: 260px;
@@ -363,6 +351,12 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           <div class="section-line"></div>
         </div>
         <table>
+          <colgroup>
+            <col class="name" />
+            <col class="qty" />
+            <col class="unit" />
+            <col class="tot" />
+          </colgroup>
           <thead>
             <tr>
               <th>Servicio</th>
@@ -383,6 +377,12 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           <div class="section-line"></div>
         </div>
         <table>
+          <colgroup>
+            <col class="name" />
+            <col class="qty" />
+            <col class="unit" />
+            <col class="tot" />
+          </colgroup>
           <thead>
             <tr>
               <th>Material</th>
@@ -426,10 +426,6 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           </tbody>
         </table>
       </div>
-
-      <ul class="footer-list">
-        ${footerItemsMarkup}
-      </ul>
     </body>
   </html>`;
 };
@@ -513,26 +509,6 @@ const drawContactCard = (doc: PdfDocument, x: number, y: number, width: number):
   return height;
 };
 
-const drawFooterNotes = (doc: PdfDocument, x: number, y: number, width: number): number => {
-  const bulletIndent = 10;
-  const textX = x + bulletIndent;
-  const availableWidth = width - bulletIndent;
-  let cursorY = y;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...TEXT_MUTED_RGB);
-
-  COMPANY_FOOTER_LINES.forEach((line) => {
-    const wrapped = doc.splitTextToSize(line, availableWidth - 8);
-    doc.text('\u2022', x, cursorY);
-    doc.text(wrapped, textX, cursorY);
-    cursorY += wrapped.length * 11;
-  });
-
-  return cursorY - y;
-};
-
 const drawSectionTitle = (doc: PdfDocument, title: string, x: number, y: number, lineEndX: number): number => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
@@ -570,8 +546,17 @@ const drawTotalsPanel = (doc: PdfDocument, detail: QuoteDetail, x: number, y: nu
     }
 
     if (row.highlighted) {
+      // Draw a rounded bottom rect that matches the panel's border radius
+      const cornerRadius = 10;
+      const rx = x + 0.5;
+      const ry = rowY + 0.5;
+      const rw = width - 1;
+      const rh = rowHeight - 1;
       doc.setFillColor(...BRAND_BLUE_RGB);
-      doc.rect(x + 1, rowY + 1, width - 2, rowHeight - 2, 'F');
+      // Top part (straight edges)
+      doc.rect(rx, ry, rw, rh - cornerRadius, 'F');
+      // Bottom part (rounded)
+      doc.roundedRect(rx, ry + rh - cornerRadius * 2, rw, cornerRadius * 2, cornerRadius, cornerRadius, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
@@ -661,20 +646,21 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
       lineColor: BORDER_RGB,
       lineWidth: 0.5,
       textColor: TEXT_DARK_RGB,
+      overflow: 'linebreak',
     },
     headStyles: {
       fillColor: BRAND_BLUE_RGB,
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      halign: 'left',
     },
     alternateRowStyles: {
       fillColor: [248, 251, 255],
     },
     columnStyles: {
-      1: { halign: 'right', cellWidth: 85 },
-      2: { halign: 'right', cellWidth: 105 },
-      3: { halign: 'right', cellWidth: 105 },
+      0: { cellWidth: 'auto', overflow: 'linebreak' },
+      1: { halign: 'center', cellWidth: 80 },
+      2: { halign: 'center', cellWidth: 90 },
+      3: { halign: 'center', cellWidth: 90 },
     },
   });
 
@@ -701,20 +687,21 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
       lineColor: BORDER_RGB,
       lineWidth: 0.5,
       textColor: TEXT_DARK_RGB,
+      overflow: 'linebreak',
     },
     headStyles: {
       fillColor: BRAND_BLUE_RGB,
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      halign: 'left',
     },
     alternateRowStyles: {
       fillColor: [248, 251, 255],
     },
     columnStyles: {
-      1: { halign: 'right', cellWidth: 120 },
-      2: { halign: 'right', cellWidth: 105 },
-      3: { halign: 'right', cellWidth: 105 },
+      0: { cellWidth: 'auto', overflow: 'linebreak' },
+      1: { halign: 'center', cellWidth: 80 },
+      2: { halign: 'center', cellWidth: 90 },
+      3: { halign: 'center', cellWidth: 90 },
     },
   });
 
@@ -723,7 +710,6 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   const contactCardHeight = drawContactCard(doc, marginX, cursorY, contactCardWidth);
   drawTotalsPanel(doc, detail, pageWidth - marginX - totalsPanelWidth, cursorY, totalsPanelWidth);
   cursorY += Math.max(contactCardHeight, 72) + 16;
-  drawFooterNotes(doc, marginX, cursorY, pageWidth - marginX * 2);
 
   doc.save(buildPdfName(detail));
 };

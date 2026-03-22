@@ -72,7 +72,16 @@ export const exportUserBackup = async (): Promise<UserBackupPayload> => {
 
 const normalizeBackupArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 
-export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restoredTables: string[] }> => {
+export const restoreUserBackup = async (
+  rawPayload: unknown,
+  options?: { confirmRestore?: boolean },
+): Promise<{ restoredTables: string[] }> => {
+  // Guard: require explicit confirmation to run an unsafe restore from client code.
+  if (!options?.confirmRestore) {
+    throw new Error(
+      'restoreUserBackup is restricted. This operation is destructive and should run server-side. To run locally set { confirmRestore: true } explicitly from a secure environment.',
+    );
+  }
   if (!rawPayload || typeof rawPayload !== 'object') {
     throw new Error('Backup invalido.');
   }
@@ -168,7 +177,14 @@ export const restoreUserBackup = async (rawPayload: unknown): Promise<{ restored
         isMissingSupabaseColumnError(error, 'presentation_unit'))
     ) {
       const fallback = await supabase.from('items').upsert(
-        itemRows.map(({ base_price_label, variant_label, presentation_quantity, presentation_unit, ...row }) => row),
+        itemRows.map((r) => {
+          const copy = { ...(r as Record<string, unknown>) } as Record<string, unknown>;
+          delete copy['base_price_label'];
+          delete copy['variant_label'];
+          delete copy['presentation_quantity'];
+          delete copy['presentation_unit'];
+          return copy as Record<string, unknown>;
+        }),
         { onConflict: 'id', ignoreDuplicates: true },
       );
       if (fallback.error) throw fallback.error;

@@ -22,7 +22,7 @@ import {
   useUpdateQuoteMaterialItem,
   useUpdateQuoteServiceItem,
 } from '@/features/quotes/hooks';
-import { normalizeQuoteStatus, quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
+import { normalizeQuoteStatus, quoteStatusAccent } from '@/features/quotes/status';
 import { useStores } from '@/features/stores/hooks';
 import {
   formatDisplayDate,
@@ -151,7 +151,6 @@ export default function QuoteDetailPage() {
   );
 
   const currentStatus = normalizeQuoteStatus(data?.quote.status);
-  const currentStatusAccent = quoteStatusAccent(data?.quote.status);
   const cancelledAutoDeleteDate = useMemo(() => {
     if (!data?.quote.cancelled_at || currentStatus !== 'cancelled') return null;
     const nextDate = new Date(data.quote.cancelled_at);
@@ -314,61 +313,6 @@ export default function QuoteDetailPage() {
       <LoadingOrError isLoading={isLoading} error={error} />
       {data && (
         <View style={styles.page}>
-          <Text variant="titleMedium" style={styles.sectionHeading}>
-            Resumen
-          </Text>
-          <QuoteTotalsSummary
-            subtotalMaterials={data.quote.subtotal_materials}
-            subtotalServices={data.quote.subtotal_services}
-            total={data.quote.total}
-          />
-
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
-              <View style={styles.actionsRow}>
-                <Button
-                  mode="contained"
-                  icon="content-save-outline"
-                  disabled={isBusy}
-                  onPress={saveCurrentJob}
-                  style={styles.actionButton}
-                  contentStyle={styles.actionButtonContent}
-                >
-                  Guardar trabajo
-                </Button>
-                <View style={styles.pdfActionsGroup}>
-                  <View style={[styles.pdfSplitButton, isBusy && styles.pdfSplitButtonDisabled]}>
-                    <Pressable
-                      onPress={saveCurrentJobPdf}
-                      disabled={isBusy}
-                      style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
-                    >
-                      {isSavingPdf ? (
-                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
-                      ) : (
-                        <IconButton icon="file-pdf-box" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
-                      )}
-                      <Text style={styles.pdfSplitActionText}>Descargar</Text>
-                    </Pressable>
-                    <View style={styles.pdfSplitDivider} />
-                    <Pressable
-                      onPress={shareCurrentJobPdf}
-                      disabled={isBusy}
-                      style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
-                    >
-                      {isSharingPdf ? (
-                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
-                      ) : (
-                        <IconButton icon="share-variant-outline" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
-                      )}
-                      <Text style={styles.pdfSplitActionText}>Compartir</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            </Card.Content>
-          </Card>
-
           <View style={styles.editingDivider}>
             <Divider />
           </View>
@@ -558,6 +502,7 @@ export default function QuoteDetailPage() {
             materials={data.materials}
             stores={stores ?? []}
             defaultMarginPercent={data.quote.default_material_margin_percent}
+            quoteStatus={data.quote.status}
             globalMarginInput={globalMarginInput}
             onGlobalMarginChange={setGlobalMarginInput}
             onApplyGlobalMargin={applyGlobalMargin}
@@ -595,29 +540,11 @@ export default function QuoteDetailPage() {
 
           <Card mode="contained" style={styles.sectionCard}>
             <Card.Content style={styles.statusCardContent}>
-              <View style={styles.statusHeaderRow}>
-                <View style={styles.statusHeadingBlock}>
-                  <Text variant="titleMedium" style={[styles.sectionHeading, styles.statusTitle]}>
-                    Estado
-                  </Text>
-                  {cancelledAutoDeleteDate ? (
-                    <Text style={[styles.statusDescription, { color: theme.colors.error }]}>
-                      Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.
-                    </Text>
-                  ) : null}
-                </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: currentStatusAccent.backgroundColor,
-                      borderColor: currentStatusAccent.borderColor,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.statusBadgeText, { color: currentStatusAccent.textColor }]}>{quoteStatusLabel(data.quote.status)}</Text>
-                </View>
-              </View>
+              {cancelledAutoDeleteDate ? (
+                <Text style={[styles.statusDescription, { color: theme.colors.error }]}>
+                  Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.
+                </Text>
+              ) : null}
 
               <View style={styles.statusOptionsRow}>
                 {STATUS_OPTIONS.map((option) => {
@@ -651,6 +578,52 @@ export default function QuoteDetailPage() {
                     </Pressable>
                   );
                 })}
+              </View>
+            </Card.Content>
+          </Card>
+
+          <Card mode="contained" style={styles.sectionCard}>
+            <Card.Content style={styles.sectionContent}>
+              <View style={styles.actionsRow}>
+                <Button
+                  mode="contained"
+                  icon="content-save-outline"
+                  disabled={isBusy}
+                  onPress={saveCurrentJob}
+                  style={styles.actionButton}
+                  contentStyle={styles.actionButtonContent}
+                >
+                  Guardar trabajo
+                </Button>
+                <View style={styles.pdfActionsGroup}>
+                  <View style={[styles.pdfSplitButton, isBusy && styles.pdfSplitButtonDisabled]}>
+                    <Pressable
+                      onPress={saveCurrentJobPdf}
+                      disabled={isBusy}
+                      style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
+                    >
+                      {isSavingPdf ? (
+                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
+                      ) : (
+                        <IconButton icon="file-pdf-box" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
+                      )}
+                      <Text style={styles.pdfSplitActionText}>Descargar</Text>
+                    </Pressable>
+                    <View style={styles.pdfSplitDivider} />
+                    <Pressable
+                      onPress={shareCurrentJobPdf}
+                      disabled={isBusy}
+                      style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
+                    >
+                      {isSharingPdf ? (
+                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
+                      ) : (
+                        <IconButton icon="share-variant-outline" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
+                      )}
+                      <Text style={styles.pdfSplitActionText}>Compartir</Text>
+                    </Pressable>
+                  </View>
+                </View>
               </View>
             </Card.Content>
           </Card>

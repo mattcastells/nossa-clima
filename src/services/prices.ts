@@ -3,6 +3,19 @@ import type { LatestStoreItemMeasurementPrice, LatestStoreItemPrice, StoreItemMe
 
 import { isMissingSupabaseRelationError } from './supabaseCompatibility';
 
+export const purgeOldPriceHistory = async (): Promise<number> => {
+  const { data, error } = await supabase.rpc('purge_old_price_history');
+  if (error) {
+    // Silently ignore if the function doesn't exist yet (migration not applied)
+    if (error.code === '42883' || error.message?.includes('purge_old_price_history')) {
+      return 0;
+    }
+    console.warn('Error al limpiar historial de precios antiguo:', error.message);
+    return 0;
+  }
+  return (data as number) ?? 0;
+};
+
 interface LatestMeasurePriceOptions {
   itemId?: string;
   storeId?: string;
@@ -56,6 +69,8 @@ export const createMeasurePriceRecord = async (
 };
 
 export const listLatestPrices = async (): Promise<LatestStoreItemPrice[]> => {
+  await purgeOldPriceHistory();
+
   const { data, error } = await supabase.from('latest_store_item_prices').select('*').order('observed_at', { ascending: false });
   if (error) throw error;
   return data;
@@ -102,6 +117,8 @@ export const listLatestManualMeasurePrices = async ({ itemId, storeId }: LatestM
 };
 
 export const listItemHistory = async (itemId: string): Promise<LatestStoreItemPrice[]> => {
+  await purgeOldPriceHistory();
+
   const { data, error } = await supabase
     .from('item_price_history')
     .select('*')

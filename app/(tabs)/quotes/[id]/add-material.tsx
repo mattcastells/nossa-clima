@@ -1,21 +1,22 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, Card, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView as RNScrollView, StyleSheet, View } from 'react-native';
+import { Button, Card, Dialog, IconButton, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
-import { StoreSelectorDialog } from '@/components/StoreSelectorDialog';
+import { AppDialog } from '@/components/AppDialog';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItemMeasurements, useItems, useSaveItem } from '@/features/items/hooks';
 import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
-import { useAddQuoteMaterialItem, useQuoteDetail } from '@/features/quotes/hooks';
+import { useAddQuoteMaterialItem, useQuoteDetail, useUpdateQuoteMaterialItem, useDeleteQuoteMaterialItem } from '@/features/quotes/hooks';
 import { getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '@/features/quotes/materialPricing';
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
 import { formatMeasurementDisplayLabel, formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
-import { BRAND_GREEN, BRAND_GREEN_SOFT } from '@/theme';
+import { QuoteItemsSummary, SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
+import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
 
 type MaterialEntryMode = 'catalog' | 'manual';
 
@@ -38,6 +39,7 @@ const parseNonNegativeInput = (value: string): number | null => {
 export default function AddMaterialToQuotePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const theme = useAppTheme();
   const quoteDetail = useQuoteDetail(id ?? '');
   const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
   const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
@@ -45,20 +47,48 @@ export default function AddMaterialToQuotePage() {
   const add = useAddQuoteMaterialItem();
   const saveItem = useSaveItem();
 
+  const scrollRef = useRef<RNScrollView>(null);
+  const [addedCount, setAddedCount] = useState(0);
+
+  const updateMaterial = useUpdateQuoteMaterialItem();
+  const deleteMaterial = useDeleteQuoteMaterialItem();
+  const isQuoteCompleted = quoteDetail.data?.quote.status === 'completed';
+  const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState('');
+  const [editingUnitPrice, setEditingUnitPrice] = useState('');
+  const [editingMargin, setEditingMargin] = useState('');
+  const [editingNotes, setEditingNotes] = useState('');
+
   const [entryMode, setEntryMode] = useState<MaterialEntryMode>('catalog');
-  const [storeDialogVisible, setStoreDialogVisible] = useState(false);
+  const [storeSearch, setStoreSearch] = useState('');
+  const [storePage, setStorePage] = useState(0);
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState('');
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [quantityInput, setQuantityInput] = useState('1');
   const [unitPriceInput, setUnitPriceInput] = useState('');
+  const [marginInput, setMarginInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [manualName, setManualName] = useState('');
   const [manualCategory, setManualCategory] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const toast = useAppToast();
   useToastMessageEffect(message, () => setMessage(null));
+
+  /** Reset form fields after a successful add — keeps store & entry mode. */
+  const resetFormForNextAdd = useCallback(() => {
+    setSelectedItemId('');
+    setSelectedMeasurementId(null);
+    setQuantityInput('1');
+    setUnitPriceInput('');
+    setMarginInput('');
+    setNotesInput('');
+    setMaterialSearch('');
+    setManualName('');
+    setManualCategory('');
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
 
   const { data: measurements, isLoading: measurementsLoading, error: measurementsError } = useItemMeasurements(selectedItemId);
   const latestMeasurePricesQuery = useLatestMeasurePrices(selectedStoreId ? { storeId: selectedStoreId } : {});
@@ -67,9 +97,21 @@ export default function AddMaterialToQuotePage() {
   const availableStores = useMemo(() => (stores ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)), [stores]);
   const selectedStore = availableStores.find((store) => store.id === selectedStoreId) ?? null;
   const selectedItem = materialItems.find((item) => item.id === selectedItemId) ?? null;
-  const itemMeasurements = measurements ?? [];
+  const itemMeasurements = useMemo(() => measurements ?? [], [measurements]);
   const selectedMeasurement = itemMeasurements.find((measurement) => measurement.id === selectedMeasurementId) ?? null;
   const hasMeasurements = itemMeasurements.length > 0;
+
+  const materialSummaryRows: SummaryRow[] = useMemo(
+    () =>
+      (quoteDetail.data?.materials ?? []).map((m) => ({
+        id: m.id,
+        label: m.item_name_snapshot,
+        quantityLabel: `${m.quantity}${m.unit ? ` ${m.unit}` : ''}`,
+        unitPrice: m.unit_price,
+        totalPrice: m.total_price,
+      })),
+    [quoteDetail.data?.materials],
+  );
 
   const storeBaseRows = useMemo(
     () => (latestPricesQuery.data ?? []).filter((row) => row.store_id === selectedStoreId),
@@ -87,6 +129,29 @@ export default function AddMaterialToQuotePage() {
   );
   const measuredItemIds = useMemo(() => new Set(storeMeasureRows.map((row) => row.item_id)), [storeMeasureRows]);
   const directItemIds = useMemo(() => new Set(storeBaseRows.map((row) => row.item_id)), [storeBaseRows]);
+
+  const filteredStores = useMemo(() => {
+    const query = storeSearch.trim().toLowerCase();
+    if (!query) return availableStores;
+
+    return availableStores.filter(
+      (store) =>
+        store.name.toLowerCase().includes(query) ||
+        (store.description ?? '').toLowerCase().includes(query) ||
+        (store.address ?? '').toLowerCase().includes(query),
+    );
+  }, [availableStores, storeSearch]);
+
+  const STORES_PER_PAGE = 10;
+  const totalStorePages = Math.max(1, Math.ceil(filteredStores.length / STORES_PER_PAGE));
+  const paginatedStores = useMemo(
+    () => filteredStores.slice(storePage * STORES_PER_PAGE, (storePage + 1) * STORES_PER_PAGE),
+    [filteredStores, storePage],
+  );
+
+  useEffect(() => {
+    setStorePage(0);
+  }, [storeSearch]);
 
   const catalogItems = useMemo(() => {
     if (!selectedStoreId) return [];
@@ -109,8 +174,9 @@ export default function AddMaterialToQuotePage() {
   const defaultMarginPercent = quoteDetail.data?.quote.default_material_margin_percent ?? null;
   const parsedQuantity = parsePositiveInput(quantityInput) ?? 0;
   const parsedUnitPrice = parseNonNegativeInput(unitPriceInput) ?? 0;
-  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(parsedUnitPrice, null, defaultMarginPercent);
-  const effectiveTotal = getMaterialEffectiveTotalPrice(parsedQuantity, parsedUnitPrice, null, defaultMarginPercent);
+  const parsedMargin = parseNonNegativeInput(marginInput);
+  const effectiveUnitPrice = getMaterialEffectiveUnitPrice(parsedUnitPrice, parsedMargin, defaultMarginPercent);
+  const effectiveTotal = getMaterialEffectiveTotalPrice(parsedQuantity, parsedUnitPrice, parsedMargin, defaultMarginPercent);
 
   useEffect(() => {
     setSelectedItemId('');
@@ -236,13 +302,15 @@ export default function AddMaterialToQuotePage() {
         quantity,
         unit,
         unit_price: unitPrice,
-        margin_percent: null,
+        margin_percent: parsedMargin ?? null,
         source_store_id: sourceStoreId,
         notes: notesInput.trim() || null,
       });
 
-      toast.success('Material agregado.');
-      router.back();
+      setAddedCount((prev) => prev + 1);
+      const count = addedCount + 1;
+      toast.success(count > 1 ? `Material agregado (${count} en total).` : 'Material agregado.');
+      resetFormForNextAdd();
     } catch (error) {
       setMessage(toUserErrorMessage(error, 'No se pudo agregar el material.'));
     }
@@ -268,6 +336,30 @@ export default function AddMaterialToQuotePage() {
       <LoadingOrError isLoading={loading} error={combinedError ? new Error(combinedError.message) : null} />
 
       <View style={styles.page}>
+        {quoteDetail.data ? (
+          <View style={{ marginBottom: 8 }}>
+            <QuoteItemsSummary
+              title={`Materiales del trabajo (${materialSummaryRows.length})`}
+              rows={materialSummaryRows}
+              headerTint={theme.colors.softGreenStrong}
+              emptyText="No hay materiales en el trabajo."
+              disabled={isQuoteCompleted || updateMaterial.isPending || deleteMaterial.isPending}
+              onEdit={(itemId) => {
+                const m = quoteDetail.data?.materials.find((mat) => mat.id === itemId);
+                if (!m) return;
+                setEditingMaterialId(m.id);
+                setEditingQuantity(String(m.quantity));
+                setEditingUnitPrice(String(m.unit_price));
+                setEditingMargin(m.margin_percent == null ? '' : String(m.margin_percent));
+                setEditingNotes(m.notes ?? '');
+              }}
+              onDelete={async (itemId) => {
+                if (isQuoteCompleted) return;
+                try { await deleteMaterial.mutateAsync(itemId); } catch { /* noop */ }
+              }}
+            />
+          </View>
+        ) : null}
         <View style={styles.modeBlock}>
           <Text variant="titleMedium">Modo de carga</Text>
           <SegmentedButtons
@@ -289,21 +381,69 @@ export default function AddMaterialToQuotePage() {
                   <Text style={styles.helperText}>Se usa para traer el precio actual del material o de cada medida.</Text>
                 </View>
 
-                <Button
-                  mode="outlined"
-                  icon="table-search"
-                  onPress={() => setStoreDialogVisible(true)}
-                  style={styles.selectButton}
-                  contentStyle={styles.selectButtonContent}
-                >
-                  {selectedStore?.name ?? 'Seleccionar tienda'}
-                </Button>
+                <Searchbar placeholder="Buscar tienda" value={storeSearch} onChangeText={setStoreSearch} inputStyle={styles.searchbarInput} style={styles.searchbar} />
 
                 {selectedStore ? (
-                  <Text style={styles.helperText}>
-                    Tienda seleccionada: {selectedStore.name}
-                  </Text>
+                  <View style={styles.storeSelectedBanner}>
+                    <Text style={styles.storeSelectedText}>✓ {selectedStore.name}</Text>
+                    <IconButton icon="close" size={18} onPress={() => setSelectedStoreId(null)} style={styles.storeClearBtn} />
+                  </View>
                 ) : null}
+
+                {filteredStores.length > 0 ? (
+                  <>
+                    <View style={styles.storeGrid}>
+                      {paginatedStores.map((store) => {
+                        const selected = store.id === selectedStoreId;
+                        return (
+                          <Pressable
+                            key={store.id}
+                            onPress={() => setSelectedStoreId(store.id)}
+                            style={[styles.storeGridCell, selected ? styles.storeGridCellSelected : null]}
+                          >
+                            <Text style={selected ? styles.storeGridCellNameSelected : styles.storeGridCellName} numberOfLines={1}>
+                              {store.name}
+                            </Text>
+                            {store.address ? (
+                              <Text style={styles.storeGridCellMeta} numberOfLines={1}>
+                                {store.address}
+                              </Text>
+                            ) : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {totalStorePages > 1 ? (
+                      <View style={styles.storePagination}>
+                        <Button
+                          mode="text"
+                          compact
+                          disabled={storePage === 0}
+                          onPress={() => setStorePage((p) => Math.max(0, p - 1))}
+                          icon="chevron-left"
+                        >
+                          Anterior
+                        </Button>
+                        <Text style={styles.storePaginationLabel}>
+                          {storePage + 1} / {totalStorePages}
+                        </Text>
+                        <Button
+                          mode="text"
+                          compact
+                          disabled={storePage >= totalStorePages - 1}
+                          onPress={() => setStorePage((p) => Math.min(totalStorePages - 1, p + 1))}
+                          icon="chevron-right"
+                          contentStyle={styles.storePaginationNextContent}
+                        >
+                          Siguiente
+                        </Button>
+                      </View>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text style={styles.helperText}>No se encontraron tiendas.</Text>
+                )}
               </Card.Content>
             </Card>
 
@@ -321,6 +461,7 @@ export default function AddMaterialToQuotePage() {
                   value={materialSearch}
                   onChangeText={setMaterialSearch}
                   editable={Boolean(selectedStoreId)}
+                  inputStyle={styles.searchbarInput}
                   style={styles.searchbar}
                   inputStyle={styles.searchInput}
                 />
@@ -464,6 +605,16 @@ export default function AddMaterialToQuotePage() {
 
             <TextInput
               mode="outlined"
+              label="Margen % (opcional)"
+              value={marginInput}
+              onChangeText={setMarginInput}
+              keyboardType="decimal-pad"
+              outlineStyle={styles.inputOutline}
+              placeholder={defaultMarginPercent != null ? `Global: ${defaultMarginPercent}%` : 'Sin margen'}
+            />
+
+            <TextInput
+              mode="outlined"
               label="Notas"
               value={notesInput}
               onChangeText={setNotesInput}
@@ -486,8 +637,42 @@ export default function AddMaterialToQuotePage() {
             <Button mode="contained" onPress={submit} loading={busy} disabled={busy}>
               Agregar material
             </Button>
+            <Button mode="outlined" onPress={() => router.back()} disabled={busy} style={styles.backButton}>
+              Volver al trabajo
+            </Button>
           </Card.Content>
         </Card>
+        <AppDialog visible={Boolean(editingMaterialId)} onDismiss={() => setEditingMaterialId(null)}>
+          <Dialog.Title>Editar material</Dialog.Title>
+          <Dialog.Content>
+            <TextInput mode="outlined" label="Cantidad" value={editingQuantity} onChangeText={setEditingQuantity} keyboardType="decimal-pad" outlineStyle={styles.inputOutline} />
+            <TextInput mode="outlined" label="Costo" value={editingUnitPrice} onChangeText={setEditingUnitPrice} keyboardType="decimal-pad" outlineStyle={styles.inputOutline} />
+            <TextInput mode="outlined" label="Margen" value={editingMargin} onChangeText={setEditingMargin} keyboardType="decimal-pad" outlineStyle={styles.inputOutline} />
+            <TextInput mode="outlined" label="Notas" value={editingNotes} onChangeText={setEditingNotes} outlineStyle={styles.inputOutline} multiline />
+            <Button
+              mode="contained"
+              loading={updateMaterial.isPending}
+              onPress={async () => {
+                if (!editingMaterialId) return;
+                const nextQuantity = parsePositiveInput(editingQuantity);
+                if (nextQuantity == null) return;
+                const nextUnitPrice = parseNonNegativeInput(editingUnitPrice);
+                if (nextUnitPrice == null) return;
+                const trimmedMargin = editingMargin.trim();
+                const nextMargin = trimmedMargin ? Number(trimmedMargin.replace(',', '.')) : null;
+
+                try {
+                  await updateMaterial.mutateAsync({ itemId: editingMaterialId, payload: { quantity: nextQuantity, unit_price: nextUnitPrice, margin_percent: nextMargin, notes: editingNotes.trim() || null } });
+                  setEditingMaterialId(null);
+                } catch (err) {
+                  // ignore - toast will show if needed
+                }
+              }}
+            >
+              Guardar cambios
+            </Button>
+          </Dialog.Content>
+        </AppDialog>
       </View>
 
       <StoreSelectorDialog
@@ -527,28 +712,79 @@ const styles = StyleSheet.create({
   inputOutline: {
     borderRadius: 10,
   },
-  inputContent: {
-    paddingHorizontal: 10,
-  },
-  inputContentMultiline: {
-    paddingHorizontal: 10,
-    paddingTop: 8,
-  },
-  selectButton: {
-    borderRadius: 10,
-    borderColor: '#D7E1ED',
-  },
-  selectButtonContent: {
-    minHeight: 44,
-  },
   searchbar: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#D7E1ED',
   },
-  searchInput: {
-    paddingLeft: 6,
-    paddingRight: 10,
+  searchbarInput: {
+    paddingLeft: 4,
+  },
+  storeSelectedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: BRAND_BLUE_SOFT,
+    borderRadius: 10,
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 2,
+  },
+  storeSelectedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BRAND_BLUE,
+  },
+  storeClearBtn: {
+    margin: 0,
+  },
+  storeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  storeGridCell: {
+    width: '48%',
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: '#D9E3EE',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  storeGridCellSelected: {
+    borderColor: BRAND_BLUE,
+    backgroundColor: BRAND_BLUE_SOFT,
+  },
+  storeGridCellName: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  storeGridCellNameSelected: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: BRAND_BLUE,
+  },
+  storeGridCellMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#5F6A76',
+  },
+  storePagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  storePaginationLabel: {
+    fontSize: 13,
+    color: '#5F6A76',
+  },
+  storePaginationNextContent: {
+    flexDirection: 'row-reverse',
   },
   resultsList: {
     gap: 8,
@@ -677,5 +913,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '700',
+  },
+  backButton: {
+    borderRadius: 10,
+    marginTop: 4,
   },
 });

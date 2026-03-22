@@ -170,3 +170,53 @@ This keeps the first version simple and avoids storing user images or messages u
 - Additional operational notes: `docs/ITERACION_2_QUOTES_SERVICES.md`
 
 If you need the README tailored further (shorter, more examples, or added troubleshooting), tell me which section to expand and I will update it.
+
+## Security & deployment (recommendations)
+
+This project stores and manipulates user data and must be deployed with standard security controls. Below are recommended practices tailored to this repository and the Supabase backend used by the client.
+
+- Enforce HTTPS end-to-end for any public endpoints (API, Edge Functions, production web UI). Do not expose HTTP-only endpoints in production.
+- Store secrets securely (Supabase secrets, CI/CD secrets, API keys). Do NOT commit service_role keys or other privileged secrets to the repository. Use the hosting provider's secret manager (Supabase, Vercel, Netlify, etc.).
+- Restrict direct database access from the public internet. Prefer default Supabase networking posture and allow only trusted services/hosts if you need private access.
+- Use Row Level Security (RLS) in Postgres and policies that enforce ownership checks (e.g. `user_id = auth.uid()`). This repo's migrations add RLS policies for quotes, services, items, stores, prices and quote items — ensure you applied them to the deployed DB.
+- Avoid using the Supabase service role key in the client. If you must run privileged operations, perform them in a server-side environment (Edge Function or minimal backend) and validate requestor identity & ownership before acting.
+- Add logging and monitoring for authentication attempts, API errors and unusual traffic patterns so suspicious behaviour can be detected and investigated.
+- Rotate keys periodically and have an incident response plan for leaked secrets. Revoke any compromised keys immediately.
+- Add automated checks in CI to scan for accidentally committed secrets, and to fail builds if environment variables expected in production are missing.
+
+Commands and quick checks (examples you can run against your DB host using psql or Supabase SQL editor):
+
+```sql
+-- Check whether RLS is enabled for specific tables
+SELECT relname, relrowsecurity
+FROM pg_class
+WHERE relname IN ('services','quotes','quote_material_items','quote_service_items','stores','items','store_item_prices','appointments');
+
+-- List policies for a table (example for 'quotes')
+SELECT * FROM pg_policy WHERE polrelid = 'quotes'::regclass;
+```
+
+If RLS is not enabled in your deployment, enable it and add policies that restrict access to rows owned by the authenticated user. The migrations in `supabase/migrations/` already include example policies and triggers used in this project.
+
+If you'd like, I can generate:
+
+- an automated `docs/SECURITY_IDOR_AUDIT.md` summarizing where the client calls Supabase and which tables need protection (I already scanned the repo and can produce a report),
+- a small Vitest test scaffold that checks obvious IDOR cases against a test Supabase instance (requires access to a test DB), or
+- a migration file that adds RLS policies for any remaining tables missing them.
+
+### Abuse protection and rate limiting
+
+In addition to RLS and secure key handling, protect the application from automated abuse and brute-force attempts. Recommended controls:
+
+- Implement rate limiting for authentication endpoints, public API endpoints, and Edge Functions. Apply short sliding windows (e.g. 5–15 requests per minute) for sensitive endpoints like login, password reset and assistant/AI generation endpoints.
+- Protect account creation and login with progressive delays, exponential backoff, and optional CAPTCHA after repeated failures.
+- Enforce per-IP throttling and per-account throttling where appropriate. Use a global request quota or token bucket for heavy operations (PDF generation, backups, exports).
+- Use a Web Application Firewall (WAF) or API gateway (Cloudflare, AWS WAF, Fastly) to provide an additional layer of rate limiting, IP reputation and bot management.
+- Add server-side request size limits and reject unusually large payloads (example: maximum image size for assistant uploads).
+- Monitor and alert on anomalous patterns (sudden spike in failures, excessive export/download attempts, repeated token refresh failures).
+- For AI generation endpoints (Gemini), apply stricter quotas or a dedicated paid-plan account per environment to limit cost exposure.
+
+If you want, I can add a GitHub Actions check that scans the repository for accidental sensitive tokens or service-role usage (I can also add a barebones workflow that fails if `service_role` or certain secret-like patterns appear). I created a security audit doc for IDORs at `docs/SECURITY_IDOR_AUDIT.md` and can extend it into a full runbook.
+
+
+

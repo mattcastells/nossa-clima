@@ -131,6 +131,7 @@ export interface QuoteServiceItem {
   service_name_snapshot: string;
   quantity: number;
   unit_price: number;
+  margin_percent: number | null;
   total_price: number;
   notes: string | null;
   created_at: string;

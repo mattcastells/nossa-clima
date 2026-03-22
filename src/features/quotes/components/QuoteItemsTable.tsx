@@ -1,16 +1,15 @@
 import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Button, Card, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
 
 import { AppDialog } from '@/components/AppDialog';
-import type { QuoteMaterialItem, QuoteServiceItem, Store } from '@/types/db';
+import type { QuoteMaterialItem, QuoteServiceItem, Store, QuoteStatus } from '@/types/db';
 
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
 import { BRAND_BLUE, BRAND_GREEN, useAppTheme } from '@/theme';
 
 import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
-import { QuoteServiceItemForm } from './QuoteServiceItemForm';
 
 type EditingTarget = { kind: 'service' | 'material'; id: string } | null;
 
@@ -23,13 +22,14 @@ interface Props {
   globalMarginInput: string;
   onGlobalMarginChange: (value: string) => void;
   onApplyGlobalMargin: () => Promise<void>;
-  onSaveService: (itemId: string, payload: Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'notes'>) => Promise<void>;
+  onSaveService: (itemId: string, payload: Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'margin_percent'>) => Promise<void>;
   onDeleteService: (itemId: string) => void;
   onSaveMaterial: (
     itemId: string,
     payload: Partial<Pick<QuoteMaterialItem, 'item_id' | 'quantity' | 'unit' | 'unit_price' | 'margin_percent' | 'source_store_id' | 'notes'>>,
   ) => Promise<void>;
   onDeleteMaterial: (itemId: string) => void;
+  quoteStatus?: QuoteStatus;
   isBusy?: boolean;
   isApplyingGlobalMargin?: boolean;
   savingService?: boolean;
@@ -51,6 +51,7 @@ export const QuoteItemsTable = ({
   onDeleteService,
   onSaveMaterial,
   onDeleteMaterial,
+  quoteStatus,
   isBusy = false,
   isApplyingGlobalMargin = false,
   savingService = false,
@@ -60,18 +61,29 @@ export const QuoteItemsTable = ({
 }: Props) => {
   const theme = useAppTheme();
   const { width } = useWindowDimensions();
-  const tableBackgroundColor = theme.colors.surfaceAlt;
-  const alternateRowColor = theme.colors.surfaceSoft;
-  const serviceTint = theme.colors.softBlue;
-  const materialTint = theme.colors.softGreen;
+  const serviceTint = theme.colors.softBlueStrong;
+  const materialTint = theme.colors.softGreenStrong;
   const [editingTarget, setEditingTarget] = useState<EditingTarget>(null);
+  const [serviceQuantityInput, setServiceQuantityInput] = useState('');
+  const [servicePriceInput, setServicePriceInput] = useState('');
+  const [serviceMarginInput, setServiceMarginInput] = useState('');
   const [materialQuantityInput, setMaterialQuantityInput] = useState('');
   const [materialCostInput, setMaterialCostInput] = useState('');
   const [materialMarginInput, setMaterialMarginInput] = useState('');
-  const [materialNotesInput, setMaterialNotesInput] = useState('');
+  const [materialStoreInput, setMaterialStoreInput] = useState<string | null>(null);
+  const [storeSearchText, setStoreSearchText] = useState('');
+  const [storeSearchFocused, setStoreSearchFocused] = useState(false);
+  const selectedStoreName = materialStoreInput ? stores.find((s) => s.id === materialStoreInput)?.name ?? null : null;
+  const filteredStores = useMemo(() => {
+    const sorted = [...stores].sort((a, b) => a.name.localeCompare(b.name));
+    const q = storeSearchText.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter((s) => s.name.toLowerCase().includes(q));
+  }, [stores, storeSearchText]);
   const isCompact = width < 520;
   const serviceActionsBusy = isBusy || savingService || deletingService;
   const materialActionsBusy = isBusy || savingMaterial || deletingMaterial;
+  const isCompleted = quoteStatus === 'completed';
   const addButtonStyle = StyleSheet.flatten([styles.addButton, isCompact && styles.addButtonCompact]);
   const serviceAddButtonStyle = StyleSheet.flatten([addButtonStyle, styles.serviceAddButton]);
   const materialAddButtonStyle = StyleSheet.flatten([addButtonStyle, styles.materialAddButton]);
@@ -79,34 +91,25 @@ export const QuoteItemsTable = ({
   const marginLabelStyle = StyleSheet.flatten([styles.marginLabel, isCompact && styles.marginLabelCompact]);
   const marginInputStyle = StyleSheet.flatten([styles.marginInput, isCompact && styles.marginInputCompact]);
   const marginButtonStyle = StyleSheet.flatten([styles.marginButton, isCompact && styles.marginButtonCompact]);
-  const tableStyle = StyleSheet.flatten([styles.table, isCompact && styles.tableCompact]);
-  const descriptionCellStyle = StyleSheet.flatten([styles.cell, styles.descriptionCell, isCompact && styles.descriptionCellCompact]);
-  const quantityCellStyle = StyleSheet.flatten([styles.cell, styles.quantityCell, isCompact && styles.quantityCellCompact]);
-  const baseCellStyle = StyleSheet.flatten([styles.cell, styles.baseCell, isCompact && styles.baseCellCompact]);
-  const marginCellStyle = StyleSheet.flatten([styles.cell, styles.marginCell, isCompact && styles.marginCellCompact]);
-  const saleCellStyle = StyleSheet.flatten([styles.cell, styles.saleCell, isCompact && styles.saleCellCompact]);
-  const totalCellStyle = StyleSheet.flatten([styles.cell, styles.totalCell, isCompact && styles.totalCellCompact]);
-  const sourceCellStyle = StyleSheet.flatten([styles.cell, styles.sourceCell, isCompact && styles.sourceCellCompact]);
-  const actionsCellStyle = StyleSheet.flatten([styles.cell, styles.actionsCell, isCompact && styles.actionsCellCompact]);
-  const descriptionHeaderStyle = StyleSheet.flatten([descriptionCellStyle, styles.headerText]);
-  const quantityHeaderStyle = StyleSheet.flatten([quantityCellStyle, styles.headerText]);
-  const baseHeaderStyle = StyleSheet.flatten([baseCellStyle, styles.headerText]);
-  const marginHeaderStyle = StyleSheet.flatten([marginCellStyle, styles.headerText]);
-  const saleHeaderStyle = StyleSheet.flatten([saleCellStyle, styles.headerText]);
-  const totalHeaderStyle = StyleSheet.flatten([totalCellStyle, styles.headerText]);
-  const sourceHeaderStyle = StyleSheet.flatten([sourceCellStyle, styles.headerText]);
-  const removeHeaderStyle = StyleSheet.flatten([actionsCellStyle, styles.headerText]);
 
   const editingService = editingTarget?.kind === 'service' ? services.find((item) => item.id === editingTarget.id) ?? null : null;
   const editingMaterial = editingTarget?.kind === 'material' ? materials.find((item) => item.id === editingTarget.id) ?? null : null;
 
   useEffect(() => {
-    if (!editingMaterial) return;
+    if (!editingService) return;
+    setServiceQuantityInput(String(editingService.quantity));
+    setServicePriceInput(String(editingService.unit_price));
+    setServiceMarginInput(editingService.margin_percent == null ? '' : String(editingService.margin_percent));
+  }, [editingService]);
 
+  useEffect(() => {
+    if (!editingMaterial) return;
     setMaterialQuantityInput(String(editingMaterial.quantity));
     setMaterialCostInput(String(editingMaterial.unit_price));
     setMaterialMarginInput(editingMaterial.margin_percent == null ? '' : String(editingMaterial.margin_percent));
-    setMaterialNotesInput(editingMaterial.notes ?? '');
+    setMaterialStoreInput(editingMaterial.source_store_id ?? null);
+    setStoreSearchText('');
+    setStoreSearchFocused(false);
   }, [editingMaterial]);
 
   const rows = useMemo(
@@ -120,7 +123,7 @@ export const QuoteItemsTable = ({
         notes: item.notes,
         quantity: String(item.quantity),
         base: formatCurrencyArs(item.unit_price),
-        margin: '-',
+        margin: item.margin_percent != null && item.margin_percent > 0 ? formatPercent(item.margin_percent) : '-',
         saleUnit: formatCurrencyArs(item.unit_price),
         total: formatCurrencyArs(item.total_price),
         source: '-',
@@ -141,7 +144,7 @@ export const QuoteItemsTable = ({
           notes: item.notes,
           quantity: `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`,
           base: formatCurrencyArs(item.unit_price),
-          margin: `${formatPercent(effectiveMargin)}${usesGlobalMargin ? ' global' : ''}`,
+          margin: effectiveMargin > 0 ? `${formatPercent(effectiveMargin)}${usesGlobalMargin ? ' global' : ''}` : '-',
           saleUnit: formatCurrencyArs(effectiveUnitPrice),
           total: formatCurrencyArs(effectiveTotalPrice),
           source: sourceStoreName ?? item.source_store_name_snapshot ?? 'Sin tienda',
@@ -152,140 +155,110 @@ export const QuoteItemsTable = ({
   );
 
   return (
-    <Card mode="contained" style={[styles.card, { borderColor: theme.colors.borderSoft, backgroundColor: tableBackgroundColor }]}>
-      <Card.Content style={styles.content}>
-        <View style={styles.tableWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator>
-            <View style={[tableStyle, { borderColor: theme.colors.borderSoft, backgroundColor: tableBackgroundColor }]}>
-              <View style={[styles.row, styles.headerRow, { backgroundColor: serviceTint, borderBottomColor: theme.colors.borderSoft }]}>
-                <Text variant="labelMedium" style={[descriptionHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Servicios y materiales
-                </Text>
-                <Text variant="labelMedium" style={[quantityHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Cant.
-                </Text>
-                <Text variant="labelMedium" style={[baseHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Costo/Base
-                </Text>
-                <Text variant="labelMedium" style={[marginHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Margen
-                </Text>
-                <Text variant="labelMedium" style={[saleHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Venta unit.
-                </Text>
-                <Text variant="labelMedium" style={[totalHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Total
-                </Text>
-                <Text variant="labelMedium" style={[sourceHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Origen
-                </Text>
-                <Text variant="labelMedium" style={[removeHeaderStyle, { color: theme.colors.titleOnSoft }]}>
-                  Quitar
-                </Text>
-              </View>
-
-              {rows.length === 0 ? (
-                <View style={[styles.row, styles.emptyRow, { borderBottomColor: theme.colors.borderSoft, backgroundColor: tableBackgroundColor }]}>
-                  <Text style={{ color: theme.colors.onSurface }}>No hay items cargados.</Text>
-                </View>
-              ) : (
-                rows.map((row, index) => (
-                  <View
-                    key={row.key}
-                    style={[
-                      styles.row,
-                      {
-                        borderBottomColor: theme.colors.borderSoft,
-                        backgroundColor: index % 2 === 0 ? theme.colors.surface : alternateRowColor,
-                      },
-                    ]}
-                  >
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [
-                        descriptionCellStyle,
-                        {
-                          borderRightColor: theme.colors.borderSoft,
-                          backgroundColor: row.kind === 'service' ? serviceTint : materialTint,
-                        },
-                        pressed && { backgroundColor: row.kind === 'service' ? theme.colors.softBlueStrong : theme.colors.softGreenStrong },
-                      ]}
-                    >
-                      <Text
-                        variant="titleSmall"
-                        style={[
-                          styles.itemTitle,
-                          { color: theme.colors.titleOnSoft },
-                        ]}
-                      >
-                        {row.title}
-                      </Text>
-                      {row.notes ? (
-                        <Text variant="bodySmall" style={[styles.itemNotes, { color: theme.colors.textMuted }]}>
-                          {row.notes}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [quantityCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
-                    >
-                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.quantity}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [baseCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
-                    >
-                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.base}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [marginCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
-                    >
-                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.margin}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [saleCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
-                    >
-                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.saleUnit}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [totalCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
-                    >
-                      <Text style={[styles.strongValue, { color: theme.colors.primary }]}>{row.total}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
-                      disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      style={({ pressed }) => [sourceCellStyle, { borderRightColor: theme.colors.borderSoft }, pressed && { backgroundColor: theme.colors.surfaceMuted }]}
-                    >
-                      <Text style={[styles.valueText, { color: theme.colors.onSurface }]}>{row.source}</Text>
-                    </Pressable>
-                    <View style={[actionsCellStyle, styles.deleteCell]}>
-                      <IconButton
-                        icon="trash-can-outline"
-                        size={20}
-                        iconColor="#B00020"
-                        onPress={() => (row.kind === 'service' ? onDeleteService(row.id) : onDeleteMaterial(row.id))}
-                        disabled={row.kind === 'service' ? serviceActionsBusy : materialActionsBusy}
-                      />
-                    </View>
-                  </View>
-                ))
-              )}
-            </View>
-          </ScrollView>
+    <>
+    <View style={styles.container}>
+      <View style={styles.tableWrap}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={[styles.table, { borderColor: theme.colors.borderSoft }]}>
+        {/* Header */}
+        <View style={[styles.headerRow, { backgroundColor: theme.colors.tableHeaderBg, borderBottomColor: theme.colors.borderSoft }]}>
+          <Text style={[styles.hCell, styles.hCellName, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+            Concepto
+          </Text>
+          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+            Cant.
+          </Text>
+          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+            Costo
+          </Text>
+          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+            Margen
+          </Text>
+          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+            Total
+          </Text>
+          <Text style={[styles.hCell, styles.hCellSource, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+            Origen
+          </Text>
+          <View style={[styles.hCell, styles.hCellAction]} />
         </View>
 
-        <View style={[styles.bottomBar, isCompact && styles.bottomBarCompact]}>
+        {rows.length === 0 ? (
+          <View style={[styles.emptyRow, { borderBottomColor: theme.colors.borderSoft }]}>
+            <Text style={{ color: theme.colors.onSurface }}>No hay items cargados.</Text>
+          </View>
+        ) : (
+          rows.map((row, index) => {
+            const isService = row.kind === 'service';
+            const tint = isService ? serviceTint : materialTint;
+            const busy = isService ? serviceActionsBusy : materialActionsBusy;
+
+            return (
+              <Pressable
+                key={row.key}
+                onPress={() => {
+                  if (isCompleted) return;
+                  setEditingTarget({ kind: row.kind, id: row.id });
+                }}
+                disabled={isCompleted || busy}
+                style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+              >
+                <View
+                  style={[
+                    styles.dataRow,
+                    { backgroundColor: tint, borderBottomColor: theme.colors.borderSoft },
+                    index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.borderSoft },
+                  ]}
+                >
+                  {/* Concepto cell — name + notes */}
+                  <View style={[styles.dCell, styles.dCellName, { borderRightColor: theme.colors.borderSoft }]}>
+                    <Text style={[styles.nameTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
+                      {row.title}
+                    </Text>
+                    {row.notes ? (
+                      <Text style={[styles.nameNotes, { color: theme.colors.textMuted }]} numberOfLines={1}>
+                        {row.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
+                    {row.quantity}
+                  </Text>
+                  <Text style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
+                    {row.base}
+                  </Text>
+                  <Text style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
+                    {row.margin}
+                  </Text>
+                  <Text style={[styles.dCell, styles.dCellNum, styles.dValueStrong, { color: theme.colors.primary, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
+                    {row.total}
+                  </Text>
+                  <Text style={[styles.dCell, styles.dCellSource, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
+                    {row.source}
+                  </Text>
+                  <View style={[styles.dCell, styles.dCellAction]}>
+                    <IconButton
+                      icon="trash-can-outline"
+                      size={16}
+                      iconColor="#B00020"
+                      onPress={() => {
+                        if (isCompleted) return;
+                        isService ? onDeleteService(row.id) : onDeleteMaterial(row.id);
+                      }}
+                      disabled={isCompleted || busy}
+                      style={styles.deleteIcon}
+                    />
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })
+        )}
+      </View>
+      </ScrollView>
+      </View>
+
+      <View style={[styles.bottomBar, isCompact && styles.bottomBarCompact]}>
           <View style={[styles.tableActions, isCompact && styles.tableActionsCompact]}>
             <Link href={{ pathname: '/quotes/[id]/add-service', params: { id: quoteId } }} asChild>
               <Button
@@ -344,50 +317,84 @@ export const QuoteItemsTable = ({
             </View>
           </View>
         </View>
-      </Card.Content>
+      </View>
 
       <Portal>
+        {/* ── Service edit modal ── */}
         <AppDialog visible={Boolean(editingService)} onDismiss={() => setEditingTarget(null)}>
           <Dialog.Title>Editar servicio</Dialog.Title>
           <Dialog.Content>
             {editingService ? (
-              <QuoteServiceItemForm
-                defaultValues={{
-                  quote_id: editingService.quote_id,
-                  service_id: editingService.service_id,
-                  quantity: editingService.quantity,
-                  unit_price: editingService.unit_price,
-                  notes: editingService.notes ?? '',
-                }}
-                submitLabel="Guardar cambios"
-                onSubmit={async (values) => {
-                  await onSaveService(editingService.id, {
-                    quantity: values.quantity,
-                    unit_price: values.unit_price,
-                    notes: values.notes ?? null,
-                  });
-                  setEditingTarget(null);
-                }}
-              />
+              <View style={styles.materialEditor}>
+                <View style={styles.materialEditorRow}>
+                  <TextInput
+                    mode="outlined"
+                    label="Cantidad"
+                    value={serviceQuantityInput}
+                    onChangeText={setServiceQuantityInput}
+                    keyboardType="decimal-pad"
+                    disabled={serviceActionsBusy}
+                    style={styles.materialEditorField}
+                    outlineStyle={styles.inputOutline}
+                  />
+                  <TextInput
+                    mode="outlined"
+                    label="Precio unitario"
+                    value={servicePriceInput}
+                    onChangeText={setServicePriceInput}
+                    keyboardType="decimal-pad"
+                    disabled={serviceActionsBusy}
+                    style={styles.materialEditorField}
+                    outlineStyle={styles.inputOutline}
+                  />
+                </View>
+
+                <TextInput
+                  mode="outlined"
+                  label="Margen %"
+                  value={serviceMarginInput}
+                  onChangeText={setServiceMarginInput}
+                  keyboardType="decimal-pad"
+                  disabled={serviceActionsBusy}
+                  outlineStyle={styles.inputOutline}
+                />
+
+                <Button
+                  mode="contained"
+                  disabled={serviceActionsBusy}
+                  loading={savingService}
+                  onPress={async () => {
+                    const nextQuantity = Number(serviceQuantityInput.trim().replace(',', '.'));
+                    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) return;
+
+                    const nextPrice = Number(servicePriceInput.trim().replace(',', '.'));
+                    if (!Number.isFinite(nextPrice) || nextPrice < 0) return;
+
+                    const trimmedMargin = serviceMarginInput.trim();
+                    const nextMargin = trimmedMargin ? Number(trimmedMargin.replace(',', '.')) : null;
+                    if (trimmedMargin && (nextMargin == null || !Number.isFinite(nextMargin) || nextMargin < 0)) return;
+
+                    await onSaveService(editingService.id, {
+                      quantity: nextQuantity,
+                      unit_price: nextPrice,
+                      margin_percent: nextMargin,
+                    });
+                    setEditingTarget(null);
+                  }}
+                >
+                  Guardar cambios
+                </Button>
+              </View>
             ) : null}
           </Dialog.Content>
         </AppDialog>
 
+        {/* ── Material edit modal ── */}
         <AppDialog visible={Boolean(editingMaterial)} onDismiss={() => setEditingTarget(null)}>
           <Dialog.Title>Editar material</Dialog.Title>
           <Dialog.Content>
             {editingMaterial ? (
               <View style={styles.materialEditor}>
-                <View style={styles.materialEditorSummary}>
-                  <Text variant="titleSmall">{editingMaterial.item_name_snapshot}</Text>
-                  <Text variant="bodySmall" style={styles.materialEditorMeta}>
-                    {editingMaterial.source_store_name_snapshot ?? 'Sin tienda'}{editingMaterial.unit ? ` · ${editingMaterial.unit}` : ''}
-                  </Text>
-                  <Text variant="bodySmall" style={styles.materialEditorMeta}>
-                    La medida del material queda fija. Aqui solo editas cantidad, costo, margen y notas.
-                  </Text>
-                </View>
-
                 <View style={styles.materialEditorRow}>
                   <TextInput
                     mode="outlined"
@@ -413,7 +420,7 @@ export const QuoteItemsTable = ({
 
                 <TextInput
                   mode="outlined"
-                  label="Margen"
+                  label="Margen %"
                   value={materialMarginInput}
                   onChangeText={setMaterialMarginInput}
                   keyboardType="decimal-pad"
@@ -421,15 +428,73 @@ export const QuoteItemsTable = ({
                   outlineStyle={styles.inputOutline}
                 />
 
-                <TextInput
-                  mode="outlined"
-                  label="Notas"
-                  value={materialNotesInput}
-                  onChangeText={setMaterialNotesInput}
-                  multiline
-                  disabled={materialActionsBusy}
-                  outlineStyle={styles.inputOutline}
-                />
+                <View style={styles.storePickerRow}>
+                  <Text variant="labelMedium" style={{ color: theme.colors.textMuted }}>Origen</Text>
+
+                  {/* Selected store indicator */}
+                  {selectedStoreName && !storeSearchFocused ? (
+                    <View style={styles.storeSelected}>
+                      <Text style={[styles.storeSelectedText, { color: theme.colors.onSurface }]}>{selectedStoreName}</Text>
+                      <IconButton
+                        icon="close-circle"
+                        size={18}
+                        onPress={() => {
+                          setMaterialStoreInput(null);
+                          setStoreSearchText('');
+                        }}
+                        disabled={materialActionsBusy}
+                        style={styles.storeClearIcon}
+                      />
+                    </View>
+                  ) : null}
+
+                  {/* Search input */}
+                  <TextInput
+                    mode="outlined"
+                    placeholder="Buscar tienda..."
+                    value={storeSearchText}
+                    onChangeText={(text) => {
+                      setStoreSearchText(text);
+                      setStoreSearchFocused(true);
+                    }}
+                    onFocus={() => setStoreSearchFocused(true)}
+                    disabled={materialActionsBusy}
+                    dense
+                    outlineStyle={styles.inputOutline}
+                    left={<TextInput.Icon icon="magnify" size={18} />}
+                    right={storeSearchText ? <TextInput.Icon icon="close" size={18} onPress={() => { setStoreSearchText(''); }} /> : undefined}
+                  />
+
+                  {/* Filtered results */}
+                  {storeSearchFocused ? (
+                    <ScrollView
+                      style={[styles.storeResults, { borderColor: theme.colors.borderSoft }]}
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {filteredStores.length === 0 ? (
+                        <Text style={[styles.storeResultEmpty, { color: theme.colors.textMuted }]}>Sin resultados</Text>
+                      ) : (
+                        filteredStores.map((s) => (
+                          <Pressable
+                            key={s.id}
+                            onPress={() => {
+                              setMaterialStoreInput(s.id);
+                              setStoreSearchText('');
+                              setStoreSearchFocused(false);
+                            }}
+                            style={({ pressed }) => [
+                              styles.storeResultItem,
+                              { backgroundColor: s.id === materialStoreInput ? theme.colors.surfaceSoft : pressed ? theme.colors.surfaceSoft : 'transparent' },
+                            ]}
+                          >
+                            <Text style={{ color: theme.colors.onSurface, fontSize: 14 }}>{s.name}</Text>
+                          </Pressable>
+                        ))
+                      )}
+                    </ScrollView>
+                  ) : null}
+                </View>
 
                 <Button
                   mode="contained"
@@ -437,27 +502,21 @@ export const QuoteItemsTable = ({
                   loading={savingMaterial}
                   onPress={async () => {
                     const nextQuantity = Number(materialQuantityInput.trim().replace(',', '.'));
-                    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
-                      return;
-                    }
+                    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) return;
 
                     const nextUnitPrice = Number(materialCostInput.trim().replace(',', '.'));
-                    if (!Number.isFinite(nextUnitPrice) || nextUnitPrice < 0) {
-                      return;
-                    }
+                    if (!Number.isFinite(nextUnitPrice) || nextUnitPrice < 0) return;
 
                     const trimmedMargin = materialMarginInput.trim();
                     const nextMargin = trimmedMargin ? Number(trimmedMargin.replace(',', '.')) : null;
-                    if (trimmedMargin && (nextMargin == null || !Number.isFinite(nextMargin) || nextMargin < 0)) {
-                      return;
-                    }
+                    if (trimmedMargin && (nextMargin == null || !Number.isFinite(nextMargin) || nextMargin < 0)) return;
 
                     await onSaveMaterial(editingMaterial.id, {
                       quantity: nextQuantity,
                       unit: editingMaterial.unit ?? null,
                       unit_price: nextUnitPrice,
                       margin_percent: nextMargin,
-                      notes: materialNotesInput.trim() || null,
+                      source_store_id: materialStoreInput,
                     });
                     setEditingTarget(null);
                   }}
@@ -469,22 +528,112 @@ export const QuoteItemsTable = ({
           </Dialog.Content>
         </AppDialog>
       </Portal>
-    </Card>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  content: {
+  container: {
     gap: 12,
-    paddingVertical: 10,
   },
   tableWrap: {
     position: 'relative',
   },
+  table: {
+    minWidth: 520,
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  /* ── Header row ── */
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderBottomWidth: 1,
+  },
+  hCell: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRightWidth: 1,
+    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  hCellName: {
+    flex: 1,
+    minWidth: 80,
+  },
+  hCellNum: {
+    width: 68,
+    textAlign: 'right',
+  },
+  hCellSource: {
+    width: 72,
+  },
+  hCellAction: {
+    width: 36,
+    borderRightWidth: 0,
+  },
+  /* ── Item name (inside Concepto cell) ── */
+  nameTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  nameNotes: {
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  deleteIcon: {
+    margin: 0,
+    width: 28,
+    height: 28,
+  },
+  /* ── Data row ── */
+  dataRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderBottomWidth: 1,
+    minHeight: 38,
+  },
+  dCell: {
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+    borderRightWidth: 1,
+    justifyContent: 'center',
+  },
+  dCellName: {
+    flex: 1,
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+  dCellNum: {
+    width: 68,
+    textAlign: 'right',
+  },
+  dCellSource: {
+    width: 72,
+  },
+  dCellAction: {
+    width: 36,
+    borderRightWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dValue: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  dValueStrong: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyRow: {
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+  },
+  /* ── Bottom bar ── */
   bottomBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -568,14 +717,9 @@ const styles = StyleSheet.create({
   inputOutline: {
     borderRadius: 10,
   },
+  /* ── Editor dialogs ── */
   materialEditor: {
     gap: 12,
-  },
-  materialEditorSummary: {
-    gap: 4,
-  },
-  materialEditorMeta: {
-    color: '#5F6A76',
   },
   materialEditorRow: {
     flexDirection: 'row',
@@ -584,101 +728,36 @@ const styles = StyleSheet.create({
   materialEditorField: {
     flex: 1,
   },
-  table: {
-    minWidth: 1040,
-    borderWidth: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
+  storePickerRow: {
+    gap: 6,
   },
-  tableCompact: {
-    minWidth: 890,
-  },
-  row: {
-    position: 'relative',
+  storeSelected: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    borderBottomWidth: 1,
-  },
-  headerRow: {},
-  headerText: {
-    fontWeight: '700',
-  },
-  emptyRow: {
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 14,
-  },
-  cell: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRightWidth: 1,
-    justifyContent: 'center',
-  },
-  descriptionCell: {
-    width: 280,
+    alignItems: 'center',
     gap: 4,
   },
-  descriptionCellCompact: {
-    width: 220,
+  storeSelectedText: {
+    flex: 1,
+    fontSize: 14,
   },
-  quantityCell: {
-    width: 64,
+  storeClearIcon: {
+    margin: 0,
+    width: 28,
+    height: 28,
   },
-  quantityCellCompact: {
-    width: 72,
+  storeResults: {
+    borderWidth: 1,
+    borderRadius: 8,
+    maxHeight: 160,
+    overflow: 'hidden',
   },
-  baseCell: {
-    width: 128,
+  storeResultEmpty: {
+    padding: 12,
+    textAlign: 'center',
   },
-  baseCellCompact: {
-    width: 122,
-  },
-  marginCell: {
-    width: 92,
-  },
-  marginCellCompact: {
-    width: 108,
-  },
-  saleCell: {
-    width: 132,
-  },
-  saleCellCompact: {
-    width: 124,
-  },
-  totalCell: {
-    width: 138,
-  },
-  totalCellCompact: {
-    width: 128,
-  },
-  sourceCell: {
-    width: 132,
-  },
-  sourceCellCompact: {
-    width: 116,
-  },
-  actionsCell: {
-    width: 84,
-    borderRightWidth: 0,
-  },
-  actionsCellCompact: {
-    width: 72,
-  },
-  deleteCell: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemTitle: {
-    fontWeight: '600',
-  },
-  itemNotes: {
-    lineHeight: 18,
-    marginTop: 6,
-  },
-  valueText: {
-    fontWeight: '500',
-  },
-  strongValue: {
-    fontWeight: '700',
+  storeResultItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
   },
 });

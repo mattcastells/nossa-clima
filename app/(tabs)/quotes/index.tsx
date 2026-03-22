@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Card, IconButton, Searchbar, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
@@ -17,12 +17,8 @@ const PAGE_SIZE_GRID = 6;
 export default function QuotesScreen() {
   const { data, isLoading, error } = useQuotes();
   const theme = useAppTheme();
-  const { width } = useWindowDimensions();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const useCardGrid = width >= 360;
-  const useTwoColumns = width >= 680;
-  const pageSize = useCardGrid ? PAGE_SIZE_GRID : PAGE_SIZE_SINGLE_COLUMN;
 
   const quotes = useMemo(() => data ?? [], [data]);
   const filteredQuotes = useMemo(() => {
@@ -76,7 +72,7 @@ export default function QuotesScreen() {
         placeholder="Buscar por titulo, cliente o fecha"
         value={search}
         onChangeText={setSearch}
-        inputStyle={styles.searchInput}
+        inputStyle={styles.searchbarInput}
         style={[
           styles.searchbar,
           {
@@ -113,27 +109,55 @@ export default function QuotesScreen() {
           const descriptionValue = item.description?.trim() || item.notes?.trim() || 'Sin descripcion';
 
           return (
-            <View style={[styles.quoteCardCell, useCardGrid && styles.quoteCardCellGrid]}>
-              <AnimatedEntrance delay={90 + index * 40} distance={12}>
-                <Link href={`/quotes/${item.id}`} asChild>
-                  <Card mode="outlined" style={styles.quoteCard}>
-                    <View style={[styles.headerBlock, { backgroundColor: theme.colors.surfaceMuted }]}>
-                      <View style={styles.headerRow}>
-                        <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
-                          {item.title}
-                        </Text>
+            <AnimatedEntrance delay={90 + index * 40} distance={12}>
+              <Link href={`/quotes/${item.id}`} asChild>
+                <Card mode="outlined" style={styles.quoteCard}>
+                  <View style={[styles.headerBlock, { backgroundColor: theme.dark ? '#2A3545' : '#E8EDF4' }]}>
+                    <View style={styles.headerRow}>
+                      <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.statusDotWrapper}>
                         <View
+                          accessible
+                          accessibilityLabel={quoteStatusLabel(item.status)}
                           style={[
-                            styles.statusBadge,
+                            styles.statusDot,
                             {
                               backgroundColor: statusAccent.backgroundColor,
                               borderColor: statusAccent.borderColor,
                             },
                           ]}
-                        >
-                          <Text style={[styles.statusBadgeText, { color: statusAccent.textColor }]}>
-                            {quoteStatusLabel(item.status)}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                  <Card.Content style={styles.quoteContent}>
+                    <View style={styles.metaGrid}>
+                      <View style={styles.metaRow}>
+                        <View style={[styles.metaCard, styles.metaCell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
+                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Cliente</Text>
+                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                            {item.client_name}
                           </Text>
+                        </View>
+                        <View style={[styles.metaCard, styles.metaCell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
+                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Fecha</Text>
+                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                            {timeValue ? `${dateValue} - ${timeValue}` : dateValue}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <View style={[styles.metaCard, styles.metaCell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
+                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Descripcion</Text>
+                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={3}>
+                            {descriptionValue}
+                          </Text>
+                        </View>
+                        <View style={[styles.metaCard, styles.metaCell, styles.totalCard, { backgroundColor: theme.colors.softBlue, borderColor: theme.colors.softBlueStrong }]}>
+                          <Text style={[styles.metaLabel, styles.totalLabel, { color: theme.colors.primary }]}>Total</Text>
+                          <Text style={[styles.totalValue, { color: theme.colors.primary }]} numberOfLines={1}>{formatCurrencyArs(item.total)}</Text>
                         </View>
                       </View>
                     </View>
@@ -228,9 +252,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  searchInput: {
-    paddingLeft: 6,
-    paddingRight: 10,
+  searchbarInput: {
+    paddingLeft: 4,
   },
   listContent: {
     paddingTop: 4,
@@ -280,60 +303,55 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
+  statusDotWrapper: {
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statusBadgeText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '700',
+  statusDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 26,
+    borderWidth: 1,
   },
   quoteContent: {
-    paddingTop: 14,
-    gap: 10,
+    paddingTop: 10,
+    gap: 8,
   },
-  metaColumns: {
+  metaGrid: {
+    gap: 8,
+  },
+  metaRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 10,
+    gap: 8,
   },
-  metaColumnsStacked: {
-    flexDirection: 'column',
-  },
-  metaColumn: {
+  metaCell: {
     flex: 1,
-    gap: 10,
   },
   metaCard: {
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: 12,
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  descriptionCard: {
-    flex: 1,
-  },
   metaLabel: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 10,
+    lineHeight: 13,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   metaValue: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: '500',
   },
   totalCard: {
   },
   totalLabel: {},
   totalValue: {
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: '700',
   },
   cancelledHint: {

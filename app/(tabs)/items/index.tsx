@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Searchbar, Text } from 'react-native-paper';
+import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Button, Card, Chip, Menu, Searchbar, Text, TouchableRipple } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
@@ -15,10 +15,13 @@ const ALL_CATEGORIES = '__all__';
 export default function ItemsScreen() {
   const { data, isLoading, error } = useItems();
   const theme = useAppTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const menuWidth = screenWidth - 32;
   const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_GREEN;
   const filterChipBorderColor = theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID;
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
 
   const materials = useMemo(() => (data ?? []).filter((item) => item.item_type === 'material'), [data]);
 
@@ -33,6 +36,11 @@ export default function ItemsScreen() {
       ).sort((a, b) => a.localeCompare(b)),
     [materials],
   );
+
+  const selectedCategoryLabel = useMemo(() => {
+    if (selectedCategory === ALL_CATEGORIES) return 'Todas';
+    return selectedCategory;
+  }, [selectedCategory]);
 
   const filteredMaterials = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -60,7 +68,7 @@ export default function ItemsScreen() {
         placeholder="Buscar material"
         value={search}
         onChangeText={setSearch}
-        inputStyle={styles.searchInput}
+        inputStyle={styles.searchbarInput}
         style={[
           styles.searchbar,
           {
@@ -76,41 +84,55 @@ export default function ItemsScreen() {
         </Link>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-        <Chip
-          selected={selectedCategory === ALL_CATEGORIES}
-          selectedColor={filterChipTextColor}
-          style={StyleSheet.flatten([
-            styles.filterChip,
-            {
-              backgroundColor: selectedCategory === ALL_CATEGORIES ? theme.colors.softGreenStrong : theme.colors.softGreen,
-              borderColor: filterChipBorderColor,
-            },
-          ])}
-          textStyle={StyleSheet.flatten([styles.filterChipText, { color: filterChipTextColor }])}
-          onPress={() => setSelectedCategory(ALL_CATEGORIES)}
+      <View style={styles.filterRow}>
+        <Menu
+          visible={categoryMenuOpen}
+          onDismiss={() => setCategoryMenuOpen(false)}
+          anchorPosition="bottom"
+          contentStyle={[styles.menuContent, { width: menuWidth }]}
+          style={styles.menuWrapper}
+          anchor={
+            <TouchableRipple
+              onPress={() => setCategoryMenuOpen(true)}
+              style={[
+                styles.filterDropdown,
+                {
+                  backgroundColor: theme.colors.softGreen,
+                  borderColor: filterChipBorderColor,
+                },
+              ]}
+              borderless
+            >
+              <View style={styles.filterDropdownInner}>
+                <Text style={[styles.filterDropdownIcon, { color: filterChipTextColor }]}>☰</Text>
+                <Text style={[styles.filterDropdownText, { color: filterChipTextColor }]} numberOfLines={1}>
+                  {selectedCategoryLabel}
+                </Text>
+                <Text style={[styles.filterDropdownArrow, { color: filterChipTextColor }]}>▾</Text>
+              </View>
+            </TouchableRipple>
+          }
         >
-          Todas
-        </Chip>
-        {categories.map((category) => (
-          <Chip
-            key={category}
-            selected={selectedCategory === category}
-            selectedColor={filterChipTextColor}
-            style={StyleSheet.flatten([
-              styles.filterChip,
-              {
-                backgroundColor: selectedCategory === category ? theme.colors.softGreenStrong : theme.colors.softGreen,
-                borderColor: filterChipBorderColor,
-              },
-            ])}
-            textStyle={StyleSheet.flatten([styles.filterChipText, { color: filterChipTextColor }])}
-            onPress={() => setSelectedCategory(category)}
-          >
-            {category}
-          </Chip>
-        ))}
-      </ScrollView>
+          <View style={styles.menuGrid}>
+            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories.map((c) => ({ key: c, label: c }))].map((item, idx, arr) => {
+              const lastRowStart = arr.length % 2 === 0 ? arr.length - 2 : arr.length - 1;
+              const isLastRow = idx >= lastRowStart;
+              return (
+                <TouchableRipple
+                  key={item.key}
+                  onPress={() => { setSelectedCategory(item.key); setCategoryMenuOpen(false); }}
+                  style={[styles.menuGridItem, !isLastRow && styles.menuGridItemBorder, idx % 2 === 0 && styles.menuGridItemLeft]}
+                >
+                  <View style={styles.menuGridItemInner}>
+                    {selectedCategory === item.key && <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>}
+                    <Text style={[styles.menuGridItemText, selectedCategory === item.key && styles.menuGridItemTextSelected]} numberOfLines={1}>{item.label}</Text>
+                  </View>
+                </TouchableRipple>
+              );
+            })}
+          </View>
+        </Menu>
+      </View>
       <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Las categorias se crean al guardar un material con una categoria nueva.</Text>
 
       <LoadingOrError isLoading={isLoading} error={error} />
@@ -161,9 +183,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  searchInput: {
-    paddingLeft: 6,
-    paddingRight: 10,
+  searchbarInput: {
+    paddingLeft: 4,
   },
   topActions: {
     flexDirection: 'row',
@@ -172,6 +193,74 @@ const styles = StyleSheet.create({
   categoryRow: {
     gap: 8,
     paddingVertical: 2,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterDropdown: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flex: 1,
+  },
+  filterDropdownInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterDropdownIcon: {
+    fontSize: 14,
+  },
+  filterDropdownText: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  filterDropdownArrow: {
+    fontSize: 12,
+    marginLeft: 2,
+  },
+  menuContent: {
+    paddingVertical: 4,
+  },
+  menuWrapper: {
+    flex: 1,
+  },
+  menuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 4,
+  },
+  menuGridItem: {
+    width: '50%',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderColor: '#D5D5D5',
+  },
+  menuGridItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  menuGridItemLeft: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+  },
+  menuGridItemInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  menuCheckIcon: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  menuGridItemText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  menuGridItemTextSelected: {
+    fontWeight: '600',
   },
   filterChip: {
     borderRadius: 999,

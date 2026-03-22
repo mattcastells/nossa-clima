@@ -33,7 +33,7 @@ export default function StoresScreen() {
         placeholder="Buscar tienda"
         value={search}
         onChangeText={setSearch}
-        inputStyle={styles.searchInput}
+        inputStyle={styles.searchbarInput}
         style={[
           styles.searchbar,
           {
@@ -83,9 +83,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  searchInput: {
-    paddingLeft: 6,
-    paddingRight: 10,
+  searchbarInput: {
+    paddingLeft: 4,
   },
   topActions: {
     flexDirection: 'row',

@@ -47,6 +47,9 @@ export const WorkCalendarCard = () => {
   const [message, setMessage] = useState<string | null>(null);
   useToastMessageEffect(message, () => setMessage(null));
 
+  /** ISO key for today's date — used to highlight the "today" cell */
+  const todayDateKey = formatIsoDate(new Date());
+
   useEffect(() => {
     if (!isFocused) return;
 
@@ -82,6 +85,17 @@ export const WorkCalendarCard = () => {
     setSelectedDate(formatIsoDate(nextAnchor));
   };
 
+  /** Jump back to current month & select today */
+  const goToToday = () => {
+    setMonthAnchor(getCurrentMonthAnchor());
+    setSelectedDate(getCurrentSelectedDate());
+  };
+
+  /** Whether the calendar is already showing the current month */
+  const isCurrentMonth =
+    monthAnchor.getFullYear() === new Date().getFullYear() &&
+    monthAnchor.getMonth() === new Date().getMonth();
+
   return (
     <Card style={styles.card}>
       <Card.Content style={styles.content}>
@@ -91,6 +105,11 @@ export const WorkCalendarCard = () => {
           </Text>
           <View style={styles.monthNav}>
             <IconButton icon="arrow-left" size={18} accessibilityLabel="Mes anterior" onPress={() => moveMonth(-1)} style={styles.monthIconButton} />
+            {!isCurrentMonth ? (
+              <Button compact mode="text" onPress={goToToday} style={styles.todayButton}>
+                Hoy
+              </Button>
+            ) : null}
             <IconButton icon="arrow-right" size={18} accessibilityLabel="Mes siguiente" onPress={() => moveMonth(1)} style={styles.monthIconButton} />
           </View>
         </View>
@@ -107,6 +126,7 @@ export const WorkCalendarCard = () => {
           {calendarCells.map((day, index) => {
             const dateKey = day == null ? null : formatIsoDate(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), day));
             const selected = dateKey != null && dateKey === selectedDate;
+            const isToday = dateKey != null && dateKey === todayDateKey;
             const count = dateKey != null ? appointmentsByDate.get(dateKey) ?? 0 : 0;
             const markers = Math.min(count, 3);
 
@@ -117,8 +137,22 @@ export const WorkCalendarCard = () => {
                     onPress={() => setSelectedDate(dateKey)}
                     style={({ pressed }) => [styles.dayPressable, pressed && styles.dayPressablePressed]}
                   >
-                    <View style={[styles.dayBubble, selected && { backgroundColor: theme.colors.softBlue }]}>
-                      <Text style={[styles.dayNumber, { color: selected ? theme.colors.primary : theme.colors.titleOnSoft }]}>{day}</Text>
+                    <View
+                      style={[
+                        styles.dayBubble,
+                        selected && { backgroundColor: theme.colors.softBlue },
+                        isToday && !selected && styles.todayBubble,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayNumber,
+                          { color: selected ? theme.colors.primary : isToday ? theme.colors.secondary : theme.colors.titleOnSoft },
+                          isToday && styles.todayDayNumber,
+                        ]}
+                      >
+                        {day}
+                      </Text>
                     </View>
                     <View style={styles.dayMarkersRow}>
                       {Array.from({ length: markers }).map((_, markerIndex) => (
@@ -320,6 +354,9 @@ const styles = StyleSheet.create({
   monthIconButton: {
     margin: 0,
   },
+  todayButton: {
+    marginHorizontal: 2,
+  },
   monthLabel: {
     textAlign: 'center',
     textTransform: 'capitalize',
@@ -359,11 +396,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  todayBubble: {
+    borderWidth: 2,
+    borderColor: '#3478F6',
+  },
   dayNumber: {
     textAlign: 'center',
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '500',
+  },
+  todayDayNumber: {
+    fontWeight: '700',
   },
   dayMarkersRow: {
     minHeight: 8,

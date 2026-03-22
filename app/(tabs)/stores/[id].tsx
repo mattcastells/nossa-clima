@@ -196,7 +196,7 @@ export default function StoreDetailPage() {
                 placeholder="Buscar material, medida o categoria"
                 value={materialsSearch}
                 onChangeText={setMaterialsSearch}
-                inputStyle={styles.searchInput}
+                inputStyle={styles.searchbarInput}
                 style={[
                   styles.searchbar,
                   {
@@ -357,9 +357,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  searchInput: {
-    paddingLeft: 6,
-    paddingRight: 10,
+  searchbarInput: {
+    paddingLeft: 4,
   },
   helperText: {
     fontSize: 12,
