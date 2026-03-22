@@ -8,19 +8,18 @@ import { useAppTheme } from '@/theme';
 
 type HomeAction = {
   title: string;
-  subtitle: string;
   href: Href;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 };
 
 const HOME_ACTIONS: HomeAction[] = [
-  { title: 'Trabajos', subtitle: 'Crear y gestionar trabajos', href: '/quotes', icon: 'briefcase-outline' },
-  { title: 'Calendario', subtitle: 'Ver trabajos programados', href: '/(tabs)/calendar', icon: 'calendar-month-outline' },
-  { title: 'Tiendas', subtitle: 'Gestionar proveedores', href: '/stores', icon: 'store-outline' },
-  { title: 'Materiales', subtitle: 'Materiales y precios', href: '/items', icon: 'cube-outline' },
-  { title: 'Servicios', subtitle: 'Mano de obra y tarifas', href: '/services', icon: 'wrench-outline' },
-  { title: 'Asistente', subtitle: 'Consultas con texto e imagen', href: '/assistant', icon: 'robot-outline' },
-  { title: 'Opciones', subtitle: 'Perfil y ajustes', href: '/settings', icon: 'cog-outline' },
+  { title: 'Trabajos', href: '/quotes', icon: 'briefcase-outline' },
+  { title: 'Calendario', href: '/(tabs)/calendar', icon: 'calendar-month-outline' },
+  { title: 'Tiendas', href: '/stores', icon: 'store-outline' },
+  { title: 'Materiales', href: '/items', icon: 'cube-outline' },
+  { title: 'Servicios', href: '/services', icon: 'wrench-outline' },
+  { title: 'Asistente', href: '/assistant', icon: 'robot-outline' },
+  { title: 'Opciones', href: '/settings', icon: 'cog-outline' },
 ];
 
 export default function HomeScreen() {
@@ -46,11 +45,8 @@ export default function HomeScreen() {
                 <View style={[styles.iconBubble, { backgroundColor: theme.colors.softBlue }]}>
                   <MaterialCommunityIcons name={action.icon} size={30} color={theme.colors.primary} />
                 </View>
-                <Text style={[styles.tileTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
+                <Text style={[styles.tileTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
                   {action.title}
-                </Text>
-                <Text style={[styles.tileSubtitle, { color: theme.colors.textMuted }]} numberOfLines={2}>
-                  {action.subtitle}
                 </Text>
               </View>
             </Pressable>
@@ -113,15 +109,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileTitle: {
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '700',
-    textAlign: 'center',
-  },
-  tileSubtitle: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
     textAlign: 'center',
   },
 });

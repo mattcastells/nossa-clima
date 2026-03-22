@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+﻿import { Link } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Button, Card, Chip, Menu, Searchbar, Text, TouchableRipple } from 'react-native-paper';
@@ -14,6 +14,8 @@ import { BRAND_BLUE, BRAND_BLUE_MID, useAppTheme } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
 const UNCATEGORIZED_CATEGORY = '__uncategorized__';
+const PAGE_SIZE = 10;
+
 type ServiceCategoryOption = {
   key: string;
   label: string;
@@ -24,13 +26,14 @@ export default function ServicesScreen() {
   const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const menuWidth = screenWidth - 32;
-  const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE;
+  const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : '#1A1A1A';
   const filterChipBorderColor = theme.dark ? theme.colors.softBlueStrong : BRAND_BLUE_MID;
   const { data: categoryNames, isLoading: categoriesLoading, error: categoriesError } = useServiceCategories();
   const importDefaults = useImportDefaultServices();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [message, setMessage] = useState<string | null>(null);
   const autoImportTriggered = useRef(false);
   useToastMessageEffect(message, () => setMessage(null));
@@ -82,11 +85,14 @@ export default function ServicesScreen() {
       }
       return;
     }
-
     if (!categories.some((category) => category.key === selectedCategory)) {
       setSelectedCategory(ALL_CATEGORIES);
     }
   }, [categories, selectedCategory, uncategorizedCount]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategory]);
 
   const selectedCategoryLabel = useMemo(() => {
     if (selectedCategory === ALL_CATEGORIES) return 'Todas';
@@ -100,9 +106,7 @@ export default function ServicesScreen() {
       const normalizedCategory = service.category?.trim() ?? '';
 
       if (selectedCategory === UNCATEGORIZED_CATEGORY) {
-        if (normalizedCategory.length > 0) {
-          return false;
-        }
+        if (normalizedCategory.length > 0) return false;
       } else if (selectedCategory !== ALL_CATEGORIES && normalizedCategory !== selectedCategory) {
         return false;
       }
@@ -116,8 +120,29 @@ export default function ServicesScreen() {
     });
   }, [data, search, selectedCategory]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage],
+  );
+
+  const categoriesButton = (
+    <Link href="/services/categories" asChild>
+      <Button
+        mode="contained-tonal"
+        compact
+        buttonColor={theme.colors.softBlue}
+        textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
+        style={{ borderWidth: 1, borderColor: filterChipBorderColor, borderRadius: 20 }}
+        labelStyle={{ fontSize: 11, marginHorizontal: 8, marginVertical: 4 }}
+      >
+        Categorias
+      </Button>
+    </Link>
+  );
+
   return (
-    <AppScreen title="Servicios">
+    <AppScreen title="Servicios" titleRight={categoriesButton}>
       <Searchbar
         placeholder="Buscar servicio"
         value={search}
@@ -133,17 +158,18 @@ export default function ServicesScreen() {
       />
 
       <View style={styles.topActions}>
-        <Link href="/services/new" asChild>
-          <Button mode="contained">Nuevo servicio</Button>
-        </Link>
-        <Link href="/services/categories" asChild>
-          <Button mode="outlined">
-            Categorias
+        <Link href="/services/new" asChild style={styles.topActionItem}>
+          <Button
+            mode="contained-tonal"
+            buttonColor={theme.colors.softBlue}
+            textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
+            style={{ borderWidth: 1, borderColor: filterChipBorderColor, borderRadius: 8, flex: 1 }}
+            contentStyle={styles.newButtonContent}
+          >
+            Nuevo servicio
           </Button>
         </Link>
-      </View>
 
-      <View style={styles.filterRow}>
         <Menu
           visible={categoryMenuOpen}
           onDismiss={() => setCategoryMenuOpen(false)}
@@ -173,18 +199,25 @@ export default function ServicesScreen() {
           }
         >
           <View style={styles.menuGrid}>
-            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories].map((item, idx, arr) => {
-              const lastRowStart = arr.length % 2 === 0 ? arr.length - 2 : arr.length - 1;
-              const isLastRow = idx >= lastRowStart;
+            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories].map((item) => {
+              const isSelected = selectedCategory === item.key;
               return (
                 <TouchableRipple
                   key={item.key}
                   onPress={() => { setSelectedCategory(item.key); setCategoryMenuOpen(false); }}
-                  style={[styles.menuGridItem, !isLastRow && styles.menuGridItemBorder, idx % 2 === 0 && styles.menuGridItemLeft]}
+                  style={[styles.menuGridItem, isSelected && styles.menuGridItemSelected]}
+                  borderless
                 >
                   <View style={styles.menuGridItemInner}>
-                    {selectedCategory === item.key && <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>}
-                    <Text style={[styles.menuGridItemText, selectedCategory === item.key && styles.menuGridItemTextSelected]} numberOfLines={1}>{item.label}</Text>
+                    {isSelected && (
+                      <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>
+                    )}
+                    <Text
+                      style={[styles.menuGridItemText, isSelected && styles.menuGridItemTextSelected]}
+                      numberOfLines={1}
+                    >
+                      {item.label}
+                    </Text>
                   </View>
                 </TouchableRipple>
               );
@@ -196,16 +229,17 @@ export default function ServicesScreen() {
       <LoadingOrError isLoading={isLoading || categoriesLoading} error={error ?? categoriesError} />
 
       <FlatList
-        data={filtered}
+        data={paginated}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        scrollEnabled={false}
         renderItem={({ item, index }) => (
           <AnimatedEntrance delay={90 + index * 40} distance={12}>
             <Link href={`/services/${item.id}`} asChild>
               <Card mode="outlined" style={styles.serviceCard}>
                 <View style={[styles.headerBlock, { backgroundColor: theme.colors.softBlue }]}>
                   <View style={styles.headerMainRow}>
-                    <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]}>{item.name}</Text>
+                    <Text style={[styles.headerTitle, { color: '#1A1A1A' }]}>{item.name}</Text>
                     <Chip
                       compact
                       style={StyleSheet.flatten([
@@ -215,22 +249,61 @@ export default function ServicesScreen() {
                           borderColor: filterChipBorderColor,
                         },
                       ])}
-                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: theme.colors.titleOnSoft }])}
+                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: '#1A1A1A' }])}
                     >
                       {item.category ?? 'Sin categoria'}
                     </Chip>
                   </View>
                 </View>
-              <Card.Content style={styles.serviceContent}>
-                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{formatCurrencyArs(item.base_price)}</Text>
-                {item.description ? <Text style={[styles.description, { color: theme.colors.textMuted }]}>{item.description}</Text> : null}
-              </Card.Content>
-            </Card>
+                <Card.Content style={styles.serviceContent}>
+                  <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+                    {formatCurrencyArs(item.base_price)}
+                  </Text>
+                  {item.description ? (
+                    <Text style={[styles.description, { color: theme.colors.textMuted }]}>
+                      {item.description}
+                    </Text>
+                  ) : null}
+                </Card.Content>
+              </Card>
             </Link>
           </AnimatedEntrance>
         )}
-        ListEmptyComponent={<Text>No hay servicios que coincidan con los filtros.</Text>}
+        ListEmptyComponent={
+          <Text style={{ color: theme.colors.textMuted }}>
+            No hay servicios que coincidan con los filtros.
+          </Text>
+        }
       />
+
+      {filtered.length > 0 && (
+        <View style={styles.paginationRow}>
+          <Button
+            mode="outlined"
+            compact
+            icon="chevron-left"
+            disabled={currentPage === 1}
+            onPress={() => setCurrentPage((p) => p - 1)}
+            style={styles.pageButton}
+          >
+            Anterior
+          </Button>
+          <Text style={[styles.pageInfo, { color: theme.colors.textMuted }]}>
+            {`${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filtered.length)} de ${filtered.length}`}
+          </Text>
+          <Button
+            mode="outlined"
+            compact
+            contentStyle={{ flexDirection: 'row-reverse' }}
+            icon="chevron-right"
+            disabled={currentPage >= totalPages}
+            onPress={() => setCurrentPage((p) => p + 1)}
+            style={styles.pageButton}
+          >
+            Siguiente
+          </Button>
+        </View>
+      )}
     </AppScreen>
   );
 }
@@ -245,65 +318,64 @@ const styles = StyleSheet.create({
   },
   topActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'stretch',
     gap: 8,
   },
-  categoryRow: {
-    gap: 8,
-    paddingVertical: 2,
-    paddingRight: 10,
+  topActionItem: {
+    flex: 1,
   },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  newButtonContent: {
+    height: 42,
   },
   filterDropdown: {
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
     flex: 1,
+    justifyContent: 'center',
+    minHeight: 42,
   },
   filterDropdownInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
   },
   filterDropdownIcon: {
-    fontSize: 14,
+    fontSize: 13,
   },
   filterDropdownText: {
     fontSize: 14,
     fontWeight: '500',
-    flex: 1,
   },
   filterDropdownArrow: {
-    fontSize: 12,
-    marginLeft: 2,
+    fontSize: 11,
   },
   menuContent: {
-    paddingVertical: 4,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   menuWrapper: {
     flex: 1,
   },
   menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 4,
+    flexDirection: 'column',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 6,
   },
   menuGridItem: {
-    width: '50%',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: '#D5D5D5',
+    backgroundColor: '#FFFFFF',
   },
-  menuGridItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  menuGridItemLeft: {
-    borderRightWidth: StyleSheet.hairlineWidth,
+  menuGridItemSelected: {
+    borderColor: '#AECCE8',
+    backgroundColor: '#E0EEF8',
   },
   menuGridItemInner: {
     flexDirection: 'row',
@@ -316,20 +388,12 @@ const styles = StyleSheet.create({
   },
   menuGridItemText: {
     fontSize: 14,
-    flex: 1,
   },
   menuGridItemTextSelected: {
     fontWeight: '600',
   },
-  filterChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontWeight: '500',
-  },
   listContent: {
-    paddingBottom: 12,
+    paddingBottom: 4,
   },
   serviceCard: {
     marginBottom: 10,
@@ -347,10 +411,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  serviceContent: {
-    gap: 8,
-    paddingTop: 12,
-  },
   headerTitle: {
     fontSize: 14,
     lineHeight: 18,
@@ -367,7 +427,25 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: BRAND_BLUE,
   },
+  serviceContent: {
+    gap: 8,
+    paddingTop: 12,
+  },
   description: {
     color: '#5f6368',
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  pageButton: {
+    borderRadius: 8,
+  },
+  pageInfo: {
+    fontSize: 13,
+    textAlign: 'center',
   },
 });

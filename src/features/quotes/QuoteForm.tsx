@@ -9,9 +9,10 @@ interface Props {
   defaultValues?: Partial<QuoteFormValues>;
   onSubmit: (values: QuoteFormValues) => Promise<void>;
   buttonLabel?: string;
+  disabled?: boolean;
 }
 
-export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trabajo' }: Props) => {
+export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trabajo', disabled = false }: Props) => {
   const {
     control,
     handleSubmit,
@@ -39,6 +40,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
             value={field.value}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
+            disabled={disabled}
           />
         )}
       />
@@ -53,6 +55,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
             value={field.value ?? ''}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
+            disabled={disabled}
           />
         )}
       />
@@ -67,6 +70,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
             value={field.value}
             onChangeText={field.onChange}
             outlineStyle={styles.inputOutline}
+            disabled={disabled}
           />
         )}
       />
@@ -83,12 +87,14 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
             multiline
             numberOfLines={3}
             outlineStyle={styles.inputOutline}
+            disabled={disabled}
           />
         )}
       />
       <Button
         mode="contained"
         loading={isSubmitting}
+        disabled={disabled || isSubmitting}
         onPress={handleSubmit(onSubmit)}
         style={styles.submitButton}
         contentStyle={styles.submitButtonContent}

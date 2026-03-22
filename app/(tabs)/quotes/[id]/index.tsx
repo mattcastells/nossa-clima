@@ -1,7 +1,7 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Card, Divider, IconButton, Text, TextInput } from 'react-native-paper';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Animated, UIManager, View } from 'react-native';
+import { ActivityIndicator, Button, Card, Divider, Icon, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { useToastMessageEffect } from '@/components/AppToastProvider';
@@ -15,6 +15,7 @@ import { QuoteForm } from '@/features/quotes/QuoteForm';
 import {
   useDeleteQuoteMaterialItem,
   useDeleteQuoteServiceItem,
+  useDeleteQuote,
   useRefreshQuoteMaterialPricing,
   useQuoteDetail,
   useSaveQuote,
@@ -62,8 +63,12 @@ const normalizeOptionalPercentInput = (value: string): number | null => {
 };
 
 export default function QuoteDetailPage() {
+  if (Platform.OS === 'android') {
+    UIManager.setLayoutAnimationEnabledExperimental?.(true);
+  }
+
   const theme = useAppTheme();
-  const { id, linkWarning } = useLocalSearchParams<{ id: string; linkWarning?: string }>();
+  const { id, linkWarning, fromNew } = useLocalSearchParams<{ id: string; linkWarning?: string; fromNew?: string }>();
   const { data, isLoading, error } = useQuoteDetail(id);
   const referencedStoreIds = useMemo(
     () => Array.from(new Set((data?.materials ?? []).map((item) => item.source_store_id).filter(Boolean) as string[])).sort(),
@@ -78,6 +83,7 @@ export default function QuoteDetailPage() {
   const updateService = useUpdateQuoteServiceItem();
   const deleteMaterial = useDeleteQuoteMaterialItem();
   const deleteService = useDeleteQuoteServiceItem();
+  const deleteQuote = useDeleteQuote();
   const refreshMaterialPricing = useRefreshQuoteMaterialPricing();
 
   const [isSavingPdf, setIsSavingPdf] = useState(false);
@@ -87,7 +93,35 @@ export default function QuoteDetailPage() {
   const [scheduleTime, setScheduleTime] = useState('');
   const [globalMarginInput, setGlobalMarginInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'material' | 'service'; id: string } | null>(null);
+  const [deleteQuoteConfirm, setDeleteQuoteConfirm] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [clienteSectionOpen, setClienteSectionOpen] = useState(false);
+  const [fechaSectionOpen, setFechaSectionOpen] = useState(false);
+  const clienteAnim = useRef(new Animated.Value(0)).current;
+  const fechaAnim = useRef(new Animated.Value(0)).current;
+
+  // Auto-expand sections when arriving from creation
+  useEffect(() => {
+    if (fromNew !== '1') return;
+    setClienteSectionOpen(true);
+    setFechaSectionOpen(true);
+    Animated.parallel([
+      Animated.timing(clienteAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
+      Animated.timing(fechaAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromNew]);
+
+  const toggleCliente = () => {
+    const next = !clienteSectionOpen;
+    setClienteSectionOpen(next);
+    Animated.timing(clienteAnim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+  };
+  const toggleFecha = () => {
+    const next = !fechaSectionOpen;
+    setFechaSectionOpen(next);
+    Animated.timing(fechaAnim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+  };
   useToastMessageEffect(snack, () => setSnack(null));
   const [calendarMonthAnchor, setCalendarMonthAnchor] = useState(() => {
     const today = new Date();
@@ -151,6 +185,7 @@ export default function QuoteDetailPage() {
   );
 
   const currentStatus = normalizeQuoteStatus(data?.quote.status);
+  const isCompleted = currentStatus === 'completed';
   const cancelledAutoDeleteDate = useMemo(() => {
     if (!data?.quote.cancelled_at || currentStatus !== 'cancelled') return null;
     const nextDate = new Date(data.quote.cancelled_at);
@@ -167,9 +202,23 @@ export default function QuoteDetailPage() {
     updateService.isPending ||
     deleteMaterial.isPending ||
     deleteService.isPending ||
+    deleteQuote.isPending ||
     refreshMaterialPricing.isPending ||
     isSavingPdf ||
     isSharingPdf;
+
+  const canDeleteQuote = currentStatus === 'pending' || currentStatus === 'cancelled';
+
+  const deleteCurrentQuote = async () => {
+    if (!data) return;
+    try {
+      await deleteQuote.mutateAsync(data.quote.id);
+      router.replace('/(tabs)/quotes');
+    } catch (mutationError) {
+      setSnack(toUserErrorMessage(mutationError, 'No se pudo eliminar el trabajo.'));
+      setDeleteQuoteConfirm(false);
+    }
+  };
 
   const saveCurrentJob = async () => {
     if (!data) return;
@@ -317,11 +366,27 @@ export default function QuoteDetailPage() {
             <Divider />
           </View>
 
-          <Text variant="titleMedium" style={styles.sectionHeading}>
-            Cliente
-          </Text>
+          <Pressable
+            onPress={toggleCliente}
+            style={({ pressed }) => [styles.accordionHeader, pressed && styles.accordionHeaderPressed]}
+          >
+            <Text variant="titleMedium" style={styles.accordionTitle}>
+              Cliente
+            </Text>
+            <Animated.View style={{ transform: [{ rotate: clienteAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+              <Icon source="chevron-down" size={22} />
+            </Animated.View>
+          </Pressable>
+          <Animated.View style={[styles.accordionBody, { maxHeight: clienteAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 900] }), opacity: clienteAnim }]}>
           <Card mode="contained" style={styles.sectionCard}>
             <Card.Content style={styles.sectionContent}>
+              {isCompleted && (
+                <View style={styles.lockedBanner}>
+                  <Text style={styles.lockedBannerText}>
+                    Este trabajo está terminado. Cambiá el estado a Pendiente para editar.
+                  </Text>
+                </View>
+              )}
               <QuoteForm
                 defaultValues={{
                   client_name: data.quote.client_name,
@@ -330,6 +395,7 @@ export default function QuoteDetailPage() {
                   notes: data.quote.notes ?? '',
                 }}
                 buttonLabel="Guardar cliente"
+                disabled={isCompleted || isBusy}
                 onSubmit={async (values) => {
                   try {
                     await save.mutateAsync({
@@ -347,12 +413,29 @@ export default function QuoteDetailPage() {
               />
             </Card.Content>
           </Card>
+          </Animated.View>
 
-          <Text variant="titleMedium" style={styles.sectionHeading}>
-            Fecha
-          </Text>
+          <Pressable
+            onPress={toggleFecha}
+            style={({ pressed }) => [styles.accordionHeader, pressed && styles.accordionHeaderPressed]}
+          >
+            <Text variant="titleMedium" style={styles.accordionTitle}>
+              Fecha
+            </Text>
+            <Animated.View style={{ transform: [{ rotate: fechaAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+              <Icon source="chevron-down" size={22} />
+            </Animated.View>
+          </Pressable>
+          <Animated.View style={[styles.accordionBody, { maxHeight: fechaAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 900] }), opacity: fechaAnim }]}>
           <Card mode="contained" style={styles.sectionCard}>
             <Card.Content style={styles.sectionContent}>
+              {isCompleted && (
+                <View style={styles.lockedBanner}>
+                  <Text style={styles.lockedBannerText}>
+                    Este trabajo está terminado. Cambiá el estado a Pendiente para editar.
+                  </Text>
+                </View>
+              )}
               <TextInput
                 mode="outlined"
                 label="Fecha (DD-MM-AAAA)"
@@ -362,6 +445,7 @@ export default function QuoteDetailPage() {
                 keyboardType="number-pad"
                 maxLength={10}
                 outlineStyle={styles.inputOutline}
+                disabled={isCompleted || isBusy}
                 right={<TextInput.Icon icon="calendar-month-outline" onPress={toggleInlineCalendar} />}
               />
               <TextInput
@@ -373,6 +457,7 @@ export default function QuoteDetailPage() {
                 keyboardType="number-pad"
                 maxLength={5}
                 outlineStyle={styles.inputOutline}
+                disabled={isCompleted || isBusy}
               />
               {calendarVisible ? (
                 <Card mode="contained" style={styles.inlineCalendarCard}>
@@ -466,7 +551,7 @@ export default function QuoteDetailPage() {
                 <Button
                   mode="contained"
                   icon="calendar-check-outline"
-                  disabled={isBusy}
+                  disabled={isCompleted || isBusy}
                   onPress={scheduleCurrentJob}
                   style={styles.actionButton}
                   contentStyle={styles.actionButtonContent}
@@ -477,7 +562,7 @@ export default function QuoteDetailPage() {
                   <Button
                     mode="outlined"
                     textColor="#B3261E"
-                    disabled={isBusy}
+                    disabled={isCompleted || isBusy}
                     onPress={unscheduleCurrentJob}
                     style={styles.actionButton}
                     contentStyle={styles.actionButtonContent}
@@ -488,6 +573,7 @@ export default function QuoteDetailPage() {
               </View>
             </Card.Content>
           </Card>
+          </Animated.View>
 
           <View style={styles.contentDivider}>
             <Divider />
@@ -627,6 +713,18 @@ export default function QuoteDetailPage() {
               </View>
             </Card.Content>
           </Card>
+
+          {canDeleteQuote && (
+            <View style={styles.deleteQuoteRow}>
+              <Pressable
+                onPress={() => setDeleteQuoteConfirm(true)}
+                disabled={isBusy}
+                style={({ pressed }) => [styles.deleteQuoteButton, pressed && styles.deleteQuoteButtonPressed]}
+              >
+                <Icon source="trash-can-outline" size={20} color="#B91C1C" />
+              </Pressable>
+            </View>
+          )}
         </View>
       )}
 
@@ -652,6 +750,15 @@ export default function QuoteDetailPage() {
           }
         }}
       />
+
+      <ConfirmDeleteDialog
+        visible={deleteQuoteConfirm}
+        title="Eliminar trabajo"
+        message="¿Seguro que queres eliminar este trabajo? Esta acción no se puede deshacer."
+        loading={deleteQuote.isPending}
+        onCancel={() => setDeleteQuoteConfirm(false)}
+        onConfirm={deleteCurrentQuote}
+      />
     </AppScreen>
   );
 }
@@ -676,6 +783,35 @@ const styles = StyleSheet.create({
   sectionHeading: {
     flex: 1,
     marginBottom: 0,
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  accordionHeaderPressed: {
+    opacity: 0.7,
+  },
+  accordionTitle: {
+    flex: 1,
+  },
+  accordionBody: {
+    overflow: 'hidden',
+  },
+  lockedBanner: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#FFE082',
+  },
+  lockedBannerText: {
+    color: '#5F4200',
+    fontSize: 13,
+    lineHeight: 18,
   },
   statusTitle: {
     flexGrow: 0,
@@ -921,5 +1057,22 @@ const styles = StyleSheet.create({
   inlineAgendaText: {
     flex: 1,
     color: '#1F2937',
+  },
+  deleteQuoteRow: {
+    alignItems: 'center',
+    paddingBottom: 8,
+  },
+  deleteQuoteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deleteQuoteButtonPressed: {
+    opacity: 0.7,
   },
 });

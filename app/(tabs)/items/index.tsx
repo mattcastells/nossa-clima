@@ -17,7 +17,7 @@ export default function ItemsScreen() {
   const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const menuWidth = screenWidth - 32;
-  const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_GREEN;
+  const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : '#1A1A1A';
   const filterChipBorderColor = theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID;
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
@@ -79,12 +79,18 @@ export default function ItemsScreen() {
       />
 
       <View style={styles.topActions}>
-        <Link href="/items/new" asChild>
-          <Button mode="contained">Nuevo material</Button>
+        <Link href="/items/new" asChild style={styles.topActionItem}>
+          <Button
+            mode="contained-tonal"
+            buttonColor={theme.colors.softGreen}
+            textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
+            style={{ borderWidth: 1, borderColor: theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID, borderRadius: 8, flex: 1 }}
+            contentStyle={styles.newButtonContent}
+          >
+            Nuevo material
+          </Button>
         </Link>
-      </View>
 
-      <View style={styles.filterRow}>
         <Menu
           visible={categoryMenuOpen}
           onDismiss={() => setCategoryMenuOpen(false)}
@@ -114,18 +120,18 @@ export default function ItemsScreen() {
           }
         >
           <View style={styles.menuGrid}>
-            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories.map((c) => ({ key: c, label: c }))].map((item, idx, arr) => {
-              const lastRowStart = arr.length % 2 === 0 ? arr.length - 2 : arr.length - 1;
-              const isLastRow = idx >= lastRowStart;
+            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories.map((c) => ({ key: c, label: c }))].map((item) => {
+              const isSelected = selectedCategory === item.key;
               return (
                 <TouchableRipple
                   key={item.key}
                   onPress={() => { setSelectedCategory(item.key); setCategoryMenuOpen(false); }}
-                  style={[styles.menuGridItem, !isLastRow && styles.menuGridItemBorder, idx % 2 === 0 && styles.menuGridItemLeft]}
+                  style={[styles.menuGridItem, isSelected && styles.menuGridItemSelected]}
+                  borderless
                 >
                   <View style={styles.menuGridItemInner}>
-                    {selectedCategory === item.key && <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>}
-                    <Text style={[styles.menuGridItemText, selectedCategory === item.key && styles.menuGridItemTextSelected]} numberOfLines={1}>{item.label}</Text>
+                    {isSelected && <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>}
+                    <Text style={[styles.menuGridItemText, isSelected && styles.menuGridItemTextSelected]} numberOfLines={1}>{item.label}</Text>
                   </View>
                 </TouchableRipple>
               );
@@ -147,7 +153,7 @@ export default function ItemsScreen() {
               <Card mode="outlined" style={styles.materialCard}>
                 <View style={[styles.headerBlock, { backgroundColor: theme.colors.softGreen }]}>
                   <View style={styles.headerMainRow}>
-                    <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]}>{formatItemDisplayName(item)}</Text>
+                    <Text style={[styles.headerTitle, { color: '#1A1A1A' }]}>{formatItemDisplayName(item)}</Text>
                     <Chip
                       compact
                       style={StyleSheet.flatten([
@@ -157,7 +163,7 @@ export default function ItemsScreen() {
                           borderColor: filterChipBorderColor,
                         },
                       ])}
-                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: theme.colors.titleOnSoft }])}
+                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: '#1A1A1A' }])}
                     >
                       {item.category ?? 'Sin categoria'}
                     </Chip>
@@ -188,7 +194,14 @@ const styles = StyleSheet.create({
   },
   topActions: {
     flexDirection: 'row',
+    alignItems: 'stretch',
     gap: 8,
+  },
+  topActionItem: {
+    flex: 1,
+  },
+  newButtonContent: {
+    height: 42,
   },
   categoryRow: {
     gap: 8,
@@ -200,67 +213,71 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterDropdown: {
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
     flex: 1,
+    justifyContent: 'center',
+    minHeight: 42,
   },
   filterDropdownInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
   },
   filterDropdownIcon: {
-    fontSize: 14,
+    fontSize: 13,
   },
   filterDropdownText: {
     fontSize: 14,
     fontWeight: '500',
-    flex: 1,
   },
   filterDropdownArrow: {
-    fontSize: 12,
-    marginLeft: 2,
+    fontSize: 11,
   },
   menuContent: {
-    paddingVertical: 4,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   menuWrapper: {
     flex: 1,
   },
   menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 4,
+    flexDirection: 'column',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 6,
   },
   menuGridItem: {
-    width: '50%',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: '#D5D5D5',
+    backgroundColor: '#FFFFFF',
   },
-  menuGridItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  menuGridItemLeft: {
-    borderRightWidth: StyleSheet.hairlineWidth,
+  menuGridItemSelected: {
+    borderColor: '#C0D4B8',
+    backgroundColor: '#E4EDE0',
   },
   menuGridItemInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   menuCheckIcon: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   menuGridItemText: {
-    fontSize: 14,
-    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#1A1A1A',
   },
   menuGridItemTextSelected: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   filterChip: {
     borderRadius: 999,

@@ -1,5 +1,5 @@
 import { useRouter, useSegments, type Href } from 'expo-router';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,12 +9,13 @@ import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 
 interface Props extends PropsWithChildren {
   title?: string;
+  titleRight?: ReactNode;
   showBackButton?: boolean;
   showHomeButton?: boolean;
   scrollable?: boolean;
 }
 
-export const AppScreen = ({ title, children, showBackButton = true, showHomeButton = true, scrollable = true }: Props) => {
+export const AppScreen = ({ title, titleRight, children, showBackButton = true, showHomeButton = true, scrollable = true }: Props) => {
   const router = useRouter();
   const segments = useSegments();
   const theme = useTheme();
@@ -55,9 +56,12 @@ export const AppScreen = ({ title, children, showBackButton = true, showHomeButt
         )}
       </View>
       {title ? (
-        <Text variant="headlineSmall" style={styles.title}>
-          {title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text variant="headlineSmall" style={[styles.title, titleRight ? styles.titleFlex : undefined]}>
+            {title}
+          </Text>
+          {titleRight ? <View style={styles.titleRightContainer}>{titleRight}</View> : null}
+        </View>
       ) : null}
       <View style={[styles.content, !scrollable && styles.flexContent]}>{children}</View>
     </AnimatedEntrance>
@@ -84,7 +88,10 @@ const styles = StyleSheet.create({
   flexContainer: { flex: 1, paddingBottom: 24 },
   navRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, minHeight: 34 },
   backButton: { alignSelf: 'flex-start', marginBottom: 4 },
-  title: { marginBottom: 18 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 18 },
+  titleFlex: { flex: 1 },
+  titleRightContainer: { marginLeft: 8, paddingBottom: 2 },
+  title: { marginBottom: 0 },
   content: { gap: 16 },
   flexContent: { flex: 1, minHeight: 0 },
 });

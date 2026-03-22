@@ -5,6 +5,7 @@ import {
   addQuoteServiceItem,
   deleteAllQuotes,
   deleteOldQuotes,
+  deleteQuote,
   deleteQuoteMaterialItem,
   deleteQuoteServiceItem,
   duplicateQuoteMaterialItem,
@@ -167,6 +168,17 @@ export const useDeleteAllQuotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
       queryClient.invalidateQueries({ queryKey: ['quote-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+};
+
+export const useDeleteQuote = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (quoteId: string) => deleteQuote(quoteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
   });

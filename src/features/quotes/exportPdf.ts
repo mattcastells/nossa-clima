@@ -219,22 +219,17 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         h2 { font-size: 15px; line-height: 1.2; margin: 0; color: ${BRAND_BLUE_HEX}; }
         .muted { color: #6b7280; font-size: 12px; }
         .header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 20px;
+          margin-bottom: 4px;
         }
         .brand-block {
-          width: 320px;
-          display: flex;
-          justify-content: flex-end;
+          width: 280px;
           margin-left: auto;
+          margin-bottom: 14px;
         }
-        .brand-logo { width: 100%; max-width: 280px; background: #ffffff; }
+        .brand-logo { width: 100%; background: #ffffff; }
         .brand-logo img, .brand-logo svg { display: block; width: 100%; height: auto; }
         .document-block {
-          flex: 1;
-          padding-top: 18px;
+          padding-top: 0;
         }
         .contact-card {
           min-width: 280px;
@@ -315,12 +310,12 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
     </head>
     <body>
       <div class="header">
+        <div class="brand-block">
+          <div class="brand-logo">${logoMarkup}</div>
+        </div>
         <div class="document-block">
           <h1>Presupuesto tecnico</h1>
           <div class="muted">Fecha: ${escapeHtml(quoteDate)}</div>
-        </div>
-        <div class="brand-block">
-          <div class="brand-logo">${logoMarkup}</div>
         </div>
       </div>
 

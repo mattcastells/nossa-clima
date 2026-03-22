@@ -48,6 +48,7 @@ export const lightTheme: AppTheme = {
     error: '#C62828',
     softBlue: '#E2ECF8',
     softGreen: '#E4EDE0',
+    softYellow: BRAND_YELLOW_SOFT,
     softBlueStrong: '#B8CFE6',
     softGreenStrong: '#C0D4B8',
     tableHeaderBg: '#DFE5ED',

@@ -152,13 +152,13 @@ export default function ServiceCategoriesPage() {
           <Card mode="outlined" style={styles.categoryCard}>
             <Card.Content style={styles.categoryCardContent}>
               <View style={styles.categoryInfo}>
-                <Text variant="titleMedium">{item.name}</Text>
+                <Text variant="titleSmall">{item.name}</Text>
                 <Text style={styles.helperText}>
                   {item.isVirtual
-                    ? `${item.usageCount} servicio(s) sin categoria`
+                    ? `${item.usageCount} sin categoria`
                     : item.usageCount > 0
-                      ? `${item.usageCount} servicio(s) asociado(s)`
-                      : 'Sin servicios asociados'}
+                      ? `${item.usageCount} servicio(s)`
+                      : 'Sin servicios'}
                 </Text>
               </View>
               {!item.isVirtual ? (
@@ -212,9 +212,11 @@ export default function ServiceCategoriesPage() {
         <AppDialog visible={Boolean(deleteTarget)} onDismiss={() => !busy && setDeleteTarget(null)}>
           <Dialog.Title>Borrar categoria</Dialog.Title>
           <Dialog.Content style={styles.dialogContent}>
-            <Text>Se va a eliminar la categoria {deleteTarget?.name}.</Text>
+            <Text>Se va a eliminar la categoria <Text style={{ fontWeight: '600' }}>{deleteTarget?.name}</Text>.</Text>
             {deleteTarget && deleteTarget.usageCount > 0 ? (
-              <Text>Ademas, se quitara esa categoria de {deleteTarget.usageCount} servicio(s).</Text>
+              <Text style={styles.helperText}>
+                {`Los ${deleteTarget.usageCount} servicio(s) asociados pasaran a "Sin categoria".`}
+              </Text>
             ) : null}
           </Dialog.Content>
           <Dialog.Actions>
@@ -247,16 +249,21 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 12,
-    gap: 10,
+    gap: 6,
   },
   categoryCard: {
-    borderRadius: 12,
+    borderRadius: 10,
   },
   categoryCardContent: {
-    gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
   categoryInfo: {
-    gap: 2,
+    flex: 1,
+    gap: 1,
   },
   helperText: {
     color: '#5f6368',
@@ -268,8 +275,9 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 0,
   },
   dialogContent: {
     gap: 10,

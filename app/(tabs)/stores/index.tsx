@@ -7,7 +7,7 @@ import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
-import { BRAND_YELLOW, useAppTheme } from '@/theme';
+import { BRAND_YELLOW_MID, useAppTheme } from '@/theme';
 
 export default function StoresScreen() {
   const { data, isLoading, error } = useStores();
@@ -45,7 +45,12 @@ export default function StoresScreen() {
 
       <View style={styles.topActions}>
         <Link href="/stores/new" asChild>
-          <Button mode="contained-tonal" buttonColor={theme.colors.softYellow} textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_YELLOW}>
+          <Button
+            mode="contained-tonal"
+            buttonColor={theme.colors.softYellow}
+            textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
+            style={{ borderWidth: 1, borderColor: theme.dark ? theme.colors.softBlueStrong : BRAND_YELLOW_MID }}
+          >
             Nueva tienda
           </Button>
         </Link>
@@ -62,7 +67,7 @@ export default function StoresScreen() {
             <Link href={`/stores/${item.id}`} asChild>
               <Card mode="outlined" style={styles.storeCard}>
                 <View style={[styles.headerBlock, { backgroundColor: theme.colors.softYellow }]}>
-                  <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]}>{item.name}</Text>
+                  <Text style={[styles.headerTitle, { color: '#1A1A1A' }]}>{item.name}</Text>
                 </View>
                 <Card.Content style={styles.storeCardContent}>
                   {item.address ? <Text style={{ color: theme.colors.onSurface }}>Ubicacion: {item.address}</Text> : null}

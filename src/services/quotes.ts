@@ -324,6 +324,10 @@ const deleteQuotesByIds = async (quoteIds: string[]): Promise<number> => {
   return deletedQuotes;
 };
 
+export const deleteQuote = async (quoteId: string): Promise<void> => {
+  await deleteQuotesByIds([quoteId]);
+};
+
 const getItemAndValidate = async (itemId: string): Promise<Item> => {
   const { data, error } = await supabase.from('items').select('*').eq('id', itemId).single();
   if (error) throw error;
