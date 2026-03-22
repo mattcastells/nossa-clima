@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Button, Card, IconButton, Searchbar, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
@@ -17,6 +17,10 @@ const PAGE_SIZE_GRID = 6;
 export default function QuotesScreen() {
   const { data, isLoading, error } = useQuotes();
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
+  const useCardGrid = width >= 360;
+  const useTwoColumns = width >= 680;
+  const pageSize = useCardGrid ? PAGE_SIZE_GRID : PAGE_SIZE_SINGLE_COLUMN;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
@@ -109,55 +113,27 @@ export default function QuotesScreen() {
           const descriptionValue = item.description?.trim() || item.notes?.trim() || 'Sin descripcion';
 
           return (
-            <AnimatedEntrance delay={90 + index * 40} distance={12}>
-              <Link href={`/quotes/${item.id}`} asChild>
-                <Card mode="outlined" style={styles.quoteCard}>
-                  <View style={[styles.headerBlock, { backgroundColor: theme.dark ? '#2A3545' : '#E8EDF4' }]}>
-                    <View style={styles.headerRow}>
-                      <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                      <View style={styles.statusDotWrapper}>
-                        <View
-                          accessible
-                          accessibilityLabel={quoteStatusLabel(item.status)}
-                          style={[
-                            styles.statusDot,
-                            {
-                              backgroundColor: statusAccent.backgroundColor,
-                              borderColor: statusAccent.borderColor,
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  </View>
-                  <Card.Content style={styles.quoteContent}>
-                    <View style={styles.metaGrid}>
-                      <View style={styles.metaRow}>
-                        <View style={[styles.metaCard, styles.metaCell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
-                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Cliente</Text>
-                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
-                            {item.client_name}
-                          </Text>
-                        </View>
-                        <View style={[styles.metaCard, styles.metaCell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
-                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Fecha</Text>
-                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={2}>
-                            {timeValue ? `${dateValue} - ${timeValue}` : dateValue}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.metaRow}>
-                        <View style={[styles.metaCard, styles.metaCell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceSoft }]}>
-                          <Text style={[styles.metaLabel, { color: theme.colors.textMuted }]}>Descripcion</Text>
-                          <Text style={[styles.metaValue, { color: theme.colors.onSurface }]} numberOfLines={3}>
-                            {descriptionValue}
-                          </Text>
-                        </View>
-                        <View style={[styles.metaCard, styles.metaCell, styles.totalCard, { backgroundColor: theme.colors.softBlue, borderColor: theme.colors.softBlueStrong }]}>
-                          <Text style={[styles.metaLabel, styles.totalLabel, { color: theme.colors.primary }]}>Total</Text>
-                          <Text style={[styles.totalValue, { color: theme.colors.primary }]} numberOfLines={1}>{formatCurrencyArs(item.total)}</Text>
+            <View style={[styles.quoteCardCell, useCardGrid && styles.quoteCardCellGrid]}>
+              <AnimatedEntrance delay={90 + index * 40} distance={12}>
+                <Link href={`/quotes/${item.id}`} asChild>
+                  <Card mode="outlined" style={styles.quoteCard}>
+                    <View style={[styles.headerBlock, { backgroundColor: theme.dark ? '#2A3545' : '#E8EDF4' }]}>
+                      <View style={styles.headerRow}>
+                        <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
+                          {item.title}
+                        </Text>
+                        <View style={styles.statusDotWrapper}>
+                          <View
+                            accessible
+                            accessibilityLabel={quoteStatusLabel(item.status)}
+                            style={[
+                              styles.statusDot,
+                              {
+                                backgroundColor: statusAccent.backgroundColor,
+                                borderColor: statusAccent.borderColor,
+                              },
+                            ]}
+                          />
                         </View>
                       </View>
                     </View>
@@ -318,15 +294,16 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 8,
   },
-  metaGrid: {
-    gap: 8,
-  },
-  metaRow: {
+  metaColumns: {
     flexDirection: 'row',
     gap: 8,
   },
-  metaCell: {
+  metaColumnsStacked: {
+    flexDirection: 'column',
+  },
+  metaColumn: {
     flex: 1,
+    gap: 8,
   },
   metaCard: {
     gap: 2,
@@ -349,6 +326,7 @@ const styles = StyleSheet.create({
   totalCard: {
   },
   totalLabel: {},
+  descriptionCard: {},
   totalValue: {
     fontSize: 15,
     lineHeight: 20,

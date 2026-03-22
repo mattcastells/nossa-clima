@@ -463,7 +463,6 @@ export default function AddMaterialToQuotePage() {
                   editable={Boolean(selectedStoreId)}
                   inputStyle={styles.searchbarInput}
                   style={styles.searchbar}
-                  inputStyle={styles.searchInput}
                 />
 
                 {selectedStoreId ? (
@@ -674,16 +673,6 @@ export default function AddMaterialToQuotePage() {
           </Dialog.Content>
         </AppDialog>
       </View>
-
-      <StoreSelectorDialog
-        visible={storeDialogVisible}
-        stores={availableStores}
-        selectedStoreId={selectedStoreId}
-        onSelect={(storeId) => setSelectedStoreId(storeId ?? null)}
-        onDismiss={() => setStoreDialogVisible(false)}
-        title="Seleccionar tienda para el material"
-        allowNoStore={false}
-      />
     </AppScreen>
   );
 }
@@ -917,5 +906,14 @@ const styles = StyleSheet.create({
   backButton: {
     borderRadius: 10,
     marginTop: 4,
+  },
+  inputContent: {
+    paddingTop: 6,
+    paddingBottom: 6,
+  },
+  inputContentMultiline: {
+    paddingTop: 8,
+    paddingBottom: 8,
+    minHeight: 80,
   },
 });
