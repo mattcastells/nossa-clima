@@ -6,6 +6,7 @@ import { Button, Card, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { useAppointmentsInMonth, useCreateAppointment, useDeleteAppointment } from '@/features/appointments/hooks';
+import { useNotificationSync } from '@/features/appointments/useNotificationSync';
 import { quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { formatIsoDate, getCalendarCells, maskTimeInput, monthLabel, normalizeOptionalTimeInput, toHumanDate } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
@@ -40,6 +41,9 @@ export const WorkCalendarCard = () => {
   const theme = useAppTheme();
   const isFocused = useIsFocused();
   const [monthAnchor, setMonthAnchor] = useState(getCurrentMonthAnchor);
+
+  // Sync local notifications with upcoming appointments from Supabase on mount
+  useNotificationSync();
   const [selectedDate, setSelectedDate] = useState(getCurrentSelectedDate);
   const [title, setTitle] = useState('');
   const [startsAt, setStartsAt] = useState('');

@@ -8,6 +8,10 @@ import {
   type AppointmentInput,
   upsertQuoteAppointment,
 } from '@/services/appointments';
+import {
+  cancelAppointmentReminder,
+  scheduleAppointmentReminder,
+} from '@/services/notifications';
 
 const formatLocalDate = (value: Date): string => {
   const year = value.getFullYear();
@@ -39,6 +43,14 @@ export const useCreateAppointment = () => {
       if (appointment.quote_id) {
         queryClient.invalidateQueries({ queryKey: ['quote-detail', appointment.quote_id] });
       }
+      // Schedule a reminder if the appointment has a time set
+      void scheduleAppointmentReminder({
+        id: appointment.id,
+        scheduled_for: appointment.scheduled_for,
+        starts_at: appointment.starts_at,
+        title: appointment.title,
+        quote_id: appointment.quote_id ?? null,
+      });
     },
   });
 };
@@ -47,11 +59,13 @@ export const useDeleteAppointment = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (appointmentId: string) => deleteAppointment(appointmentId),
-    onSuccess: (result) => {
+    onSuccess: (result, appointmentId) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       if (result.quote_id) {
         queryClient.invalidateQueries({ queryKey: ['quote-detail', result.quote_id] });
       }
+      // Cancel the reminder for the deleted appointment
+      void cancelAppointmentReminder(appointmentId);
     },
   });
 };
@@ -63,6 +77,14 @@ export const useUpsertQuoteAppointment = () => {
     onSuccess: (appointment) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['quote-detail', appointment.quote_id] });
+      // Reschedule reminder (cancels the previous one and schedules the new time)
+      void scheduleAppointmentReminder({
+        id: appointment.id,
+        scheduled_for: appointment.scheduled_for,
+        starts_at: appointment.starts_at,
+        title: appointment.title,
+        quote_id: appointment.quote_id ?? null,
+      });
     },
   });
 };

@@ -110,6 +110,29 @@ export const upsertQuoteAppointment = async (
   return data;
 };
 
+/**
+ * Lists all upcoming appointments (from today onwards) that have a time set.
+ * Used to sync local notifications when the app opens.
+ */
+export const listUpcomingAppointments = async (): Promise<Appointment[]> => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const dateFrom = `${yyyy}-${mm}-${dd}`;
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .gte('scheduled_for', dateFrom)
+    .not('starts_at', 'is', null)
+    .order('scheduled_for')
+    .order('starts_at');
+
+  if (error) throw error;
+  return data ?? [];
+};
+
 export const linkAppointmentToQuote = async ({
   appointmentId,
   quoteId,

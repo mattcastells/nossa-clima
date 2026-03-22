@@ -13,6 +13,10 @@ import { useThemeStore } from '@/features/theme/store';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { getMissingRequiredEnvVars, hasMissingRequiredEnvVars } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';
+import {
+  requestNotificationPermissions,
+  setupNotificationChannel,
+} from '@/services/notifications';
 import { darkTheme, lightTheme } from '@/theme';
 
 function AppShell({ backgroundColor }: { backgroundColor: string }) {
@@ -68,6 +72,15 @@ export default function RootLayout() {
   const preference = useThemeStore((s) => s.preference);
   const hasHydrated = useThemeStore((s) => s.hasHydrated);
   const activeTheme = preference === 'dark' ? darkTheme : lightTheme;
+
+  // Initialize notification channel and request permissions once on startup
+  useEffect(() => {
+    const initNotifications = async () => {
+      await setupNotificationChannel();
+      await requestNotificationPermissions();
+    };
+    void initNotifications();
+  }, []);
 
   return (
     <PaperProvider theme={activeTheme}>
