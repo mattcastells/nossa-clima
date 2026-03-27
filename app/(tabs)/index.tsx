@@ -18,6 +18,7 @@ const HOME_ACTIONS: HomeAction[] = [
   { title: 'Tiendas', href: '/stores', icon: 'store-outline' },
   { title: 'Materiales', href: '/items', icon: 'cube-outline' },
   { title: 'Servicios', href: '/services', icon: 'wrench-outline' },
+  { title: 'Manuales', href: '/documents', icon: 'file-pdf-box' },
   { title: 'Asistente', href: '/assistant', icon: 'robot-outline' },
   { title: 'Opciones', href: '/settings', icon: 'cog-outline' },
 ];
@@ -26,7 +27,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const homeBannerSource = theme.dark ? require('../../assets/nc-logo-dark.png') : require('../../assets/nc-logo-light.png');
-  const homeLogoIconSource = theme.dark ? require('../../assets/logo-icon-dark.png') : require('../../assets/logo-icon-light.png');
 
   return (
     <AppScreen showBackButton={false}>
@@ -56,11 +56,6 @@ export default function HomeScreen() {
             </Pressable>
           </AnimatedEntrance>
         ))}
-        <AnimatedEntrance delay={90 + HOME_ACTIONS.length * 45} distance={14} style={styles.logoShell}>
-          <View style={styles.logoWrap} pointerEvents="none">
-            <Image source={homeLogoIconSource} style={styles.logoTileImage} resizeMode="contain" />
-          </View>
-        </AnimatedEntrance>
       </View>
     </AppScreen>
   );
@@ -114,24 +109,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-  },
-  logoShell: {
-    width: '48%',
-    aspectRatio: 1,
-    marginBottom: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoWrap: {
-    width: '74%',
-    maxWidth: 124,
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoTileImage: {
-    width: '100%',
-    height: '100%',
   },
   iconBubble: {
     width: 54,

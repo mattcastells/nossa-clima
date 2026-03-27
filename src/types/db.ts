@@ -215,6 +215,17 @@ export interface Appointment {
   updated_at: string;
 }
 
+export interface PdfFile {
+  id: string;
+  user_id: string;
+  file_name: string;
+  storage_path: string;
+  mime_type: string;
+  file_size_bytes: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProfileDirectoryEntry {
   id: string;
   full_name: string | null;
