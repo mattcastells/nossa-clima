@@ -7,13 +7,20 @@ import { getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '.
 
 const BRAND_BLUE_HEX = '#032D6E';
 const BRAND_BLUE_RGB: [number, number, number] = [3, 45, 110];
+const BRAND_BLUE_SOFT_HEX = '#CAD7EA';
+const BRAND_BLUE_SOFT_RGB: [number, number, number] = [202, 215, 234];
 const TEXT_DARK_RGB: [number, number, number] = [17, 24, 39];
 const TEXT_MUTED_RGB: [number, number, number] = [107, 114, 128];
 const BORDER_RGB: [number, number, number] = [220, 228, 236];
 const COMPANY_EMAIL = 'nossaclima@gmail.com';
 const COMPANY_PHONE = '11-3001-9957';
+const HTML_SUMMARY_CARD_WIDTH = 260;
+const HTML_SUMMARY_CARD_HEIGHT = 96;
+const PDF_SUMMARY_CARD_WIDTH = 240;
+const PDF_SUMMARY_ROW_HEIGHT = 24;
+const PDF_SUMMARY_CARD_HEIGHT = PDF_SUMMARY_ROW_HEIGHT * 3;
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const brandBanner = require('../../../assets/nossa-banner.png');
+const brandBanner = require('../../../assets/nc-logo-light.png');
 
 type PdfDocument = import('jspdf').jsPDF;
 type AutoTableFn = (doc: PdfDocument, options: Record<string, unknown>) => void;
@@ -215,7 +222,14 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
       <title>Presupuesto ${escapeHtml(quote.title)}</title>
       <style>
         * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; color: #111827; padding: 26px 28px 30px; margin: 0; }
+        body {
+          --summary-card-width: ${HTML_SUMMARY_CARD_WIDTH}px;
+          --summary-card-height: ${HTML_SUMMARY_CARD_HEIGHT}px;
+          font-family: Arial, sans-serif;
+          color: #111827;
+          padding: 26px 28px 30px;
+          margin: 0;
+        }
         h1 { font-size: 24px; line-height: 1.1; margin: 0; color: ${BRAND_BLUE_HEX}; }
         h2 { font-size: 15px; line-height: 1.2; margin: 0; color: ${BRAND_BLUE_HEX}; }
         .muted { color: #6b7280; font-size: 12px; }
@@ -233,19 +247,20 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
           padding-top: 0;
         }
         .contact-card {
-          min-width: 280px;
-          max-width: 280px;
-          border: 1px solid #dce4ec;
+          flex: 0 0 var(--summary-card-width);
+          width: var(--summary-card-width);
+          height: var(--summary-card-height);
+          border: 1.5px solid ${BRAND_BLUE_HEX};
           border-radius: 12px;
-          padding: 14px 16px;
-          background: #f8fafc;
+          padding: 12px 16px 14px;
+          background: #ffffff;
         }
         .contact-title {
           font-size: 11px;
-          color: #6b7280;
+          color: ${BRAND_BLUE_HEX};
           text-transform: uppercase;
           letter-spacing: .04em;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
           text-decoration: underline;
           font-weight: 700;
         }
@@ -257,14 +272,19 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         }
         .contact-line .label {
           margin-bottom: 0;
+          text-transform: none;
+          letter-spacing: 0;
+          color: #5f6f86;
         }
         .contact-line .value {
           text-align: right;
           min-width: 0;
-          max-width: 170px;
+          max-width: 160px;
+          font-size: 12px;
+          line-height: 1.25;
           overflow-wrap: anywhere;
         }
-        .contact-line + .contact-line { margin-top: 8px; }
+        .contact-line + .contact-line { margin-top: 10px; }
         .box {
           border: 1px solid #dce4ec;
           border-radius: 12px;
@@ -296,12 +316,20 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
         .right { text-align: center; white-space: nowrap; }
         .totals-wrap { margin-top: 18px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
         .totals {
-          width: 260px;
-          border: 1px solid #dce4ec;
+          flex: 0 0 var(--summary-card-width);
+          width: var(--summary-card-width);
+          height: var(--summary-card-height);
+          border: 1.5px solid ${BRAND_BLUE_HEX};
           border-radius: 12px;
           overflow: hidden;
         }
-        .totals td { font-size: 12px; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+        .totals td {
+          font-size: 12px;
+          padding: 0 12px;
+          height: calc(var(--summary-card-height) / 3);
+          vertical-align: middle;
+          border-bottom: 1px solid ${BRAND_BLUE_SOFT_HEX};
+        }
         .totals tr:last-child td {
           background: ${BRAND_BLUE_HEX};
           color: #ffffff;
@@ -398,7 +426,6 @@ const buildQuotePdfHtml = (detail: QuoteDetail, brandLogoUri: string): string =>
       <div class="totals-wrap">
         <div class="contact-card">
           <div class="contact-title">Contacto:</div>
-          <br />
           <div class="contact-line">
             <div class="label">Telefono</div>
             <div class="value">${escapeHtml(COMPANY_PHONE)}</div>
@@ -480,35 +507,37 @@ const drawInfoCard = (doc: PdfDocument, detail: QuoteDetail, x: number, y: numbe
 };
 
 const drawContactCard = (doc: PdfDocument, x: number, y: number, width: number): number => {
-  const height = 94;
-  const firstRowY = y + 50;
-  const secondRowY = y + 70;
+  const height = PDF_SUMMARY_CARD_HEIGHT;
+  const titleY = y + 16;
+  const firstRowY = y + 40;
+  const secondRowY = y + 58;
 
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(...BORDER_RGB);
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(...BRAND_BLUE_RGB);
+  doc.setLineWidth(1);
   doc.roundedRect(x, y, width, height, 10, 10, 'FD');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(...TEXT_MUTED_RGB);
+  doc.setTextColor(...BRAND_BLUE_RGB);
   const titleText = 'CONTACTO:';
-  doc.text(titleText, x + 14, y + 18);
+  doc.text(titleText, x + 12, titleY);
   const titleWidth = doc.getTextWidth(titleText);
-  doc.setDrawColor(...TEXT_MUTED_RGB);
+  doc.setDrawColor(...BRAND_BLUE_RGB);
   doc.setLineWidth(0.5);
-  doc.line(x + 14, y + 20, x + 14 + titleWidth, y + 20);
+  doc.line(x + 12, titleY + 2, x + 12 + titleWidth, titleY + 2);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(...TEXT_MUTED_RGB);
-  doc.text('Telefono', x + 14, firstRowY);
+  doc.text('Telefono', x + 12, firstRowY);
   doc.setTextColor(...TEXT_DARK_RGB);
-  doc.text(COMPANY_PHONE, x + width - 14, firstRowY, { align: 'right' });
+  doc.text(COMPANY_PHONE, x + width - 12, firstRowY, { align: 'right' });
 
   doc.setTextColor(...TEXT_MUTED_RGB);
-  doc.text('Email', x + 14, secondRowY);
+  doc.text('Email', x + 12, secondRowY);
   doc.setTextColor(...TEXT_DARK_RGB);
-  doc.text(COMPANY_EMAIL, x + width - 14, secondRowY, { align: 'right' });
+  doc.text(COMPANY_EMAIL, x + width - 12, secondRowY, { align: 'right' });
 
   return height;
 };
@@ -528,10 +557,11 @@ const drawSectionTitle = (doc: PdfDocument, title: string, x: number, y: number,
 };
 
 const drawTotalsPanel = (doc: PdfDocument, detail: QuoteDetail, x: number, y: number, width: number): number => {
-  const rowHeight = 24;
-  const totalHeight = rowHeight * 3;
+  const rowHeight = PDF_SUMMARY_ROW_HEIGHT;
+  const totalHeight = PDF_SUMMARY_CARD_HEIGHT;
 
-  doc.setDrawColor(...BORDER_RGB);
+  doc.setDrawColor(...BRAND_BLUE_RGB);
+  doc.setLineWidth(1);
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(x, y, width, totalHeight, 10, 10, 'FD');
 
@@ -545,7 +575,8 @@ const drawTotalsPanel = (doc: PdfDocument, detail: QuoteDetail, x: number, y: nu
     const rowY = y + index * rowHeight;
 
     if (index > 0) {
-      doc.setDrawColor(...BORDER_RGB);
+      doc.setDrawColor(...BRAND_BLUE_SOFT_RGB);
+      doc.setLineWidth(0.5);
       doc.line(x, rowY, x + width, rowY);
     }
 
@@ -594,8 +625,8 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   let logoDrawn = false;
   const bannerWidth = 250;
   const logoX = pageWidth - marginX - bannerWidth;
-  const contactCardWidth = 190;
-  const totalsPanelWidth = 240;
+  const contactCardWidth = PDF_SUMMARY_CARD_WIDTH;
+  const totalsPanelWidth = PDF_SUMMARY_CARD_WIDTH;
   let logoHeight = 0;
 
   if (brandLogoUri) {
@@ -713,7 +744,7 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   cursorY = ensureVerticalSpace(doc, cursorY, 132);
   const contactCardHeight = drawContactCard(doc, marginX, cursorY, contactCardWidth);
   drawTotalsPanel(doc, detail, pageWidth - marginX - totalsPanelWidth, cursorY, totalsPanelWidth);
-  cursorY += Math.max(contactCardHeight, 72) + 16;
+  cursorY += Math.max(contactCardHeight, PDF_SUMMARY_CARD_HEIGHT) + 16;
 
   doc.save(buildPdfName(detail));
 };

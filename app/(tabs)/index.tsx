@@ -25,12 +25,16 @@ const HOME_ACTIONS: HomeAction[] = [
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const homeBannerSource = theme.dark ? require('../../assets/nc-logo-dark.png') : require('../../assets/nc-logo-light.png');
+  const homeLogoIconSource = theme.dark ? require('../../assets/logo-icon-dark.png') : require('../../assets/logo-icon-light.png');
 
   return (
     <AppScreen showBackButton={false}>
       <AnimatedEntrance delay={40} distance={10}>
         <View style={[styles.bannerBand, { backgroundColor: theme.colors.background }]}>
-          <Image source={require('../../assets/banner.png')} style={styles.banner} resizeMode="contain" />
+          <View style={styles.bannerFrame}>
+            <Image source={homeBannerSource} style={styles.bannerImage} resizeMode="contain" />
+          </View>
         </View>
       </AnimatedEntrance>
       <View style={styles.grid}>
@@ -52,6 +56,11 @@ export default function HomeScreen() {
             </Pressable>
           </AnimatedEntrance>
         ))}
+        <AnimatedEntrance delay={90 + HOME_ACTIONS.length * 45} distance={14} style={styles.logoShell}>
+          <View style={styles.logoWrap} pointerEvents="none">
+            <Image source={homeLogoIconSource} style={styles.logoTileImage} resizeMode="contain" />
+          </View>
+        </AnimatedEntrance>
       </View>
     </AppScreen>
   );
@@ -61,17 +70,22 @@ const styles = StyleSheet.create({
   bannerBand: {
     marginHorizontal: -8,
     marginTop: -8,
-    marginBottom: 10,
-    paddingVertical: 8,
+    marginBottom: 4,
+    paddingTop: 8,
+    paddingBottom: 2,
     paddingHorizontal: 12,
     backgroundColor: '#F3F5F7',
     alignItems: 'center',
   },
-  banner: {
-    width: '94%',
-    maxWidth: 560,
-    height: 68,
+  bannerFrame: {
+    width: '100%',
+    maxWidth: 640,
+    aspectRatio: 2000 / 435,
     alignSelf: 'center',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
   },
   grid: {
     flexDirection: 'row',
@@ -100,6 +114,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+  },
+  logoShell: {
+    width: '48%',
+    aspectRatio: 1,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoWrap: {
+    width: '74%',
+    maxWidth: 124,
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoTileImage: {
+    width: '100%',
+    height: '100%',
   },
   iconBubble: {
     width: 54,

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { useToastMessageEffect } from '@/components/AppToastProvider';
+import { CALENDAR_WEEKDAY_LABELS, getAppointmentClientLabel, getAppointmentDescription, getCalendarColors } from '@/features/appointments/calendarShared';
 import { useAppointmentsInMonth, useCreateAppointment, useDeleteAppointment } from '@/features/appointments/hooks';
 import { useNotificationSync } from '@/features/appointments/useNotificationSync';
 import { quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
@@ -12,22 +13,6 @@ import { formatIsoDate, getCalendarCells, maskTimeInput, monthLabel, normalizeOp
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatTimeShort } from '@/lib/format';
 import { useAppTheme } from '@/theme';
-
-const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-
-const getAppointmentClientLabel = (appointment: { quote: { client_name: string } | null; quote_id: string | null }): string =>
-  appointment.quote?.client_name ?? (appointment.quote_id ? '-' : 'Sin cliente');
-
-const getAppointmentDescription = (
-  appointment: {
-    title: string;
-    notes: string | null;
-    quote: { title: string; notes: string | null } | null;
-  },
-): string => {
-  const description = appointment.notes?.trim() || appointment.quote?.notes?.trim() || appointment.quote?.title?.trim() || appointment.title.trim();
-  return description || 'Sin descripcion';
-};
 
 const getCurrentMonthAnchor = (): Date => {
   const today = new Date();
@@ -39,6 +24,7 @@ const getCurrentSelectedDate = (): string => formatIsoDate(new Date());
 export const WorkCalendarCard = () => {
   const router = useRouter();
   const theme = useAppTheme();
+  const calendarColors = getCalendarColors(theme);
   const isFocused = useIsFocused();
   const [monthAnchor, setMonthAnchor] = useState(getCurrentMonthAnchor);
 
@@ -101,26 +87,42 @@ export const WorkCalendarCard = () => {
     monthAnchor.getMonth() === new Date().getMonth();
 
   return (
-    <Card style={styles.card}>
+    <Card style={[styles.card, { backgroundColor: calendarColors.panelBackground, borderColor: calendarColors.panelBorder }]}>
       <Card.Content style={styles.content}>
         <View style={styles.monthHeader}>
-          <Text variant="titleMedium" style={styles.monthLabel}>
+          <Text variant="titleMedium" style={[styles.monthLabel, { color: calendarColors.monthLabel }]}>
             {monthLabel(monthAnchor)}
           </Text>
           <View style={styles.monthNav}>
-            <IconButton icon="arrow-left" size={18} accessibilityLabel="Mes anterior" onPress={() => moveMonth(-1)} style={styles.monthIconButton} />
+            <IconButton
+              icon="arrow-left"
+              size={18}
+              accessibilityLabel="Mes anterior"
+              onPress={() => moveMonth(-1)}
+              style={[styles.monthIconButton, { borderColor: calendarColors.navButtonBorder }]}
+              containerColor={calendarColors.navButtonBackground}
+              iconColor={calendarColors.navButtonIcon}
+            />
             {!isCurrentMonth ? (
-              <Button compact mode="text" onPress={goToToday} style={styles.todayButton}>
+              <Button compact mode="text" onPress={goToToday} style={styles.todayButton} textColor={calendarColors.todayButtonText}>
                 Hoy
               </Button>
             ) : null}
-            <IconButton icon="arrow-right" size={18} accessibilityLabel="Mes siguiente" onPress={() => moveMonth(1)} style={styles.monthIconButton} />
+            <IconButton
+              icon="arrow-right"
+              size={18}
+              accessibilityLabel="Mes siguiente"
+              onPress={() => moveMonth(1)}
+              style={[styles.monthIconButton, { borderColor: calendarColors.navButtonBorder }]}
+              containerColor={calendarColors.navButtonBackground}
+              iconColor={calendarColors.navButtonIcon}
+            />
           </View>
         </View>
 
         <View style={styles.weekHeader}>
-          {WEEKDAY_LABELS.map((label) => (
-            <Text key={label} style={styles.weekLabel}>
+          {CALENDAR_WEEKDAY_LABELS.map((label) => (
+            <Text key={label} style={[styles.weekLabel, { color: calendarColors.weekdayLabel }]}>
               {label}
             </Text>
           ))}
@@ -144,14 +146,14 @@ export const WorkCalendarCard = () => {
                     <View
                       style={[
                         styles.dayBubble,
-                        selected && { backgroundColor: theme.colors.softBlue },
-                        isToday && !selected && styles.todayBubble,
+                        selected && { backgroundColor: calendarColors.selectedDayBackground },
+                        isToday && !selected && [styles.todayBubble, { borderColor: calendarColors.todayOutline }],
                       ]}
                     >
                       <Text
                         style={[
                           styles.dayNumber,
-                          { color: selected ? theme.colors.primary : isToday ? theme.colors.secondary : theme.colors.titleOnSoft },
+                          { color: selected ? calendarColors.selectedDayText : isToday ? calendarColors.todayOutline : calendarColors.dayText },
                           isToday && styles.todayDayNumber,
                         ]}
                       >
@@ -162,7 +164,7 @@ export const WorkCalendarCard = () => {
                       {Array.from({ length: markers }).map((_, markerIndex) => (
                         <View
                           key={`${dateKey}-marker-${markerIndex}`}
-                          style={[styles.dayMarker, { backgroundColor: selected ? theme.colors.secondary : theme.colors.primary }]}
+                          style={[styles.dayMarker, { backgroundColor: selected ? calendarColors.dayMarkerSelected : calendarColors.dayMarker }]}
                         />
                       ))}
                     </View>
@@ -173,14 +175,23 @@ export const WorkCalendarCard = () => {
           })}
         </View>
 
-        <Text variant="titleMedium">Trabajos del {toHumanDate(selectedDate)}</Text>
-        {appointmentsQuery.isLoading && <Text style={{ color: theme.colors.textMuted }}>Cargando trabajos...</Text>}
+        <Text variant="titleMedium" style={{ color: calendarColors.sectionTitle }}>
+          Trabajos del {toHumanDate(selectedDate)}
+        </Text>
+        {appointmentsQuery.isLoading && <Text style={{ color: calendarColors.sectionHint }}>Cargando trabajos...</Text>}
         {!appointmentsQuery.isLoading && selectedDateAppointments.length === 0 && (
-          <Text style={{ color: theme.colors.textMuted }}>No hay trabajos cargados para esta fecha.</Text>
+          <Text style={{ color: calendarColors.sectionHint }}>No hay trabajos cargados para esta fecha.</Text>
         )}
         {!appointmentsQuery.isLoading &&
           selectedDateAppointments.map((appointment) => (
-            <Card key={appointment.id} mode="outlined" style={styles.appointmentCard}>
+            <Card
+              key={appointment.id}
+              mode="outlined"
+              style={[
+                styles.appointmentCard,
+                { backgroundColor: calendarColors.appointmentCardBackground, borderColor: calendarColors.appointmentCardBorder },
+              ]}
+            >
               <Card.Content style={styles.appointmentContent}>
                 {appointment.quote ? (
                   <View style={styles.appointmentHeaderRow}>
@@ -342,6 +353,8 @@ export const WorkCalendarCard = () => {
 const styles = StyleSheet.create({
   card: {
     marginTop: 6,
+    borderRadius: 24,
+    borderWidth: 1,
   },
   content: {
     gap: 12,
@@ -357,6 +370,7 @@ const styles = StyleSheet.create({
   },
   monthIconButton: {
     margin: 0,
+    borderWidth: 1,
   },
   todayButton: {
     marginHorizontal: 2,
@@ -428,6 +442,7 @@ const styles = StyleSheet.create({
   },
   appointmentCard: {
     marginTop: 2,
+    borderRadius: 14,
   },
   appointmentContent: {
     gap: 8,

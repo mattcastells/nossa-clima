@@ -6,6 +6,7 @@ import { ActivityIndicator, Button, Card, Divider, Icon, IconButton, Text, TextI
 import { AppScreen } from '@/components/AppScreen';
 import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
+import { CALENDAR_WEEKDAY_LABELS, getAppointmentClientLabel, getAppointmentDescription, getCalendarColors } from '@/features/appointments/calendarShared';
 import { useAppointmentsInMonth, useDeleteAppointment, useUpsertQuoteAppointment } from '@/features/appointments/hooks';
 import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
 import { QuoteItemsTable } from '@/features/quotes/components/QuoteItemsTable';
@@ -23,7 +24,7 @@ import {
   useUpdateQuoteMaterialItem,
   useUpdateQuoteServiceItem,
 } from '@/features/quotes/hooks';
-import { normalizeQuoteStatus, quoteStatusAccent } from '@/features/quotes/status';
+import { normalizeQuoteStatus, quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { useStores } from '@/features/stores/hooks';
 import {
   formatDisplayDate,
@@ -40,10 +41,9 @@ import {
 } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatTimeShort } from '@/lib/format';
-import { BRAND_BLUE, BRAND_BLUE_MID, BRAND_BLUE_SOFT, useAppTheme } from '@/theme';
+import { useAppTheme } from '@/theme';
 import type { JobQuoteStatus } from '@/types/db';
 
-const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const STATUS_OPTIONS: Array<{ value: JobQuoteStatus; label: string }> = [
   { value: 'pending', label: 'Pendiente' },
   { value: 'completed', label: 'Terminado' },
@@ -68,6 +68,7 @@ export default function QuoteDetailPage() {
   }
 
   const theme = useAppTheme();
+  const calendarColors = getCalendarColors(theme);
   const { id, linkWarning, fromNew } = useLocalSearchParams<{ id: string; linkWarning?: string; fromNew?: string }>();
   const { data, isLoading, error } = useQuoteDetail(id);
   const referencedStoreIds = useMemo(
@@ -94,17 +95,19 @@ export default function QuoteDetailPage() {
   const [globalMarginInput, setGlobalMarginInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'material' | 'service'; id: string } | null>(null);
   const [deleteQuoteConfirm, setDeleteQuoteConfirm] = useState(false);
-  const [calendarVisible, setCalendarVisible] = useState(false);
-  const [clienteSectionOpen, setClienteSectionOpen] = useState(false);
-  const [fechaSectionOpen, setFechaSectionOpen] = useState(false);
-  const clienteAnim = useRef(new Animated.Value(0)).current;
-  const fechaAnim = useRef(new Animated.Value(0)).current;
+  const startExpanded = fromNew === '1';
+  const [calendarVisible, setCalendarVisible] = useState(startExpanded);
+  const [clienteSectionOpen, setClienteSectionOpen] = useState(startExpanded);
+  const [fechaSectionOpen, setFechaSectionOpen] = useState(startExpanded);
+  const clienteAnim = useRef(new Animated.Value(startExpanded ? 1 : 0)).current;
+  const fechaAnim = useRef(new Animated.Value(startExpanded ? 1 : 0)).current;
 
   // Auto-expand sections when arriving from creation
   useEffect(() => {
     if (fromNew !== '1') return;
     setClienteSectionOpen(true);
     setFechaSectionOpen(true);
+    setCalendarVisible(true);
     Animated.parallel([
       Animated.timing(clienteAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
       Animated.timing(fechaAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
@@ -128,6 +131,7 @@ export default function QuoteDetailPage() {
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => formatIsoDate(new Date()));
+  const todayDateKey = formatIsoDate(new Date());
 
   const monthAppointments = useAppointmentsInMonth(calendarMonthAnchor);
 
@@ -334,6 +338,14 @@ export default function QuoteDetailPage() {
     setCalendarVisible((current) => !current);
   };
 
+  const goToTodayCalendar = () => {
+    const today = new Date();
+    const todayIso = formatIsoDate(today);
+    setCalendarMonthAnchor(new Date(today.getFullYear(), today.getMonth(), 1));
+    setCalendarSelectedDate(todayIso);
+    setScheduleDate(formatDisplayDate(today));
+  };
+
   const moveCalendarMonth = (delta: number) => {
     const nextAnchor = new Date(calendarMonthAnchor.getFullYear(), calendarMonthAnchor.getMonth() + delta, 1);
     setCalendarMonthAnchor(nextAnchor);
@@ -356,6 +368,10 @@ export default function QuoteDetailPage() {
     setCalendarSelectedDate(isoDate);
     setScheduleDate(formatDisplayDate(nextDate));
   };
+
+  const isCurrentCalendarMonth =
+    calendarMonthAnchor.getFullYear() === new Date().getFullYear() &&
+    calendarMonthAnchor.getMonth() === new Date().getMonth();
 
   return (
     <AppScreen title="Detalle de trabajo" showHomeButton={false}>
@@ -405,6 +421,25 @@ export default function QuoteDetailPage() {
                       client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
                       notes: values.notes?.trim() ? values.notes.trim() : null,
                     });
+
+                    if (data.appointment) {
+                      try {
+                        await scheduleQuote.mutateAsync({
+                          quote_id: data.quote.id,
+                          title: `${values.client_name} - ${values.title}`,
+                          notes: values.notes?.trim() ? values.notes.trim() : null,
+                          scheduled_for: data.appointment.scheduled_for,
+                          starts_at: data.appointment.starts_at,
+                          ends_at: data.appointment.ends_at,
+                          status: data.appointment.status,
+                          store_id: data.appointment.store_id,
+                        });
+                      } catch {
+                        setSnack('Cliente guardado, pero no se pudo actualizar el turno vinculado.');
+                        return;
+                      }
+                    }
+
                     setSnack('Cliente guardado.');
                   } catch (mutationError) {
                     setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el cliente.'));
@@ -462,10 +497,16 @@ export default function QuoteDetailPage() {
                 disabled={isCompleted || isBusy}
               />
               {calendarVisible ? (
-                <Card mode="contained" style={styles.inlineCalendarCard}>
+                <Card
+                  mode="contained"
+                  style={[
+                    styles.inlineCalendarCard,
+                    { backgroundColor: calendarColors.panelBackground, borderColor: calendarColors.panelBorder },
+                  ]}
+                >
                   <Card.Content style={styles.inlineCalendarContent}>
-                    <View style={styles.inlineCalendarHeader}>
-                      <Text variant="titleMedium" style={styles.inlineCalendarMonthLabel}>
+                    <View style={styles.inlineCalendarMonthHeader}>
+                      <Text variant="titleMedium" style={[styles.inlineCalendarMonthLabel, { color: calendarColors.monthLabel }]}>
                         {monthLabel(calendarMonthAnchor)}
                       </Text>
                       <View style={styles.inlineCalendarNav}>
@@ -474,21 +515,36 @@ export default function QuoteDetailPage() {
                           size={18}
                           accessibilityLabel="Mes anterior"
                           onPress={() => moveCalendarMonth(-1)}
-                          style={styles.inlineCalendarNavButton}
+                          style={[styles.inlineCalendarNavButton, { borderColor: calendarColors.navButtonBorder }]}
+                          containerColor={calendarColors.navButtonBackground}
+                          iconColor={calendarColors.navButtonIcon}
                         />
+                        {!isCurrentCalendarMonth ? (
+                          <Button
+                            compact
+                            mode="text"
+                            onPress={goToTodayCalendar}
+                            style={styles.inlineCalendarTodayButton}
+                            textColor={calendarColors.todayButtonText}
+                          >
+                            Hoy
+                          </Button>
+                        ) : null}
                         <IconButton
                           icon="arrow-right"
                           size={18}
                           accessibilityLabel="Mes siguiente"
                           onPress={() => moveCalendarMonth(1)}
-                          style={styles.inlineCalendarNavButton}
+                          style={[styles.inlineCalendarNavButton, { borderColor: calendarColors.navButtonBorder }]}
+                          containerColor={calendarColors.navButtonBackground}
+                          iconColor={calendarColors.navButtonIcon}
                         />
                       </View>
                     </View>
 
                     <View style={styles.inlineCalendarWeekHeader}>
-                      {WEEKDAY_LABELS.map((label) => (
-                        <Text key={label} style={styles.inlineCalendarWeekLabel}>
+                      {CALENDAR_WEEKDAY_LABELS.map((label) => (
+                        <Text key={label} style={[styles.inlineCalendarWeekLabel, { color: calendarColors.weekdayLabel }]}>
                           {label}
                         </Text>
                       ))}
@@ -498,6 +554,7 @@ export default function QuoteDetailPage() {
                       {calendarCells.map((day, index) => {
                         const dateKey = day == null ? null : formatIsoDate(new Date(calendarMonthAnchor.getFullYear(), calendarMonthAnchor.getMonth(), day));
                         const selected = dateKey != null && dateKey === calendarSelectedDate;
+                        const isToday = dateKey != null && dateKey === todayDateKey;
                         const markers = dateKey != null ? Math.min(appointmentsByDate.get(dateKey) ?? 0, 3) : 0;
 
                         return (
@@ -507,14 +564,33 @@ export default function QuoteDetailPage() {
                                 onPress={() => handleCalendarDateSelect(dateKey)}
                                 style={({ pressed }) => [styles.inlineCalendarDayPressable, pressed && styles.inlineCalendarDayPressed]}
                               >
-                                <View style={[styles.inlineCalendarDayBubble, selected && styles.inlineCalendarDayBubbleSelected]}>
-                                  <Text style={[styles.inlineCalendarDayNumber, selected && styles.inlineCalendarDayNumberSelected]}>{day}</Text>
+                                <View
+                                  style={[
+                                    styles.inlineCalendarDayBubble,
+                                    selected && { backgroundColor: calendarColors.selectedDayBackground },
+                                    isToday && !selected && [styles.inlineCalendarTodayBubble, { borderColor: calendarColors.todayOutline }],
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.inlineCalendarDayNumber,
+                                      {
+                                        color: selected ? calendarColors.selectedDayText : isToday ? calendarColors.todayOutline : calendarColors.dayText,
+                                      },
+                                      isToday && styles.inlineCalendarTodayDayNumber,
+                                    ]}
+                                  >
+                                    {day}
+                                  </Text>
                                 </View>
                                 <View style={styles.inlineCalendarMarkersRow}>
                                   {Array.from({ length: markers }).map((_, markerIndex) => (
                                     <View
                                       key={`${dateKey}-quote-marker-${markerIndex}`}
-                                      style={[styles.inlineCalendarMarker, selected && styles.inlineCalendarMarkerSelected]}
+                                      style={[
+                                        styles.inlineCalendarMarker,
+                                        { backgroundColor: selected ? calendarColors.dayMarkerSelected : calendarColors.dayMarker },
+                                      ]}
                                     />
                                   ))}
                                 </View>
@@ -526,22 +602,73 @@ export default function QuoteDetailPage() {
                     </View>
 
                     <View style={styles.inlineAgendaBlock}>
-                      <Text variant="titleSmall" style={styles.inlineAgendaTitle}>
+                      <Text variant="titleMedium" style={[styles.inlineAgendaHeading, { color: calendarColors.sectionTitle }]}>
                         Trabajos del {toHumanDate(calendarSelectedDate)}
                       </Text>
                       {monthAppointments.isLoading ? (
-                        <Text style={styles.inlineAgendaHint}>Cargando trabajos...</Text>
+                        <Text style={[styles.inlineAgendaHint, { color: calendarColors.sectionHint }]}>Cargando trabajos...</Text>
                       ) : selectedDateAppointments.length === 0 ? (
-                        <Text style={styles.inlineAgendaHint}>No hay trabajos con turno ese dia.</Text>
+                        <Text style={[styles.inlineAgendaHint, { color: calendarColors.sectionHint }]}>No hay trabajos cargados para esta fecha.</Text>
                       ) : (
                         <View style={styles.inlineAgendaList}>
                           {selectedDateAppointments.map((appointment) => (
-                            <View key={appointment.id} style={styles.inlineAgendaItem}>
-                              <Text style={styles.inlineAgendaTime}>{appointment.starts_at ? formatTimeShort(appointment.starts_at) : 'Sin hora'}</Text>
-                              <Text style={styles.inlineAgendaText} numberOfLines={1}>
-                                {appointment.title}
-                              </Text>
-                            </View>
+                            <Card
+                              key={appointment.id}
+                              mode="outlined"
+                              style={[
+                                styles.inlineAgendaCard,
+                                {
+                                  backgroundColor: calendarColors.appointmentCardBackground,
+                                  borderColor: calendarColors.appointmentCardBorder,
+                                },
+                              ]}
+                            >
+                              <Card.Content style={styles.inlineAgendaCardContent}>
+                                {appointment.quote ? (
+                                  <View style={styles.inlineAgendaCardHeader}>
+                                    <Text style={[styles.inlineAgendaCardTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
+                                      {appointment.quote.title}
+                                    </Text>
+                                    <View
+                                      style={[
+                                        styles.statusBadge,
+                                        {
+                                          backgroundColor: quoteStatusAccent(appointment.quote.status).backgroundColor,
+                                          borderColor: quoteStatusAccent(appointment.quote.status).borderColor,
+                                        },
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[styles.statusBadgeText, { color: quoteStatusAccent(appointment.quote.status).textColor }]}
+                                      >
+                                        {quoteStatusLabel(appointment.quote.status)}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                ) : (
+                                  <Text style={[styles.inlineAgendaCardTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
+                                    {appointment.title}
+                                  </Text>
+                                )}
+
+                                <View style={styles.inlineAgendaMetaBlock}>
+                                  <Text style={[styles.inlineAgendaMetaLabel, { color: theme.colors.textMuted }]}>Cliente:</Text>
+                                  <Text style={{ color: theme.colors.onSurface }}>{getAppointmentClientLabel(appointment)}</Text>
+                                </View>
+
+                                <View style={styles.inlineAgendaMetaBlock}>
+                                  <Text style={[styles.inlineAgendaMetaLabel, { color: theme.colors.textMuted }]}>Fecha y hora:</Text>
+                                  <Text style={{ color: theme.colors.onSurface }}>
+                                    {`${formatDateAr(appointment.scheduled_for)}${appointment.starts_at ? ` - ${formatTimeShort(appointment.starts_at)}` : ''}`}
+                                  </Text>
+                                </View>
+
+                                <View style={styles.inlineAgendaMetaBlock}>
+                                  <Text style={[styles.inlineAgendaMetaLabel, { color: theme.colors.textMuted }]}>Descripcion:</Text>
+                                  <Text style={{ color: theme.colors.onSurface }}>{getAppointmentDescription(appointment)}</Text>
+                                </View>
+                              </Card.Content>
+                            </Card>
                           ))}
                         </View>
                       )}
@@ -936,42 +1063,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   inlineCalendarCard: {
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(5, 38, 83, 0.08)',
-    backgroundColor: '#F7FAFD',
   },
   inlineCalendarContent: {
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
-  inlineCalendarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  inlineCalendarMonthHeader: {
     gap: 8,
   },
   inlineCalendarMonthLabel: {
-    flex: 1,
+    textAlign: 'center',
     fontWeight: '600',
     textTransform: 'capitalize',
   },
   inlineCalendarNav: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'space-between',
+    gap: 8,
   },
   inlineCalendarNavButton: {
     margin: 0,
+    borderWidth: 1,
+  },
+  inlineCalendarTodayButton: {
+    marginHorizontal: 2,
   },
   inlineCalendarWeekHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   inlineCalendarWeekLabel: {
     width: `${100 / 7}%`,
     textAlign: 'center',
     fontWeight: '600',
-    color: '#617082',
   },
   inlineCalendarGrid: {
     flexDirection: 'row',
@@ -997,18 +1124,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inlineCalendarDayBubbleSelected: {
-    backgroundColor: BRAND_BLUE_SOFT,
+  inlineCalendarTodayBubble: {
+    borderWidth: 2,
   },
   inlineCalendarDayNumber: {
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '500',
-    color: '#164E63',
   },
-  inlineCalendarDayNumberSelected: {
+  inlineCalendarTodayDayNumber: {
     fontWeight: '700',
-    color: BRAND_BLUE,
   },
   inlineCalendarMarkersRow: {
     minHeight: 8,
@@ -1022,43 +1147,44 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 999,
-    backgroundColor: BRAND_BLUE,
-  },
-  inlineCalendarMarkerSelected: {
-    backgroundColor: BRAND_BLUE_MID,
   },
   inlineAgendaBlock: {
     gap: 8,
     paddingTop: 2,
   },
-  inlineAgendaTitle: {
+  inlineAgendaHeading: {
     fontWeight: '600',
   },
   inlineAgendaHint: {
-    color: '#5f6368',
+    lineHeight: 19,
   },
   inlineAgendaList: {
     gap: 8,
   },
-  inlineAgendaItem: {
+  inlineAgendaCard: {
+    borderRadius: 14,
+  },
+  inlineAgendaCardContent: {
+    gap: 8,
+  },
+  inlineAgendaCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DCE4EC',
   },
-  inlineAgendaTime: {
-    width: 62,
-    fontWeight: '700',
-    color: BRAND_BLUE,
-  },
-  inlineAgendaText: {
+  inlineAgendaCardTitle: {
     flex: 1,
-    color: '#1F2937',
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '600',
+  },
+  inlineAgendaMetaBlock: {
+    gap: 2,
+  },
+  inlineAgendaMetaLabel: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   deleteQuoteRow: {
     alignItems: 'center',

@@ -1,4 +1,4 @@
-﻿import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
@@ -9,14 +9,15 @@ import { useLinkAppointmentToQuote } from '@/features/appointments/hooks';
 import { useSaveQuote } from '@/features/quotes/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 
+const DEFAULT_CLIENT_NAME = 'Sin cliente';
+const DEFAULT_QUOTE_TITLE = 'Nuevo trabajo';
+
 const getSingleParam = (value: string | string[] | undefined): string =>
   Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 
 export default function NewQuotePage() {
   const params = useLocalSearchParams<{
     appointmentId?: string | string[];
-    scheduledFor?: string | string[];
-    startsAt?: string | string[];
     title?: string | string[];
     notes?: string | string[];
   }>();
@@ -36,9 +37,10 @@ export default function NewQuotePage() {
 
     const create = async () => {
       try {
+        const quoteTitle = appointmentTitle || DEFAULT_QUOTE_TITLE;
         const quote = await save.mutateAsync({
-          title: appointmentTitle || 'Nuevo trabajo',
-          client_name: '',
+          title: quoteTitle,
+          client_name: DEFAULT_CLIENT_NAME,
           notes: appointmentNotes || null,
           status: 'pending',
         });
@@ -52,13 +54,13 @@ export default function NewQuotePage() {
           await linkAppointment.mutateAsync({
             appointmentId,
             quoteId: quote.id,
-            title: appointmentTitle || 'Nuevo trabajo',
+            title: quoteTitle,
             notes: appointmentNotes || null,
           });
           router.replace({ pathname: '/quotes/[id]', params: { id: quote.id, fromNew: '1' } });
         } catch (linkError) {
           toast.error(toUserErrorMessage(linkError, 'El trabajo se creo, pero no se pudo vincular al turno.'));
-          router.replace({ pathname: '/quotes/[id]', params: { id: quote.id, linkWarning: '1' } });
+          router.replace({ pathname: '/quotes/[id]', params: { id: quote.id, fromNew: '1', linkWarning: '1' } });
         }
       } catch (error) {
         toast.error(toUserErrorMessage(error, 'No se pudo crear el trabajo.'));
@@ -74,7 +76,7 @@ export default function NewQuotePage() {
     <AppScreen title="Nuevo trabajo">
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Creando trabajo...</Text>
+        <Text style={styles.loadingText}>Abriendo editor completo...</Text>
       </View>
     </AppScreen>
   );
