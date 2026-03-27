@@ -52,9 +52,9 @@ See `RELEASES.md` in the repository root for the current canonical release check
 
 - Public repo used by the app: `mattcastells/nossa-clima-releases`
 - Android package: `com.nossaclima.app`
-- Current app source version: `0.4.0`
-- Build history (tags): `v0.1.0-b1`, `v0.2.0-b2`, `v0.2.0-b3`, `v0.2.1-b5`, `v0.3.0-b6`, `v0.3.1-b7`, `v0.3.2-b8`, `v0.3.3-b9`, `v0.3.4-b10`, `v0.3.5-b11`, `v0.4.0-b12`
-- Next safe Android update build: `v0.4.1-b13`
+- Current app source version: `0.4.1`
+- Build history (tags): `v0.1.0-b1`, `v0.2.0-b2`, `v0.2.0-b3`, `v0.2.1-b5`, `v0.3.0-b6`, `v0.3.1-b7`, `v0.3.2-b8`, `v0.3.3-b9`, `v0.3.4-b10`, `v0.3.5-b11`, `v0.4.0-b12`, `v0.4.1-b13`
+- Next safe Android update build: `v0.4.2-b14`
 
 ## Important implementation detail
 

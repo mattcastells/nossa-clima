@@ -11,7 +11,7 @@ Formato:
 Ejemplos validos:
 
 - `v0.3.5-b11`
-- `v0.4.0-b12`
+- `v0.4.1-b13`
 - `v1.0.0-b20`
 
 Reglas:
@@ -26,7 +26,7 @@ Reglas:
 
 Android solo permite actualizar una APK si la nueva tiene `versionCode` mayor a la instalada.
 
-Si publicas, por ejemplo, `v0.4.0-b10` cuando usuarios ya tienen `b11` o `b12`, la app puede ver una version semantica mas nueva pero no la va a poder instalar encima.
+Si publicas, por ejemplo, `v0.4.1-b12` cuando usuarios ya tienen `b13` o `b14`, la app puede ver una version semantica mas nueva pero no la va a poder instalar encima.
 
 Aunque borres el historial de GitHub Releases, cualquier APK ya instalada sigue teniendo su `versionCode` local. Si queres que la actualizacion desde la app siga funcionando, el siguiente build debe ser mayor al ultimo que ya circulo.
 
@@ -36,26 +36,26 @@ Aunque borres el historial de GitHub Releases, cualquier APK ya instalada sigue 
 2. Preparar versionado local:
 
 ```bash
-npm run release:prepare -- v0.4.0-b12
+npm run release:prepare -- v0.4.1-b13
 ```
 
 3. Commit de los cambios de version:
 
 ```bash
 git add app.json package.json package-lock.json RELEASES.md docs/APP_UPDATES.md
-git commit -m "release: v0.4.0-b12"
+git commit -m "release: v0.4.1-b13"
 ```
 
 4. Crear y subir tag:
 
 ```bash
-git tag v0.4.0-b12
+git tag v0.4.1-b13
 git push origin main
-git push origin v0.4.0-b12
+git push origin v0.4.1-b13
 ```
 
 5. Esperar workflow `.github/workflows/android-release.yml`.
-6. Verificar en GitHub Release que exista el asset APK con nombre `nossa-clima-v0.4.0-b12.apk`.
+6. Verificar en GitHub Release que exista el asset APK con nombre `nossa-clima-v0.4.1-b13.apk`.
 
 Nota: el workflow vuelve a ejecutar `scripts/prepare-android-release.mjs`. El script acepta el caso idempotente donde `app.json` ya coincide con el tag, pero sigue bloqueando cualquier intento de bajar el `BUILD`.
 
@@ -126,10 +126,11 @@ Tags detectados en el repo:
 - `v0.3.4-b10`
 - `v0.3.5-b11`
 - `v0.4.0-b12`
+- `v0.4.1-b13`
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.4.1-b13` (patch) o `v0.5.0-b13` (minor)
+- `v0.4.2-b14` (patch) o `v0.5.0-b14` (minor)
 
 ## Pasos de setup para privacidad del repo (hacelos una sola vez)
 
