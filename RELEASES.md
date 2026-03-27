@@ -10,9 +10,9 @@ Formato:
 
 Ejemplos validos:
 
-- `v0.2.1-b4`
-- `v0.2.2-b5`
-- `v1.0.0-b10`
+- `v0.3.5-b11`
+- `v0.4.0-b12`
+- `v1.0.0-b20`
 
 Reglas:
 
@@ -26,7 +26,7 @@ Reglas:
 
 Android solo permite actualizar una APK si la nueva tiene `versionCode` mayor a la instalada.
 
-Si publicas, por ejemplo, `v0.2.1-b1` cuando usuarios ya tienen `b2` o `b3`, la app puede ver una version semantica mas nueva pero no la va a poder instalar encima.
+Si publicas, por ejemplo, `v0.4.0-b10` cuando usuarios ya tienen `b11` o `b12`, la app puede ver una version semantica mas nueva pero no la va a poder instalar encima.
 
 Aunque borres el historial de GitHub Releases, cualquier APK ya instalada sigue teniendo su `versionCode` local. Si queres que la actualizacion desde la app siga funcionando, el siguiente build debe ser mayor al ultimo que ya circulo.
 
@@ -36,26 +36,26 @@ Aunque borres el historial de GitHub Releases, cualquier APK ya instalada sigue 
 2. Preparar versionado local:
 
 ```bash
-npm run release:prepare -- v0.2.1-b5
+npm run release:prepare -- v0.4.0-b12
 ```
 
 3. Commit de los cambios de version:
 
 ```bash
-git add app.json
-git commit -m "release: v0.2.1-b5"
+git add app.json package.json package-lock.json RELEASES.md docs/APP_UPDATES.md
+git commit -m "release: v0.4.0-b12"
 ```
 
 4. Crear y subir tag:
 
 ```bash
-git tag v0.2.1-b5
+git tag v0.4.0-b12
 git push origin main
-git push origin v0.2.1-b5
+git push origin v0.4.0-b12
 ```
 
 5. Esperar workflow `.github/workflows/android-release.yml`.
-6. Verificar en GitHub Release que exista el asset APK con nombre `nossa-clima-v0.2.1-b5.apk`.
+6. Verificar en GitHub Release que exista el asset APK con nombre `nossa-clima-v0.4.0-b12.apk`.
 
 Nota: el workflow vuelve a ejecutar `scripts/prepare-android-release.mjs`. El script acepta el caso idempotente donde `app.json` ya coincide con el tag, pero sigue bloqueando cualquier intento de bajar el `BUILD`.
 
@@ -111,7 +111,7 @@ Los pasos que tenes que hacer vos en GitHub se detallan al final de este archivo
 - Confirmar que el nuevo `BUILD` sea mayor que el ultimo publicado.
 - Confirmar que la release no sea `draft` ni `prerelease`.
 
-## Estado actual (26 Mar 2026)
+## Estado actual (27 Mar 2026)
 
 Tags detectados en el repo:
 
@@ -123,10 +123,13 @@ Tags detectados en el repo:
 - `v0.3.1-b7`
 - `v0.3.2-b8`
 - `v0.3.3-b9`
+- `v0.3.4-b10`
+- `v0.3.5-b11`
+- `v0.4.0-b12`
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.3.4-b10` (patch) o `v0.4.0-b10` (minor)
+- `v0.4.1-b13` (patch) o `v0.5.0-b13` (minor)
 
 ## Pasos de setup para privacidad del repo (hacelos una sola vez)
 
