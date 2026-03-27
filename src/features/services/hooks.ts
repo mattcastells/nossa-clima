@@ -4,7 +4,6 @@ import {
   createServiceCategory,
   deleteService,
   deleteServiceCategory,
-  importDefaultServices,
   listServiceCategoryNames,
   listServices,
   renameServiceCategory,
@@ -34,14 +33,6 @@ export const useDeleteService = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (serviceId: string) => deleteService(serviceId),
-    onSuccess: () => invalidateServiceQueries(queryClient),
-  });
-};
-
-export const useImportDefaultServices = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: importDefaultServices,
     onSuccess: () => invalidateServiceQueries(queryClient),
   });
 };

@@ -1,14 +1,12 @@
 ﻿import { Link } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Button, Card, Chip, Menu, Searchbar, Text, TouchableRipple } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
-import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
-import { useImportDefaultServices, useServiceCategories, useServices } from '@/features/services/hooks';
-import { toUserErrorMessage } from '@/lib/errors';
+import { useServiceCategories, useServices } from '@/features/services/hooks';
 import { formatCurrencyArs } from '@/lib/format';
 import { BRAND_BLUE, BRAND_BLUE_MID, useAppTheme } from '@/theme';
 
@@ -29,30 +27,10 @@ export default function ServicesScreen() {
   const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : '#1A1A1A';
   const filterChipBorderColor = theme.dark ? theme.colors.softBlueStrong : BRAND_BLUE_MID;
   const { data: categoryNames, isLoading: categoriesLoading, error: categoriesError } = useServiceCategories();
-  const importDefaults = useImportDefaultServices();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [message, setMessage] = useState<string | null>(null);
-  const autoImportTriggered = useRef(false);
-  useToastMessageEffect(message, () => setMessage(null));
-
-  useEffect(() => {
-    if (autoImportTriggered.current || isLoading || importDefaults.isPending || Boolean(error)) return;
-    autoImportTriggered.current = true;
-
-    importDefaults.mutate(undefined, {
-      onSuccess: (result) => {
-        if (result.inserted > 0) {
-          setMessage(`Se cargaron ${result.inserted} servicios base.`);
-        }
-      },
-      onError: (mutationError) => {
-        setMessage(toUserErrorMessage(mutationError, 'No se pudo cargar la lista base.'));
-      },
-    });
-  }, [data, error, importDefaults, isLoading]);
 
   const uncategorizedCount = useMemo(
     () =>
