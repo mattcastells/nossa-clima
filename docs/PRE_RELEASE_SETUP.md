@@ -53,6 +53,8 @@ Seed de prueba E2E:
 - `supabase/seed/seed_nossa_clima.sql`
 - Reset de datos de prueba (manteniendo servicios):
   - `supabase/seed/reset_non_services.sql`
+- Reset operativo para lanzamiento v1.0 (mantiene usuarios y profiles):
+  - `supabase/seed/reset_release_v1.sql`
 - Reset total de datos (incluye servicios y perfiles):
   - `supabase/seed/reset_all.sql`
 

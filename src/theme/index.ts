@@ -14,6 +14,7 @@ type AppExtendedColors = {
   softBlue: string;
   softGreen: string;
   softYellow: string;
+  softYellowStrong: string;
   softBlueStrong: string;
   softGreenStrong: string;
   tableHeaderBg: string;
@@ -49,6 +50,7 @@ export const lightTheme: AppTheme = {
     softBlue: '#E2ECF8',
     softGreen: '#E4EDE0',
     softYellow: BRAND_YELLOW_SOFT,
+    softYellowStrong: '#E7D8A4',
     softBlueStrong: '#B8CFE6',
     softGreenStrong: '#C0D4B8',
     tableHeaderBg: '#DFE5ED',
@@ -81,6 +83,7 @@ export const darkTheme: AppTheme = {
     softBlue: '#2B4058',
     softGreen: '#344A39',
     softYellow: '#4B4225',
+    softYellowStrong: '#6A5930',
     softBlueStrong: '#3B5572',
     softGreenStrong: '#486252',
     tableHeaderBg: '#3A4555',

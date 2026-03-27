@@ -11,6 +11,7 @@
       "package": "com.nossaclima.app",
       "versionCode": 9,
       "permissions": [
+        "RECORD_AUDIO",
         "REQUEST_INSTALL_PACKAGES",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
@@ -24,6 +25,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Permiti que Nossa Clima use el microfono para enviar audios al asistente."
+        }
+      ],
       [
         "expo-notifications",
         {

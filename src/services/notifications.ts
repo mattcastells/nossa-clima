@@ -120,8 +120,8 @@ export const scheduleAppointmentReminder = async (
       ...(Platform.OS === 'android' && { channelId: CHANNEL_ID }),
     },
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: reminderDate,
+      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
     },
   });
 };

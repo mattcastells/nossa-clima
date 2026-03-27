@@ -89,6 +89,11 @@ You can apply them with the Supabase dashboard SQL editor or the Supabase CLI.
 
 Optional: load seed data from `supabase/seed/` if you need example records for testing.
 
+Available reset scripts:
+- `supabase/seed/reset_non_services.sql`: clears operational test data but keeps the services catalog.
+- `supabase/seed/reset_release_v1.sql`: clears operational/catalog data for a production launch while preserving `auth.users` and `profiles`.
+- `supabase/seed/reset_all.sql`: clears operational/catalog data and `profiles` for a fully clean test environment.
+
 5. Start the app (Expo)
 
 ```bash
@@ -157,11 +162,20 @@ EXPO_PUBLIC_AI_FUNCTION_NAME=assistant-chat
 ### Current MVP scope
 
 - Text questions
-- One optional image per message
+- One optional image and one optional short audio per message
 - Conversation continuity using recent local history
-- No database persistence yet
+- Action proposals for `store`, `item`, `service` and `appointment`
+- Job/quote draft proposals with services, materials, source store and global material margin
+- Manual confirmation before any database write
+- No raw image/audio/message persistence yet
 
-This keeps the first version simple and avoids storing user images or messages until that is explicitly designed.
+This keeps the first version simple and avoids storing user images, audio clips or messages until that is explicitly designed.
+
+If you add or update the audio feature locally, rebuild the native app or dev client before testing:
+
+```bash
+npm run android:build
+```
 
 ## Where to find more documentation
 
@@ -217,6 +231,3 @@ In addition to RLS and secure key handling, protect the application from automat
 - For AI generation endpoints (Gemini), apply stricter quotas or a dedicated paid-plan account per environment to limit cost exposure.
 
 If you want, I can add a GitHub Actions check that scans the repository for accidental sensitive tokens or service-role usage (I can also add a barebones workflow that fails if `service_role` or certain secret-like patterns appear). I created a security audit doc for IDORs at `docs/SECURITY_IDOR_AUDIT.md` and can extend it into a full runbook.
-
-
-

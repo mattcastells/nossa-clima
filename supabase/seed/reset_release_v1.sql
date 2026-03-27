@@ -1,7 +1,8 @@
--- Reset total de datos operativos para entorno de pruebas.
--- ADVERTENCIA: borra datos de todas las cuentas en estas tablas.
--- No toca auth.users.
--- Tambien elimina profiles para dejar el entorno totalmente limpio.
+-- Reset operativo para lanzamiento v1.0.
+-- Deja la app "desde cero" para empezar a cargar datos reales.
+-- Borra servicios, trabajos/turnos, materiales, tiendas, precios y categorias.
+-- Conserva auth.users y profiles para no perder accesos ni nombres de usuario.
+-- Ejecutar manualmente en Supabase SQL Editor con rol postgres.
 
 do $$
 begin
@@ -47,9 +48,5 @@ begin
 
   if to_regclass('public.service_categories') is not null then
     execute 'delete from public.service_categories';
-  end if;
-
-  if to_regclass('public.profiles') is not null then
-    execute 'delete from public.profiles';
   end if;
 end $$;

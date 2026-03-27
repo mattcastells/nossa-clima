@@ -90,15 +90,21 @@ export const StoreSelectorDialog = ({
           />
 
           {allowNoStore ? (
-            <Button
-              mode={selectedStoreId ? 'outlined' : 'contained-tonal'}
-              onPress={() => handleSelect(null)}
-              style={styles.noneButton}
-              buttonColor={selectedStoreId ? undefined : theme.colors.softYellow}
-              textColor={selectedStoreId ? undefined : theme.colors.titleOnSoft}
-            >
-              Sin tienda
-            </Button>
+            selectedStoreId ? (
+              <Button mode="outlined" onPress={() => handleSelect(null)} style={styles.noneButton}>
+                Sin tienda
+              </Button>
+            ) : (
+              <Button
+                mode="contained-tonal"
+                onPress={() => handleSelect(null)}
+                style={styles.noneButton}
+                buttonColor={theme.colors.softYellow}
+                textColor={theme.colors.titleOnSoft}
+              >
+                Sin tienda
+              </Button>
+            )
           ) : null}
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScroll}>
