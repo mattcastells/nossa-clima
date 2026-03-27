@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ensureProfileForCurrentSession } from '@/features/auth/service';
 import { useAuthStore } from '@/features/auth/store';
+import { logDevWarning } from '@/lib/devLogger';
 import { supabase } from '@/lib/supabase';
 
 const SESSION_BOOT_TIMEOUT_MS = 8000;
@@ -17,15 +18,14 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, message: 
 
 export const useAuthSession = (): boolean => {
   const [loading, setLoading] = useState(true);
-  const setUserId = useAuthStore((s) => s.setUserId);
+  const setUserId = useAuthStore((state) => state.setUserId);
 
   useEffect(() => {
     let mounted = true;
 
     const syncProfileWithoutBlocking = () => {
       ensureProfileForCurrentSession().catch((error) => {
-        // eslint-disable-next-line no-console
-        console.warn('No se pudo sincronizar perfil de sesión:', error);
+        logDevWarning('Failed to sync the current session profile.', error);
       });
     };
 
@@ -34,7 +34,7 @@ export const useAuthSession = (): boolean => {
         const { data, error } = await withTimeout(
           supabase.auth.getSession(),
           SESSION_BOOT_TIMEOUT_MS,
-          'Timeout restaurando sesión.',
+          'Session restore timed out.',
         );
         if (error) throw error;
         if (!mounted) return;
@@ -45,8 +45,7 @@ export const useAuthSession = (): boolean => {
         }
       } catch (error) {
         if (mounted) {
-          // eslint-disable-next-line no-console
-          console.warn('No se pudo restaurar sesión:', error);
+          logDevWarning('Failed to restore the current session.', error);
           setUserId(null);
         }
       } finally {
@@ -56,7 +55,7 @@ export const useAuthSession = (): boolean => {
       }
     };
 
-    bootstrapSession();
+    void bootstrapSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user.id ?? null);

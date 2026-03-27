@@ -1,6 +1,6 @@
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -116,11 +116,6 @@ export default function AssistantScreen() {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [isSending, messages.length]);
 
-  useEffect(() => {
-    if (!isRecordingAudio || recordingDurationMillis < ASSISTANT_AUDIO_MAX_DURATION_MS) return;
-    void stopAudioRecording();
-  }, [isRecordingAudio, recordingDurationMillis]);
-
   useEffect(
     () => () => {
       const activeRecording = recordingRef.current;
@@ -196,7 +191,7 @@ export default function AssistantScreen() {
     setShowResetDialog(true);
   };
 
-  const startAudioRecording = async () => {
+  const startAudioRecording = useCallback(async () => {
     if (isRecordingAudio || isSending) return;
 
     try {
@@ -219,9 +214,9 @@ export default function AssistantScreen() {
       await resetAudioModeAfterRecording().catch(() => {});
       toast.error(error instanceof Error ? error.message : 'No se pudo iniciar la grabacion.');
     }
-  };
+  }, [isRecordingAudio, isSending, toast]);
 
-  const stopAudioRecording = async () => {
+  const stopAudioRecording = useCallback(async () => {
     const activeRecording = recordingRef.current;
     if (!activeRecording) return;
 
@@ -237,7 +232,12 @@ export default function AssistantScreen() {
       setRecordingDurationMillis(0);
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar la grabacion.');
     }
-  };
+  }, [recordingDurationMillis, toast]);
+
+  useEffect(() => {
+    if (!isRecordingAudio || recordingDurationMillis < ASSISTANT_AUDIO_MAX_DURATION_MS) return;
+    void stopAudioRecording();
+  }, [isRecordingAudio, recordingDurationMillis, stopAudioRecording]);
 
   const toggleAudioRecording = async () => {
     if (isRecordingAudio) {
@@ -507,7 +507,11 @@ export default function AssistantScreen() {
                           <Text style={[styles.pendingText, { color: theme.colors.textMuted }]}>Pensando respuesta...</Text>
                         </View>
                       ) : (
-                        <Text style={[styles.messageText, { color: message.role === 'user' ? theme.colors.titleOnSoft : theme.colors.onSurface }]}>
+                        <Text
+                          selectable={!message.pending && message.role === 'assistant'}
+                          selectionColor={theme.colors.primary}
+                          style={[styles.messageText, { color: message.role === 'user' ? theme.colors.titleOnSoft : theme.colors.onSurface }]}
+                        >
                           {message.text}
                         </Text>
                       )}

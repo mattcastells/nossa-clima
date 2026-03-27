@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { LatestStoreItemMeasurementPrice, LatestStoreItemPrice, StoreItemMeasurementPrice, StoreItemPrice } from '@/types/db';
+import { logDevWarning } from '@/lib/devLogger';
 
 import { isMissingSupabaseRelationError } from './supabaseCompatibility';
 
@@ -10,7 +11,7 @@ export const purgeOldPriceHistory = async (): Promise<number> => {
     if (error.code === '42883' || error.message?.includes('purge_old_price_history')) {
       return 0;
     }
-    console.warn('Error al limpiar historial de precios antiguo:', error.message);
+    logDevWarning('Failed to purge old price history.', error.message);
     return 0;
   }
   return (data as number) ?? 0;
@@ -21,7 +22,7 @@ interface LatestMeasurePriceOptions {
   storeId?: string;
 }
 
-const getMeasurePricingMigrationError = (): Error => new Error('Falta aplicar la migracion de medidas de materiales en Supabase.');
+const getMeasurePricingMigrationError = (): Error => new Error('The material measurements migration is missing in Supabase.');
 
 export const createPriceRecord = async (
   payload: Omit<StoreItemPrice, 'id' | 'created_at' | 'user_id'>,

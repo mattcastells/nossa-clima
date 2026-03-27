@@ -68,9 +68,8 @@ export default function NewQuotePage() {
       }
     };
 
-    create();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void create();
+  }, [appointmentId, appointmentNotes, appointmentTitle, hasLinkedAppointment, linkAppointment, save, toast]);
 
   return (
     <AppScreen title="Nuevo trabajo">

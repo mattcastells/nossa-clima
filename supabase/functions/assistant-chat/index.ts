@@ -103,18 +103,68 @@ const stripCodeFence = (value: string): string => {
   return trimmed;
 };
 
+const extractBalancedJsonObject = (value: string): string | null => {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let isEscaped = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        isEscaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{') {
+      if (depth === 0) {
+        start = index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (char === '}' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        return value.slice(start, index + 1).trim();
+      }
+    }
+  }
+
+  return null;
+};
+
 const extractJsonCandidate = (value: string): string | null => {
   const normalized = stripCodeFence(value);
   if (!normalized) return null;
 
-  if (normalized.startsWith('{') && normalized.endsWith('}')) {
-    return normalized;
+  if (normalized.startsWith('{')) {
+    return extractBalancedJsonObject(normalized);
   }
 
   const firstBrace = normalized.indexOf('{');
-  const lastBrace = normalized.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return normalized.slice(firstBrace, lastBrace + 1).trim();
+  if (firstBrace >= 0) {
+    return extractBalancedJsonObject(normalized.slice(firstBrace));
   }
 
   return null;
@@ -197,6 +247,11 @@ const parseAssistantJsonResponse = (
   } catch {
     return null;
   }
+};
+
+const looksLikeAssistantEnvelope = (value: string): boolean => {
+  const normalized = stripCodeFence(value);
+  return normalized.includes('"reply_text"') && normalized.includes('"action"');
 };
 
 const buildActionInstruction = (
@@ -387,6 +442,7 @@ Deno.serve(async (request) => {
         generationConfig: {
           maxOutputTokens: 900,
           temperature: 0.2,
+          responseMimeType: 'application/json',
         },
       }),
     });
@@ -419,6 +475,10 @@ Deno.serve(async (request) => {
       model,
       action: parsedResponse.action,
     });
+  }
+
+  if (looksLikeAssistantEnvelope(text)) {
+    return json({ error: 'Gemini devolvio una respuesta JSON invalida. Intenta nuevamente.' }, 502);
   }
 
   return json({

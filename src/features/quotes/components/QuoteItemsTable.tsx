@@ -156,109 +156,122 @@ export const QuoteItemsTable = ({
 
   return (
     <>
-    <View style={styles.container}>
-      <View style={styles.tableWrap}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={[styles.table, { borderColor: theme.colors.borderSoft }]}>
-        {/* Header */}
-        <View style={[styles.headerRow, { backgroundColor: theme.colors.tableHeaderBg, borderBottomColor: theme.colors.borderSoft }]}>
-          <Text style={[styles.hCell, styles.hCellName, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-            Concepto
-          </Text>
-          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-            Cant.
-          </Text>
-          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-            Costo
-          </Text>
-          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-            Margen
-          </Text>
-          <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-            Total
-          </Text>
-          <Text style={[styles.hCell, styles.hCellSource, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-            Origen
-          </Text>
-          <View style={[styles.hCell, styles.hCellAction]} />
-        </View>
+      <View style={styles.container}>
+        <View style={styles.tableWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={[styles.table, { borderColor: theme.colors.borderSoft }]}>
+              <View style={[styles.headerRow, { backgroundColor: theme.colors.tableHeaderBg, borderBottomColor: theme.colors.borderSoft }]}>
+                <Text style={[styles.hCell, styles.hCellName, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+                  Concepto
+                </Text>
+                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+                  Cant.
+                </Text>
+                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+                  Costo
+                </Text>
+                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+                  Margen
+                </Text>
+                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+                  Total
+                </Text>
+                <Text style={[styles.hCell, styles.hCellSource, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
+                  Origen
+                </Text>
+                <View style={[styles.hCell, styles.hCellAction]} />
+              </View>
 
-        {rows.length === 0 ? (
-          <View style={[styles.emptyRow, { borderBottomColor: theme.colors.borderSoft }]}>
-            <Text style={{ color: theme.colors.onSurface }}>No hay items cargados.</Text>
-          </View>
-        ) : (
-          rows.map((row, index) => {
-            const isService = row.kind === 'service';
-            const tint = isService ? serviceTint : materialTint;
-            const busy = isService ? serviceActionsBusy : materialActionsBusy;
+              {rows.length === 0 ? (
+                <View style={[styles.emptyRow, { borderBottomColor: theme.colors.borderSoft }]}>
+                  <Text style={{ color: theme.colors.onSurface }}>No hay items cargados.</Text>
+                </View>
+              ) : (
+                rows.map((row, index) => {
+                  const isService = row.kind === 'service';
+                  const tint = isService ? serviceTint : materialTint;
+                  const busy = isService ? serviceActionsBusy : materialActionsBusy;
 
-            return (
-              <Pressable
-                key={row.key}
-                onPress={() => {
-                  if (isCompleted) return;
-                  setEditingTarget({ kind: row.kind, id: row.id });
-                }}
-                disabled={isCompleted || busy}
-                style={({ pressed }) => [pressed && { opacity: 0.8 }]}
-              >
-                <View
-                  style={[
-                    styles.dataRow,
-                    { backgroundColor: tint, borderBottomColor: theme.colors.borderSoft },
-                    index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.borderSoft },
-                  ]}
-                >
-                  {/* Concepto cell — name + notes */}
-                  <View style={[styles.dCell, styles.dCellName, { borderRightColor: theme.colors.borderSoft }]}>
-                    <Text style={[styles.nameTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
-                      {row.title}
-                    </Text>
-                    {row.notes ? (
-                      <Text style={[styles.nameNotes, { color: theme.colors.textMuted }]} numberOfLines={1}>
-                        {row.notes}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Text style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
-                    {row.quantity}
-                  </Text>
-                  <Text style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
-                    {row.base}
-                  </Text>
-                  <Text style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
-                    {row.margin}
-                  </Text>
-                  <Text style={[styles.dCell, styles.dCellNum, styles.dValueStrong, { color: theme.colors.primary, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
-                    {row.total}
-                  </Text>
-                  <Text style={[styles.dCell, styles.dCellSource, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]} numberOfLines={1}>
-                    {row.source}
-                  </Text>
-                  <View style={[styles.dCell, styles.dCellAction]}>
-                    <IconButton
-                      icon="trash-can-outline"
-                      size={16}
-                      iconColor="#B00020"
+                  return (
+                    <Pressable
+                      key={row.key}
                       onPress={() => {
                         if (isCompleted) return;
-                        isService ? onDeleteService(row.id) : onDeleteMaterial(row.id);
+                        setEditingTarget({ kind: row.kind, id: row.id });
                       }}
                       disabled={isCompleted || busy}
-                      style={styles.deleteIcon}
-                    />
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })
-        )}
-      </View>
-      </ScrollView>
-      </View>
+                      style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+                    >
+                      <View
+                        style={[
+                          styles.dataRow,
+                          { backgroundColor: tint, borderBottomColor: theme.colors.borderSoft },
+                          index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.borderSoft },
+                        ]}
+                      >
+                        <View style={[styles.dCell, styles.dCellName, { borderRightColor: theme.colors.borderSoft }]}>
+                          <Text style={[styles.nameTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
+                            {row.title}
+                          </Text>
+                          {row.notes ? (
+                            <Text style={[styles.nameNotes, { color: theme.colors.textMuted }]} numberOfLines={1}>
+                              {row.notes}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text
+                          style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
+                          numberOfLines={1}
+                        >
+                          {row.quantity}
+                        </Text>
+                        <Text
+                          style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
+                          numberOfLines={1}
+                        >
+                          {row.base}
+                        </Text>
+                        <Text
+                          style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
+                          numberOfLines={1}
+                        >
+                          {row.margin}
+                        </Text>
+                        <Text
+                          style={[styles.dCell, styles.dCellNum, styles.dValueStrong, { color: theme.colors.primary, borderRightColor: theme.colors.borderSoft }]}
+                          numberOfLines={1}
+                        >
+                          {row.total}
+                        </Text>
+                        <Text
+                          style={[styles.dCell, styles.dCellSource, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
+                          numberOfLines={1}
+                        >
+                          {row.source}
+                        </Text>
+                        <View style={[styles.dCell, styles.dCellAction]}>
+                          <IconButton
+                            icon="trash-can-outline"
+                            size={16}
+                            iconColor="#B00020"
+                            onPress={() => {
+                              if (isCompleted) return;
+                              isService ? onDeleteService(row.id) : onDeleteMaterial(row.id);
+                            }}
+                            disabled={isCompleted || busy}
+                            style={styles.deleteIcon}
+                          />
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+          </ScrollView>
+        </View>
 
-      <View style={[styles.bottomBar, isCompact && styles.bottomBarCompact]}>
+        <View style={[styles.bottomBar, isCompact && styles.bottomBarCompact]}>
           <View style={[styles.tableActions, isCompact && styles.tableActionsCompact]}>
             <Link href={{ pathname: '/quotes/[id]/add-service', params: { id: quoteId } }} asChild>
               <Button
@@ -320,7 +333,6 @@ export const QuoteItemsTable = ({
       </View>
 
       <Portal>
-        {/* ── Service edit modal ── */}
         <AppDialog visible={Boolean(editingService)} onDismiss={() => setEditingTarget(null)}>
           <Dialog.Title>Editar servicio</Dialog.Title>
           <Dialog.Content>
@@ -389,7 +401,6 @@ export const QuoteItemsTable = ({
           </Dialog.Content>
         </AppDialog>
 
-        {/* ── Material edit modal ── */}
         <AppDialog visible={Boolean(editingMaterial)} onDismiss={() => setEditingTarget(null)}>
           <Dialog.Title>Editar material</Dialog.Title>
           <Dialog.Content>
@@ -431,7 +442,6 @@ export const QuoteItemsTable = ({
                 <View style={styles.storePickerRow}>
                   <Text variant="labelMedium" style={{ color: theme.colors.textMuted }}>Origen</Text>
 
-                  {/* Selected store indicator */}
                   {selectedStoreName && !storeSearchFocused ? (
                     <View style={styles.storeSelected}>
                       <Text style={[styles.storeSelectedText, { color: theme.colors.onSurface }]}>{selectedStoreName}</Text>
@@ -448,7 +458,6 @@ export const QuoteItemsTable = ({
                     </View>
                   ) : null}
 
-                  {/* Search input */}
                   <TextInput
                     mode="outlined"
                     placeholder="Buscar tienda..."
@@ -465,7 +474,6 @@ export const QuoteItemsTable = ({
                     right={storeSearchText ? <TextInput.Icon icon="close" size={18} onPress={() => { setStoreSearchText(''); }} /> : undefined}
                   />
 
-                  {/* Filtered results */}
                   {storeSearchFocused ? (
                     <ScrollView
                       style={[styles.storeResults, { borderColor: theme.colors.borderSoft }]}
@@ -545,7 +553,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  /* ── Header row ── */
   headerRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -574,7 +581,6 @@ const styles = StyleSheet.create({
     width: 36,
     borderRightWidth: 0,
   },
-  /* ── Item name (inside Concepto cell) ── */
   nameTitle: {
     fontSize: 12,
     fontWeight: '600',
@@ -588,7 +594,6 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
   },
-  /* ── Data row ── */
   dataRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -633,7 +638,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
   },
-  /* ── Bottom bar ── */
   bottomBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -717,7 +721,6 @@ const styles = StyleSheet.create({
   inputOutline: {
     borderRadius: 10,
   },
-  /* ── Editor dialogs ── */
   materialEditor: {
     gap: 12,
   },

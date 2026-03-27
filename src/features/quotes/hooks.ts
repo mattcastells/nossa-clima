@@ -8,13 +8,9 @@ import {
   deleteQuote,
   deleteQuoteMaterialItem,
   deleteQuoteServiceItem,
-  duplicateQuoteMaterialItem,
-  duplicateQuoteServiceItem,
   getQuoteDetail,
-  getSuggestedMaterialPrice,
   listQuotes,
   refreshQuoteMaterialPricing,
-  resetQuoteMaterialItemMarginsToDefault,
   type QuoteMaterialItemInput,
   type QuoteMaterialItemUpdate,
   type QuoteServiceItemInput,
@@ -82,22 +78,6 @@ export const useDeleteQuoteMaterialItem = () => {
   });
 };
 
-export const useDuplicateQuoteMaterialItem = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (itemId: string) => duplicateQuoteMaterialItem(itemId),
-    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
-  });
-};
-
-export const useResetQuoteMaterialItemMarginsToDefault = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (quoteId: string) => resetQuoteMaterialItemMarginsToDefault(quoteId),
-    onSuccess: ({ quoteId }) => invalidateQuoteCaches(queryClient, quoteId),
-  });
-};
-
 export const useRefreshQuoteMaterialPricing = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -129,26 +109,6 @@ export const useDeleteQuoteServiceItem = () => {
     onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
   });
 };
-
-export const useDuplicateQuoteServiceItem = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (itemId: string) => duplicateQuoteServiceItem(itemId),
-    onSuccess: (line) => invalidateQuoteCaches(queryClient, line.quote_id),
-  });
-};
-
-export const useSuggestedMaterialPrice = (
-  itemId: string,
-  itemMeasurementId?: string | null,
-  marginPercent?: number | null,
-  sourceStoreId?: string | null,
-) =>
-  useQuery({
-    queryKey: ['suggested-material-price', itemId, itemMeasurementId ?? null, marginPercent ?? null, sourceStoreId ?? null],
-    queryFn: () => getSuggestedMaterialPrice(itemId, itemMeasurementId, marginPercent, sourceStoreId),
-    enabled: Boolean(itemId),
-  });
 
 export const useDeleteOldQuotes = () => {
   const queryClient = useQueryClient();

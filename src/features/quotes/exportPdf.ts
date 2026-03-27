@@ -1,6 +1,12 @@
 import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Platform } from 'react-native';
 
+import brandBanner from '../../../assets/nc-logo-light.png';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 import type { QuoteDetail } from '@/services/quotes';
 import { getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from './materialPricing';
@@ -19,14 +25,8 @@ const HTML_SUMMARY_CARD_HEIGHT = 96;
 const PDF_SUMMARY_CARD_WIDTH = 240;
 const PDF_SUMMARY_ROW_HEIGHT = 24;
 const PDF_SUMMARY_CARD_HEIGHT = PDF_SUMMARY_ROW_HEIGHT * 3;
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const brandBanner = require('../../../assets/nc-logo-light.png');
 
-type PdfDocument = import('jspdf').jsPDF;
-type AutoTableFn = (doc: PdfDocument, options: Record<string, unknown>) => void;
-type AutoTableModule = AutoTableFn & {
-  default?: AutoTableFn;
-};
+type PdfDocument = InstanceType<typeof jsPDF>;
 
 type WebLogoImage = {
   dataUrl: string;
@@ -609,13 +609,6 @@ const drawTotalsPanel = (doc: PdfDocument, detail: QuoteDetail, x: number, y: nu
 };
 
 const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Promise<void> => {
-  // Load web-only PDF dependencies only when the user actually exports a PDF.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { jsPDF } = require('jspdf') as typeof import('jspdf');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const autoTableImport = require('jspdf-autotable') as AutoTableModule;
-  const autoTable = autoTableImport.default ?? autoTableImport;
-
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   const marginX = 44;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -750,9 +743,6 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
 };
 
 const createNativeQuotePdfFile = async (detail: QuoteDetail): Promise<{ uri: string; fileName: string }> => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const Print = require('expo-print') as typeof import('expo-print');
-
   const html = buildQuotePdfHtml(detail, '');
   const file = await Print.printToFileAsync({ html });
 
@@ -801,13 +791,6 @@ export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
     return;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const Sharing = require('expo-sharing') as typeof import('expo-sharing');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const Print = require('expo-print') as typeof import('expo-print');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
-
   const file = await createNativeQuotePdfFile(detail);
 
   try {
@@ -840,9 +823,6 @@ export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
     await exportQuotePdfWeb(detail, brandLogoUri);
     return buildPdfName(detail);
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
   const { StorageAccessFramework } = FileSystem;
   const file = await createNativeQuotePdfFile(detail);
 
@@ -874,8 +854,4 @@ export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
       // Ignore cleanup errors for generated temp files.
     }
   }
-};
-
-export const exportQuotePdf = async (detail: QuoteDetail): Promise<void> => {
-  await shareQuotePdf(detail);
 };

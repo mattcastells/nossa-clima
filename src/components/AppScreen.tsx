@@ -68,7 +68,7 @@ export const AppScreen = ({ title, titleRight, children, showBackButton = true, 
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
       {scrollable ? (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scrollContent, { backgroundColor: theme.colors.background }]}>
           {innerContent}
@@ -82,9 +82,9 @@ export const AppScreen = ({ title, titleRight, children, showBackButton = true, 
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  scrollContent: { paddingBottom: 28 },
+  scrollContent: { flexGrow: 1, paddingBottom: 12 },
   fixedWrapper: { flex: 1 },
-  container: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 96 },
+  container: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24 },
   flexContainer: { flex: 1, paddingBottom: 24 },
   navRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, minHeight: 34 },
   backButton: { alignSelf: 'flex-start', marginBottom: 4 },

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { LatestStoreItemPrice, Store } from '@/types/db';
+import type { Store } from '@/types/db';
 import { isMissingSupabaseColumnError } from './supabaseCompatibility';
 
 interface ListStoresOptions {
@@ -48,14 +48,4 @@ export const archiveStore = async (storeId: string): Promise<Store> => {
     throw error;
   }
   return data;
-};
-
-export const listStoreLatestPrices = async (storeId: string): Promise<LatestStoreItemPrice[]> => {
-  const { data, error } = await supabase
-    .from('latest_store_item_prices')
-    .select('*')
-    .eq('store_id', storeId)
-    .order('item_name');
-  if (error) throw error;
-  return data ?? [];
 };

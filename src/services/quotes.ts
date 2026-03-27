@@ -10,7 +10,6 @@ import type {
   QuoteServiceItem,
   Service,
   Store,
-  StoreItemPrice,
 } from '@/types/db';
 import { normalizeQuoteStatus } from '@/features/quotes/status';
 
@@ -40,11 +39,6 @@ export interface QuoteListItem extends Quote {
   appointment: Pick<Appointment, 'scheduled_for' | 'starts_at'> | null;
 }
 
-export interface SuggestedMaterialPrice {
-  baseCost: number;
-  suggestedUnitPrice: number;
-}
-
 export interface DeleteOldQuotesResult {
   deletedCount: number;
   cutoffIso: string;
@@ -52,11 +46,6 @@ export interface DeleteOldQuotesResult {
 
 export interface DeleteAllQuotesResult {
   deletedCount: number;
-}
-
-export interface ResetQuoteMaterialMarginsResult {
-  quoteId: string;
-  updatedCount: number;
 }
 
 export interface RefreshQuoteMaterialPricingResult {
@@ -371,68 +360,6 @@ const resolveMaterialSnapshot = async (
   };
 };
 
-export const getSuggestedMaterialPrice = async (
-  itemId: string,
-  itemMeasurementId?: string | null,
-  marginPercent?: number | null,
-  sourceStoreId?: string | null,
-): Promise<SuggestedMaterialPrice> => {
-  let record: Pick<StoreItemPrice, 'price'> | null = null;
-
-  if (itemMeasurementId && sourceStoreId) {
-    const byMeasuredStore = await supabase
-      .from('latest_effective_store_item_measure_prices')
-      .select('price')
-      .eq('item_measurement_id', itemMeasurementId)
-      .eq('store_id', sourceStoreId)
-      .maybeSingle();
-    if (byMeasuredStore.error) throw byMeasuredStore.error;
-    record = byMeasuredStore.data;
-  }
-
-  if (!record && itemMeasurementId) {
-    const latestMeasured = await supabase
-      .from('item_measure_price_history')
-      .select('price')
-      .eq('item_measurement_id', itemMeasurementId)
-      .order('observed_at', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (latestMeasured.error) throw latestMeasured.error;
-    record = latestMeasured.data;
-  }
-
-  if (!record && sourceStoreId) {
-    const byStore = await supabase
-      .from('latest_store_item_prices')
-      .select('price')
-      .eq('item_id', itemId)
-      .eq('store_id', sourceStoreId)
-      .maybeSingle();
-    if (byStore.error) throw byStore.error;
-    record = byStore.data;
-  }
-
-  if (!record) {
-    const latest = await supabase
-      .from('store_item_prices')
-      .select('price')
-      .eq('item_id', itemId)
-      .order('observed_at', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (latest.error) throw latest.error;
-    record = latest.data;
-  }
-
-  const baseCost = Number(record?.price ?? 0);
-  const suggestedUnitPrice = marginPercent != null ? Number((baseCost * (1 + marginPercent / 100)).toFixed(2)) : baseCost;
-
-  return { baseCost, suggestedUnitPrice };
-};
-
 export const addQuoteMaterialItem = async (payload: QuoteMaterialItemInput): Promise<QuoteMaterialItem> => {
   const [materialContext, sourceStore] = await Promise.all([
     resolveMaterialSnapshot(payload.item_id, payload.item_measurement_id ?? null),
@@ -550,45 +477,6 @@ export const deleteQuoteMaterialItem = async (itemId: string): Promise<{ quote_i
   return data;
 };
 
-export const duplicateQuoteMaterialItem = async (itemId: string): Promise<QuoteMaterialItem> => {
-  const { data: existing, error: existingError } = await supabase.from('quote_material_items').select('*').eq('id', itemId).single();
-  if (existingError) throw existingError;
-
-  // Ownership check
-  try {
-    const currentUserId = await getCurrentUserId();
-    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
-      throw new Error('No autorizado para duplicar este material');
-    }
-  } catch (err) {
-    // Let DB RLS enforce if needed
-  }
-
-  const payload: QuoteMaterialItemInput = {
-    quote_id: existing.quote_id,
-    item_id: existing.item_id,
-    item_measurement_id: existing.item_measurement_id,
-    quantity: existing.quantity,
-    unit: existing.unit,
-    unit_price: existing.unit_price,
-    margin_percent: existing.margin_percent,
-    source_store_id: existing.source_store_id,
-    notes: existing.notes,
-  };
-
-  return addQuoteMaterialItem(payload);
-};
-
-export const resetQuoteMaterialItemMarginsToDefault = async (quoteId: string): Promise<ResetQuoteMaterialMarginsResult> => {
-  const { data, error } = await supabase.from('quote_material_items').update({ margin_percent: null }).eq('quote_id', quoteId).select('id');
-  if (error) throw error;
-
-  return {
-    quoteId,
-    updatedCount: data?.length ?? 0,
-  };
-};
-
 export const refreshQuoteMaterialPricing = async (quoteId: string): Promise<RefreshQuoteMaterialPricingResult> => {
   const { data, error } = await supabase
     .from('quote_material_items')
@@ -650,30 +538,4 @@ export const deleteQuoteServiceItem = async (itemId: string): Promise<{ quote_id
   const { data, error } = await supabase.from('quote_service_items').delete().eq('id', itemId).select('quote_id').single();
   if (error) throw error;
   return data;
-};
-
-export const duplicateQuoteServiceItem = async (itemId: string): Promise<QuoteServiceItem> => {
-  const { data: existing, error: existingError } = await supabase.from('quote_service_items').select('*').eq('id', itemId).single();
-  if (existingError) throw existingError;
-
-  // Ownership check
-  try {
-    const currentUserId = await getCurrentUserId();
-    if (currentUserId && existing.user_id && existing.user_id !== currentUserId) {
-      throw new Error('No autorizado para duplicar este servicio');
-    }
-  } catch (err) {
-    // allow DB RLS to handle if we can't determine user
-  }
-
-  const payload: QuoteServiceItemInput = {
-    quote_id: existing.quote_id,
-    service_id: existing.service_id,
-    quantity: existing.quantity,
-    unit_price: existing.unit_price,
-    margin_percent: existing.margin_percent,
-    notes: existing.notes,
-  };
-
-  return addQuoteServiceItem(payload);
 };

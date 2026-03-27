@@ -63,10 +63,6 @@ const normalizeOptionalPercentInput = (value: string): number | null => {
 };
 
 export default function QuoteDetailPage() {
-  if (Platform.OS === 'android') {
-    UIManager.setLayoutAnimationEnabledExperimental?.(true);
-  }
-
   const theme = useAppTheme();
   const calendarColors = getCalendarColors(theme);
   const { id, linkWarning, fromNew } = useLocalSearchParams<{ id: string; linkWarning?: string; fromNew?: string }>();
@@ -102,7 +98,11 @@ export default function QuoteDetailPage() {
   const clienteAnim = useRef(new Animated.Value(startExpanded ? 1 : 0)).current;
   const fechaAnim = useRef(new Animated.Value(startExpanded ? 1 : 0)).current;
 
-  // Auto-expand sections when arriving from creation
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    UIManager.setLayoutAnimationEnabledExperimental?.(true);
+  }, []);
+
   useEffect(() => {
     if (fromNew !== '1') return;
     setClienteSectionOpen(true);
@@ -112,8 +112,7 @@ export default function QuoteDetailPage() {
       Animated.timing(clienteAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
       Animated.timing(fechaAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
     ]).start();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromNew]);
+  }, [clienteAnim, fechaAnim, fromNew]);
 
   const toggleCliente = () => {
     const next = !clienteSectionOpen;

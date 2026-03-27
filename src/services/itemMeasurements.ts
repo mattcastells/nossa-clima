@@ -50,21 +50,3 @@ export const upsertItemMeasurement = async (
 
   return data;
 };
-
-export const archiveItemMeasurement = async (measurementId: string): Promise<ItemMeasurement> => {
-  const { data, error } = await supabase
-    .from('item_measurements')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', measurementId)
-    .select()
-    .single();
-
-  if (error) {
-    if (isMissingSupabaseRelationError(error, 'item_measurements') || isMissingSupabaseColumnError(error, 'archived_at')) {
-      throw getMeasurementsMigrationError();
-    }
-    throw error;
-  }
-
-  return data;
-};

@@ -25,17 +25,6 @@ export const quoteStatusLabel = (status: QuoteStatus | null | undefined): string
   }
 };
 
-export const quoteStatusDescription = (status: QuoteStatus | null | undefined): string => {
-  switch (normalizeQuoteStatus(status)) {
-    case 'completed':
-      return 'El trabajo ya fue realizado y queda solo como historial.';
-    case 'cancelled':
-      return 'El trabajo se oculta del flujo normal y se elimina automaticamente a los 3 dias si sigue cancelado.';
-    default:
-      return 'Es el estado normal de un trabajo activo o pendiente de cierre.';
-  }
-};
-
 export const quoteStatusAccent = (status: QuoteStatus | null | undefined): {
   backgroundColor: string;
   textColor: string;

@@ -36,6 +36,83 @@ const ACTION_TYPES = new Set([
 ]);
 const ACTION_CONFIDENCE = new Set(['low', 'medium', 'high']);
 
+const stripCodeFence = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('```')) return trimmed;
+
+  const lines = trimmed.split('\n');
+  if (lines.length >= 2 && lines[0]?.startsWith('```') && lines.at(-1)?.trim() === '```') {
+    return lines.slice(1, -1).join('\n').trim();
+  }
+
+  return trimmed;
+};
+
+const extractBalancedJsonObject = (value: string): string | null => {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let isEscaped = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        isEscaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{') {
+      if (depth === 0) {
+        start = index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (char === '}' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        return value.slice(start, index + 1).trim();
+      }
+    }
+  }
+
+  return null;
+};
+
+const extractAssistantJsonCandidate = (value: string): string | null => {
+  const normalized = stripCodeFence(value);
+  if (!normalized) return null;
+
+  if (normalized.startsWith('{')) {
+    return extractBalancedJsonObject(normalized);
+  }
+
+  const firstBrace = normalized.indexOf('{');
+  if (firstBrace < 0) return null;
+
+  return extractBalancedJsonObject(normalized.slice(firstBrace));
+};
+
 const toAssistantError = (error: unknown): Error => {
   if (error instanceof Error) {
     const message = error.message.trim();
@@ -86,6 +163,37 @@ const parseAssistantActionProposal = (value: unknown): AssistantActionProposal |
   return normalized;
 };
 
+const parseAssistantEnvelopeFromText = (
+  value: string,
+): {
+  text: string;
+  action: AssistantActionProposal | null;
+} | null => {
+  const jsonCandidate = extractAssistantJsonCandidate(value);
+  if (!jsonCandidate) return null;
+
+  try {
+    const parsed = JSON.parse(jsonCandidate) as {
+      reply_text?: unknown;
+      action?: unknown;
+    };
+
+    const parsedAction = parseAssistantActionProposal(parsed.action);
+    const replyText = typeof parsed.reply_text === 'string' && parsed.reply_text.trim() ? parsed.reply_text.trim() : '';
+
+    if (!replyText && !parsedAction) {
+      return null;
+    }
+
+    return {
+      text: replyText || value.trim(),
+      action: parsedAction,
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const sendAssistantMessage = async ({ history, context, pendingAction }: SendAssistantMessageInput): Promise<AssistantReply> => {
   const normalizedHistory = history
     .map((message) => ({
@@ -128,9 +236,11 @@ export const sendAssistantMessage = async ({ history, context, pendingAction }: 
     throw new Error('La respuesta del asistente no tuvo el formato esperado.');
   }
 
+  const fallbackEnvelope = parseAssistantEnvelopeFromText(reply.text);
+
   return {
-    text: reply.text,
+    text: fallbackEnvelope?.text ?? reply.text,
     model: reply.model,
-    action: parseAssistantActionProposal(reply.action),
+    action: parseAssistantActionProposal(reply.action) ?? fallbackEnvelope?.action ?? null,
   };
 };

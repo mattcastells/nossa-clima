@@ -182,12 +182,6 @@ export const getCurrentBuildNumber = (): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const getCurrentVersionLabel = (): string => {
-  const version = Application.nativeApplicationVersion ?? 'dev';
-  const build = Application.nativeBuildVersion ?? 'dev';
-  return `${version} (${build})`;
-};
-
 export const getCurrentApplicationVersion = (): string | null => {
   return Application.nativeApplicationVersion ?? null;
 };
