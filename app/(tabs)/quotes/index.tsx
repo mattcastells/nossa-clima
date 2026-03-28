@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Button, Card, IconButton, Searchbar, Text } from 'react-native-paper';
@@ -67,9 +67,9 @@ export default function QuotesScreen() {
   return (
     <AppScreen title="Trabajos">
       <View style={styles.topActions}>
-        <Link href="/quotes/new" asChild>
-          <Button mode="contained">Nuevo trabajo</Button>
-        </Link>
+        <Button mode="contained" onPress={() => router.push('/quotes/new')}>
+          Nuevo trabajo
+        </Button>
       </View>
 
       <Searchbar

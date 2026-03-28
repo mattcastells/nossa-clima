@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Animated, UIManager, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Animated, View } from 'react-native';
 import { ActivityIndicator, Button, Card, Divider, Icon, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
@@ -65,7 +65,7 @@ const normalizeOptionalPercentInput = (value: string): number | null => {
 export default function QuoteDetailPage() {
   const theme = useAppTheme();
   const calendarColors = getCalendarColors(theme);
-  const { id, linkWarning, fromNew } = useLocalSearchParams<{ id: string; linkWarning?: string; fromNew?: string }>();
+  const { id, linkWarning } = useLocalSearchParams<{ id: string; linkWarning?: string }>();
   const { data, isLoading, error } = useQuoteDetail(id);
   const referencedStoreIds = useMemo(
     () => Array.from(new Set((data?.materials ?? []).map((item) => item.source_store_id).filter(Boolean) as string[])).sort(),
@@ -91,28 +91,11 @@ export default function QuoteDetailPage() {
   const [globalMarginInput, setGlobalMarginInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'material' | 'service'; id: string } | null>(null);
   const [deleteQuoteConfirm, setDeleteQuoteConfirm] = useState(false);
-  const startExpanded = fromNew === '1';
-  const [calendarVisible, setCalendarVisible] = useState(startExpanded);
-  const [clienteSectionOpen, setClienteSectionOpen] = useState(startExpanded);
-  const [fechaSectionOpen, setFechaSectionOpen] = useState(startExpanded);
-  const clienteAnim = useRef(new Animated.Value(startExpanded ? 1 : 0)).current;
-  const fechaAnim = useRef(new Animated.Value(startExpanded ? 1 : 0)).current;
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    UIManager.setLayoutAnimationEnabledExperimental?.(true);
-  }, []);
-
-  useEffect(() => {
-    if (fromNew !== '1') return;
-    setClienteSectionOpen(true);
-    setFechaSectionOpen(true);
-    setCalendarVisible(true);
-    Animated.parallel([
-      Animated.timing(clienteAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
-      Animated.timing(fechaAnim, { toValue: 1, duration: 280, useNativeDriver: false }),
-    ]).start();
-  }, [clienteAnim, fechaAnim, fromNew]);
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [clienteSectionOpen, setClienteSectionOpen] = useState(false);
+  const [fechaSectionOpen, setFechaSectionOpen] = useState(false);
+  const clienteAnim = useRef(new Animated.Value(0)).current;
+  const fechaAnim = useRef(new Animated.Value(0)).current;
 
   const toggleCliente = () => {
     const next = !clienteSectionOpen;
