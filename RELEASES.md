@@ -111,7 +111,7 @@ Los pasos que tenes que hacer vos en GitHub se detallan al final de este archivo
 - Confirmar que el nuevo `BUILD` sea mayor que el ultimo publicado.
 - Confirmar que la release no sea `draft` ni `prerelease`.
 
-## Estado actual (27 Mar 2026)
+## Estado actual (28 Mar 2026)
 
 Tags detectados en el repo:
 
@@ -127,10 +127,11 @@ Tags detectados en el repo:
 - `v0.3.5-b11`
 - `v0.4.0-b12`
 - `v0.4.1-b13`
+- `v0.4.2-b14`
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.4.2-b14` (patch) o `v0.5.0-b14` (minor)
+- `v0.4.3-b15` (patch) o `v0.5.0-b15` (minor)
 
 ## Pasos de setup para privacidad del repo (hacelos una sola vez)
 
