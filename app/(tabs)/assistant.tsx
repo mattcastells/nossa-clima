@@ -639,9 +639,9 @@ export default function AssistantScreen() {
                           : null}
 
                         {message.action.draft.hints.length > 0 ? (
-                          <View style={[styles.actionInfoBox, { backgroundColor: theme.colors.softYellow, borderColor: theme.colors.borderSoft }]}>
+                          <View style={[styles.actionInfoBox, { backgroundColor: theme.colors.softYellow, borderColor: theme.colors.softYellowStrong }]}>
                             {message.action.draft.hints.map((hint) => (
-                              <Text key={`${message.id}-${hint}`} style={[styles.actionInfoText, { color: theme.colors.onSurface }]}>
+                              <Text key={`${message.id}-${hint}`} style={[styles.actionInfoText, { color: theme.colors.onSoftYellow }]}>
                                 {hint}
                               </Text>
                             ))}
@@ -710,8 +710,8 @@ export default function AssistantScreen() {
                   <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>MIC</Text>
                 </View>
                 <View style={styles.previewCopy}>
-                  <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>{pendingAudio.name}</Text>
-                  <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
+                  <Text variant="labelLarge" style={{ color: theme.colors.onSoftYellow }}>{pendingAudio.name}</Text>
+                  <Text style={[styles.helperText, { color: theme.colors.onSoftYellow }]}>
                     Duracion {formatAssistantAudioDuration(pendingAudio.durationMillis)}. Se enviara con el proximo mensaje.
                   </Text>
                 </View>

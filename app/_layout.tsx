@@ -11,6 +11,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { useAuthStore } from '@/features/auth/store';
 import { useThemeStore } from '@/features/theme/store';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { logDevWarning } from '@/lib/devLogger';
 import { getMissingRequiredEnvVars, hasMissingRequiredEnvVars } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';
 import {
@@ -76,8 +77,12 @@ export default function RootLayout() {
   // Initialize notification channel and request permissions once on startup
   useEffect(() => {
     const initNotifications = async () => {
-      await setupNotificationChannel();
-      await requestNotificationPermissions();
+      try {
+        await setupNotificationChannel();
+        await requestNotificationPermissions();
+      } catch (error) {
+        logDevWarning('Failed to initialize notifications.', error);
+      }
     };
     void initNotifications();
   }, []);

@@ -1,13 +1,14 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Card, Searchbar, Text } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
 
+import { ActionSearchComposer } from '@/components/ActionSearchComposer';
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
-import { BRAND_YELLOW_MID, useAppTheme } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 export default function StoresScreen() {
   const { data, isLoading, error } = useStores();
@@ -29,32 +30,18 @@ export default function StoresScreen() {
 
   return (
     <AppScreen title="Tiendas">
-      <Searchbar
-        placeholder="Buscar tienda"
+      <ActionSearchComposer
+        actionLabel="Nueva"
+        actionAccessibilityLabel="Nueva tienda"
+        onActionPress={() => router.push('/stores/new')}
         value={search}
         onChangeText={setSearch}
-        inputStyle={styles.searchbarInput}
-        style={[
-          styles.searchbar,
-          {
-            backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
-            borderColor: theme.colors.borderSoft,
-          },
-        ]}
+        placeholder="Buscar tienda..."
+        searchAccessibilityLabel="Buscar tienda"
+        accentBackgroundColor={theme.colors.softYellow}
+        accentBorderColor={theme.colors.softYellowStrong}
+        accentTextColor={theme.colors.onSoftYellow}
       />
-
-      <View style={styles.topActions}>
-        <Link href="/stores/new" asChild>
-          <Button
-            mode="contained-tonal"
-            buttonColor={theme.colors.softYellow}
-            textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
-            style={{ borderWidth: 1, borderColor: theme.dark ? theme.colors.softBlueStrong : BRAND_YELLOW_MID }}
-          >
-            Nueva tienda
-          </Button>
-        </Link>
-      </View>
 
       <LoadingOrError isLoading={isLoading} error={error} />
 
@@ -67,7 +54,7 @@ export default function StoresScreen() {
             <Link href={`/stores/${item.id}`} asChild>
               <Card mode="outlined" style={styles.storeCard}>
                 <View style={[styles.headerBlock, { backgroundColor: theme.colors.softYellow }]}>
-                  <Text style={[styles.headerTitle, { color: theme.dark ? theme.colors.titleOnSoft : '#1A1A1A' }]}>{item.name}</Text>
+                  <Text style={[styles.headerTitle, { color: theme.colors.onSoftYellow }]}>{item.name}</Text>
                 </View>
                 <Card.Content style={styles.storeCardContent}>
                   {item.address ? <Text style={{ color: theme.colors.onSurface }}>Ubicacion: {item.address}</Text> : null}
@@ -84,17 +71,6 @@ export default function StoresScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchbar: {
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  searchbarInput: {
-    paddingLeft: 4,
-  },
-  topActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   listContent: {
     paddingBottom: 12,
   },

@@ -15,6 +15,7 @@ import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
 import { formatMeasurementDisplayLabel, formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
+import { getSingleRouteParam } from '@/lib/routeParams';
 import { QuoteItemsSummary, SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
 import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
 
@@ -37,7 +38,8 @@ const parseNonNegativeInput = (value: string): number | null => {
 };
 
 export default function AddMaterialToQuotePage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = getSingleRouteParam(params.id).trim();
   const router = useRouter();
   const theme = useAppTheme();
   const quoteDetail = useQuoteDetail(id ?? '');

@@ -1,8 +1,9 @@
-﻿import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Button, Card, Chip, Menu, Searchbar, Text, TouchableRipple } from 'react-native-paper';
+import { Button, Card, Chip, Icon, Menu, Text, TouchableRipple } from 'react-native-paper';
 
+import { ActionSearchComposer } from '@/components/ActionSearchComposer';
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
@@ -121,33 +122,17 @@ export default function ServicesScreen() {
 
   return (
     <AppScreen title="Servicios" titleRight={categoriesButton}>
-      <Searchbar
-        placeholder="Buscar servicio"
+      <ActionSearchComposer
+        actionLabel="Nuevo"
+        actionAccessibilityLabel="Nuevo servicio"
+        onActionPress={() => router.push('/services/new')}
         value={search}
         onChangeText={setSearch}
-        inputStyle={styles.searchbarInput}
-        style={[
-          styles.searchbar,
-          {
-            backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
-            borderColor: theme.colors.borderSoft,
-          },
-        ]}
+        placeholder="Buscar servicio..."
+        searchAccessibilityLabel="Buscar servicio"
       />
 
-      <View style={styles.topActions}>
-        <Link href="/services/new" asChild style={styles.topActionItem}>
-          <Button
-            mode="contained-tonal"
-            buttonColor={theme.colors.softBlue}
-            textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
-            style={{ borderWidth: 1, borderColor: filterChipBorderColor, borderRadius: 8, flex: 1 }}
-            contentStyle={styles.newButtonContent}
-          >
-            Nuevo servicio
-          </Button>
-        </Link>
-
+      <View style={styles.filtersRow}>
         <Menu
           visible={categoryMenuOpen}
           onDismiss={() => setCategoryMenuOpen(false)}
@@ -167,11 +152,11 @@ export default function ServicesScreen() {
               borderless
             >
               <View style={styles.filterDropdownInner}>
-                <Text style={[styles.filterDropdownIcon, { color: filterChipTextColor }]}>☰</Text>
+                <Icon source="menu" size={16} color={filterChipTextColor} />
                 <Text style={[styles.filterDropdownText, { color: filterChipTextColor }]} numberOfLines={1}>
                   {selectedCategoryLabel}
                 </Text>
-                <Text style={[styles.filterDropdownArrow, { color: filterChipTextColor }]}>▾</Text>
+                <Icon source="chevron-down" size={16} color={filterChipTextColor} />
               </View>
             </TouchableRipple>
           }
@@ -188,7 +173,7 @@ export default function ServicesScreen() {
                 >
                   <View style={styles.menuGridItemInner}>
                     {isSelected && (
-                      <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>
+                      <Icon source="check" size={14} color={filterChipTextColor} />
                     )}
                     <Text
                       style={[styles.menuGridItemText, isSelected && styles.menuGridItemTextSelected]}
@@ -287,23 +272,10 @@ export default function ServicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchbar: {
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  searchbarInput: {
-    paddingLeft: 4,
-  },
-  topActions: {
+  filtersRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 8,
-  },
-  topActionItem: {
-    flex: 1,
-  },
-  newButtonContent: {
-    height: 42,
   },
   filterDropdown: {
     borderRadius: 8,
@@ -320,15 +292,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  filterDropdownIcon: {
-    fontSize: 13,
-  },
   filterDropdownText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  filterDropdownArrow: {
-    fontSize: 11,
   },
   menuContent: {
     paddingVertical: 6,
@@ -359,10 +325,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  menuCheckIcon: {
-    fontSize: 13,
-    fontWeight: '700',
   },
   menuGridItemText: {
     fontSize: 14,

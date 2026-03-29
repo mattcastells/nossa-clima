@@ -9,9 +9,11 @@ import { LoadingOrError } from '@/components/LoadingOrError';
 import { ServiceForm } from '@/features/services/ServiceForm';
 import { useDeleteService, useSaveService, useServiceCategories, useServices } from '@/features/services/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
+import { getSingleRouteParam } from '@/lib/routeParams';
 
 export default function ServiceDetailPage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = getSingleRouteParam(params.id).trim();
   const router = useRouter();
   const { data, isLoading, error } = useServices();
   const { data: categories } = useServiceCategories();

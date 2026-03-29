@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Animated, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Card, Divider, Icon, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
@@ -41,6 +41,7 @@ import {
 } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatTimeShort } from '@/lib/format';
+import { getSingleRouteParam } from '@/lib/routeParams';
 import { useAppTheme } from '@/theme';
 import type { JobQuoteStatus } from '@/types/db';
 
@@ -65,8 +66,11 @@ const normalizeOptionalPercentInput = (value: string): number | null => {
 export default function QuoteDetailPage() {
   const theme = useAppTheme();
   const calendarColors = getCalendarColors(theme);
-  const { id, linkWarning } = useLocalSearchParams<{ id: string; linkWarning?: string }>();
-  const { data, isLoading, error } = useQuoteDetail(id);
+  const params = useLocalSearchParams<{ id?: string | string[]; linkWarning?: string | string[]; warning?: string | string[] }>();
+  const quoteId = getSingleRouteParam(params.id).trim();
+  const linkWarning = getSingleRouteParam(params.linkWarning).trim();
+  const warning = getSingleRouteParam(params.warning).trim();
+  const { data, isLoading, error } = useQuoteDetail(quoteId);
   const referencedStoreIds = useMemo(
     () => Array.from(new Set((data?.materials ?? []).map((item) => item.source_store_id).filter(Boolean) as string[])).sort(),
     [data?.materials],
@@ -94,19 +98,10 @@ export default function QuoteDetailPage() {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [clienteSectionOpen, setClienteSectionOpen] = useState(false);
   const [fechaSectionOpen, setFechaSectionOpen] = useState(false);
-  const clienteAnim = useRef(new Animated.Value(0)).current;
-  const fechaAnim = useRef(new Animated.Value(0)).current;
+  const screenError = !quoteId ? new Error('No se encontro el trabajo solicitado.') : error;
 
-  const toggleCliente = () => {
-    const next = !clienteSectionOpen;
-    setClienteSectionOpen(next);
-    Animated.timing(clienteAnim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
-  };
-  const toggleFecha = () => {
-    const next = !fechaSectionOpen;
-    setFechaSectionOpen(next);
-    Animated.timing(fechaAnim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
-  };
+  const toggleCliente = () => setClienteSectionOpen((current) => !current);
+  const toggleFecha = () => setFechaSectionOpen((current) => !current);
   useToastMessageEffect(snack, () => setSnack(null));
   const [calendarMonthAnchor, setCalendarMonthAnchor] = useState(() => {
     const today = new Date();
@@ -147,10 +142,14 @@ export default function QuoteDetailPage() {
   }, [scheduleDate]);
 
   useEffect(() => {
-    if (linkWarning === '1') {
+    if (warning === 'link-appointment' || linkWarning === '1') {
       setSnack('El trabajo se creo, pero no se pudo vincular automaticamente al turno.');
+      return;
     }
-  }, [linkWarning]);
+    if (warning === 'schedule-appointment') {
+      setSnack('El trabajo se creo, pero no se pudo programar la fecha.');
+    }
+  }, [linkWarning, warning]);
 
   const calendarCells = useMemo(() => getCalendarCells(calendarMonthAnchor), [calendarMonthAnchor]);
 
@@ -357,7 +356,7 @@ export default function QuoteDetailPage() {
 
   return (
     <AppScreen title="Detalle de trabajo" showHomeButton={false}>
-      <LoadingOrError isLoading={isLoading} error={error} />
+      <LoadingOrError isLoading={Boolean(quoteId) && isLoading} error={screenError} />
       {data && (
         <View style={styles.page}>
           <View style={styles.editingDivider}>
@@ -371,13 +370,11 @@ export default function QuoteDetailPage() {
             <Text variant="titleMedium" style={styles.accordionTitle}>
               Cliente
             </Text>
-            <Animated.View style={{ transform: [{ rotate: clienteAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-              <Icon source="chevron-down" size={22} />
-            </Animated.View>
+            <Icon source={clienteSectionOpen ? 'chevron-up' : 'chevron-down'} size={22} />
           </Pressable>
-          <Animated.View style={[styles.accordionBody, { maxHeight: clienteAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 900] }), opacity: clienteAnim }]}>
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
+          {clienteSectionOpen ? (
+            <Card mode="contained" style={styles.sectionCard}>
+              <Card.Content style={styles.sectionContent}>
               {isCompleted && (
                 <View style={styles.lockedBanner}>
                   <Text style={styles.lockedBannerText}>
@@ -428,9 +425,9 @@ export default function QuoteDetailPage() {
                   }
                 }}
               />
-            </Card.Content>
-          </Card>
-          </Animated.View>
+              </Card.Content>
+            </Card>
+          ) : null}
 
           <Pressable
             onPress={toggleFecha}
@@ -439,13 +436,11 @@ export default function QuoteDetailPage() {
             <Text variant="titleMedium" style={styles.accordionTitle}>
               Fecha
             </Text>
-            <Animated.View style={{ transform: [{ rotate: fechaAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-              <Icon source="chevron-down" size={22} />
-            </Animated.View>
+            <Icon source={fechaSectionOpen ? 'chevron-up' : 'chevron-down'} size={22} />
           </Pressable>
-          <Animated.View style={[styles.accordionBody, { maxHeight: fechaAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 900] }), opacity: fechaAnim }]}>
-          <Card mode="contained" style={styles.sectionCard}>
-            <Card.Content style={styles.sectionContent}>
+          {fechaSectionOpen ? (
+            <Card mode="contained" style={styles.sectionCard}>
+              <Card.Content style={styles.sectionContent}>
               {isCompleted && (
                 <View style={styles.lockedBanner}>
                   <Text style={styles.lockedBannerText}>
@@ -671,8 +666,9 @@ export default function QuoteDetailPage() {
                 </Button>
                 {data.appointment && (
                   <Button
-                    mode="outlined"
-                    textColor="#B3261E"
+                    mode="contained"
+                    buttonColor="#B3261E"
+                    textColor="#FFFFFF"
                     disabled={isCompleted || isBusy}
                     onPress={unscheduleCurrentJob}
                     style={styles.actionButton}
@@ -682,9 +678,9 @@ export default function QuoteDetailPage() {
                   </Button>
                 )}
               </View>
-            </Card.Content>
-          </Card>
-          </Animated.View>
+              </Card.Content>
+            </Card>
+          ) : null}
 
           <View style={styles.contentDivider}>
             <Divider />
@@ -907,9 +903,6 @@ const styles = StyleSheet.create({
   },
   accordionTitle: {
     flex: 1,
-  },
-  accordionBody: {
-    overflow: 'hidden',
   },
   lockedBanner: {
     backgroundColor: '#FFF8E1',

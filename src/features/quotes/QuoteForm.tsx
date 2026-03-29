@@ -1,3 +1,4 @@
+import { useEffect, type ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
@@ -10,22 +11,37 @@ interface Props {
   onSubmit: (values: QuoteFormValues) => Promise<void>;
   buttonLabel?: string;
   disabled?: boolean;
+  extraContent?: ReactNode;
 }
 
-export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trabajo', disabled = false }: Props) => {
+export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trabajo', disabled = false, extraContent }: Props) => {
+  const clientName = defaultValues?.client_name ?? '';
+  const clientPhone = defaultValues?.client_phone ?? '';
+  const title = defaultValues?.title ?? '';
+  const notes = defaultValues?.notes ?? '';
   const {
     control,
     handleSubmit,
+    reset,
     formState: { isSubmitting },
   } = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteSchema),
     defaultValues: {
-      client_name: defaultValues?.client_name ?? '',
-      client_phone: defaultValues?.client_phone ?? '',
-      title: defaultValues?.title ?? '',
-      notes: defaultValues?.notes ?? '',
+      client_name: clientName,
+      client_phone: clientPhone,
+      title,
+      notes,
     },
   });
+
+  useEffect(() => {
+    reset({
+      client_name: clientName,
+      client_phone: clientPhone,
+      title,
+      notes,
+    });
+  }, [clientName, clientPhone, notes, reset, title]);
 
   return (
     <View style={styles.form}>
@@ -91,6 +107,7 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
           />
         )}
       />
+      {extraContent}
       <Button
         mode="contained"
         loading={isSubmitting}

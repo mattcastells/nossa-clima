@@ -7,11 +7,13 @@ import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItemMeasurePriceHistory, useItemPriceHistory } from '@/features/prices/hooks';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 import { formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
+import { getSingleRouteParam } from '@/lib/routeParams';
 import { useAppTheme } from '@/theme';
 
 export default function ItemHistoryPage() {
   const theme = useAppTheme();
-  const { itemId } = useLocalSearchParams<{ itemId: string }>();
+  const params = useLocalSearchParams<{ itemId?: string | string[] }>();
+  const itemId = getSingleRouteParam(params.itemId).trim();
   const baseHistoryQuery = useItemPriceHistory(itemId);
   const measureHistoryQuery = useItemMeasurePriceHistory(itemId);
 
@@ -117,10 +119,10 @@ export default function ItemHistoryPage() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScrollContent}>
                   <View style={styles.tableFrameBase}>
                     <View style={[styles.tableHeader, { backgroundColor: theme.colors.softYellow }]}>
-                      <Text style={[styles.headerCell, styles.storeColumn, { color: theme.colors.titleOnSoft }]}>Local</Text>
-                      <Text style={[styles.headerCell, styles.priceColumn, { color: theme.colors.titleOnSoft }]}>Precio</Text>
-                      <Text style={[styles.headerCell, styles.referenceColumn, { color: theme.colors.titleOnSoft }]}>Referencia</Text>
-                      <Text style={[styles.headerCell, styles.dateColumn, { color: theme.colors.titleOnSoft }]}>Fecha</Text>
+                      <Text style={[styles.headerCell, styles.storeColumn, { color: theme.colors.onSoftYellow }]}>Local</Text>
+                      <Text style={[styles.headerCell, styles.priceColumn, { color: theme.colors.onSoftYellow }]}>Precio</Text>
+                      <Text style={[styles.headerCell, styles.referenceColumn, { color: theme.colors.onSoftYellow }]}>Referencia</Text>
+                      <Text style={[styles.headerCell, styles.dateColumn, { color: theme.colors.onSoftYellow }]}>Fecha</Text>
                     </View>
 
                     {baseHistory.map((row, index) => (

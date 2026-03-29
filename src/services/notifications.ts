@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { logDevWarning } from '@/lib/devLogger';
+
 /** Notifications are only supported on Android (and iOS). Web is a no-op. */
 const IS_SUPPORTED = Platform.OS !== 'web';
 
@@ -21,16 +23,20 @@ const REMINDER_HOURS_BEFORE = 2;
 export const setupNotificationChannel = async (): Promise<void> => {
   if (!IS_SUPPORTED || Platform.OS !== 'android') return;
 
-  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: 'Appointment reminders',
-    description: 'Reminders 2 hours before each scheduled appointment or job.',
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#052653',
-    sound: 'default',
-    enableVibrate: true,
-    showBadge: true,
-  });
+  try {
+    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+      name: 'Appointment reminders',
+      description: 'Reminders 2 hours before each scheduled appointment or job.',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#052653',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+    });
+  } catch (error) {
+    logDevWarning('Failed to set up the appointment notification channel.', error);
+  }
 };
 
 /**
@@ -41,15 +47,19 @@ export const setupNotificationChannel = async (): Promise<void> => {
 export const requestNotificationPermissions = async (): Promise<boolean> => {
   if (!IS_SUPPORTED) return false;
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    if (existingStatus === 'granted') return true;
 
-  if (existingStatus === 'granted') return true;
+    const { status } = await Notifications.requestPermissionsAsync({
+      android: {},
+    });
 
-  const { status } = await Notifications.requestPermissionsAsync({
-    android: {},
-  });
-
-  return status === 'granted';
+    return status === 'granted';
+  } catch (error) {
+    logDevWarning('Failed to request notification permissions.', error);
+    return false;
+  }
 };
 
 /**
@@ -81,49 +91,45 @@ export const scheduleAppointmentReminder = async (
   appointment: AppointmentReminderPayload,
 ): Promise<void> => {
   if (!IS_SUPPORTED) return;
-
-  // No time defined → cannot determine an exact moment, skip
   if (!appointment.starts_at) return;
 
-  const [dateYear, dateMonth, dateDay] = appointment.scheduled_for.split('-').map(Number);
-  const [timeHour, timeMin] = appointment.starts_at.split(':').map(Number);
+  try {
+    const [dateYear, dateMonth, dateDay] = appointment.scheduled_for.split('-').map(Number);
+    const [timeHour, timeMin] = appointment.starts_at.split(':').map(Number);
 
-  if (!dateYear || !dateMonth || !dateDay || timeHour === undefined || timeMin === undefined) return;
+    if (!dateYear || !dateMonth || !dateDay || timeHour === undefined || timeMin === undefined) return;
 
-  // Build the exact appointment date/time in device local time
-  const appointmentDate = new Date(dateYear, dateMonth - 1, dateDay, timeHour, timeMin, 0, 0);
+    const appointmentDate = new Date(dateYear, dateMonth - 1, dateDay, timeHour, timeMin, 0, 0);
+    const reminderDate = new Date(appointmentDate.getTime() - REMINDER_HOURS_BEFORE * 60 * 60 * 1000);
 
-  // Calculate when to fire: REMINDER_HOURS_BEFORE hours before the appointment
-  const reminderDate = new Date(appointmentDate.getTime() - REMINDER_HOURS_BEFORE * 60 * 60 * 1000);
+    if (reminderDate.getTime() <= Date.now()) return;
 
-  // If the reminder time has already passed, skip scheduling
-  if (reminderDate.getTime() <= Date.now()) return;
+    const notificationId = buildNotificationId(appointment.id);
+    await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
 
-  const notificationId = buildNotificationId(appointment.id);
+    const timeLabel = `${String(timeHour).padStart(2, '0')}:${String(timeMin).padStart(2, '0')}`;
 
-  // Cancel any existing notification for this appointment (e.g. after rescheduling)
-  await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
-
-  const timeLabel = `${String(timeHour).padStart(2, '0')}:${String(timeMin).padStart(2, '0')}`;
-
-  await Notifications.scheduleNotificationAsync({
-    identifier: notificationId,
-    content: {
-      title: appointment.title,
-      body: `Hoy a las ${timeLabel} tenés un turno agendado.`,
-      data: {
-        appointmentId: appointment.id,
-        quoteId: appointment.quote_id,
+    await Notifications.scheduleNotificationAsync({
+      identifier: notificationId,
+      content: {
+        title: appointment.title,
+        body: `Hoy a las ${timeLabel} tenes un turno agendado.`,
+        data: {
+          appointmentId: appointment.id,
+          quoteId: appointment.quote_id,
+        },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        ...(Platform.OS === 'android' && { channelId: CHANNEL_ID }),
       },
-      sound: 'default',
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-      ...(Platform.OS === 'android' && { channelId: CHANNEL_ID }),
-    },
-    trigger: {
-      date: reminderDate,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
-    },
-  });
+      trigger: {
+        date: reminderDate,
+        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
+      },
+    });
+  } catch (error) {
+    logDevWarning('Failed to schedule an appointment reminder.', error);
+  }
 };
 
 /**
@@ -133,8 +139,12 @@ export const scheduleAppointmentReminder = async (
 export const cancelAppointmentReminder = async (appointmentId: string): Promise<void> => {
   if (!IS_SUPPORTED) return;
 
-  const notificationId = buildNotificationId(appointmentId);
-  await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
+  try {
+    const notificationId = buildNotificationId(appointmentId);
+    await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
+  } catch (error) {
+    logDevWarning('Failed to cancel an appointment reminder.', error);
+  }
 };
 
 /**
@@ -145,14 +155,18 @@ export const cancelAppointmentReminder = async (appointmentId: string): Promise<
 export const cancelAllAppointmentReminders = async (): Promise<void> => {
   if (!IS_SUPPORTED) return;
 
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  const appointmentNotifications = scheduled.filter((n: Notifications.NotificationRequest) =>
-    n.identifier.startsWith(NOTIFICATION_ID_PREFIX),
-  );
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const appointmentNotifications = scheduled.filter((n: Notifications.NotificationRequest) =>
+      n.identifier.startsWith(NOTIFICATION_ID_PREFIX),
+    );
 
-  await Promise.all(
-    appointmentNotifications.map((n: Notifications.NotificationRequest) =>
-      Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {}),
-    ),
-  );
+    await Promise.all(
+      appointmentNotifications.map((n: Notifications.NotificationRequest) =>
+        Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {}),
+      ),
+    );
+  } catch (error) {
+    logDevWarning('Failed to cancel scheduled appointment reminders.', error);
+  }
 };

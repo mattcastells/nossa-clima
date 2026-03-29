@@ -14,6 +14,7 @@ import { StoreForm } from '@/features/stores/StoreForm';
 import { useArchiveStore, useSaveStore, useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs, formatDateAr, formatDateTimeAr } from '@/lib/format';
+import { getSingleRouteParam } from '@/lib/routeParams';
 import { useAppTheme } from '@/theme';
 
 const formatAuditActor = (userId: string | null | undefined, namesById: Map<string, string>): string => {
@@ -45,7 +46,8 @@ type StorePriceRow =
 
 export default function StoreDetailPage() {
   const theme = useAppTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = getSingleRouteParam(params.id).trim();
   const router = useRouter();
   const { data, isLoading, error } = useStores();
   const latestPricesQuery = useLatestPrices();
@@ -140,6 +142,7 @@ export default function StoreDetailPage() {
 
       {store && (
         <StoreForm
+          submitLabel="Modificar datos"
           defaultValues={{
             name: store.name,
             description: store.description ?? '',
@@ -163,12 +166,6 @@ export default function StoreDetailPage() {
             }
           }}
         />
-      )}
-
-      {store && (
-        <Button mode="contained" buttonColor="#B3261E" textColor="#FFFFFF" onPress={() => setConfirmDelete(true)} disabled={archive.isPending}>
-          Archivar tienda
-        </Button>
       )}
 
       <Card mode="outlined" style={[styles.tableCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
@@ -304,6 +301,12 @@ export default function StoreDetailPage() {
           updatedAt={formatDateTimeAr(store.updated_at)}
         />
       ) : null}
+
+      {store && (
+        <Button mode="contained" buttonColor="#B3261E" textColor="#FFFFFF" onPress={() => setConfirmDelete(true)} disabled={archive.isPending}>
+          Archivar tienda
+        </Button>
+      )}
 
       <Portal>
         <AppDialog visible={confirmDelete} onDismiss={() => !archive.isPending && setConfirmDelete(false)}>

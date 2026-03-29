@@ -1,7 +1,7 @@
 import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Button, Card, IconButton, Searchbar, Text } from 'react-native-paper';
+import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, View, useWindowDimensions } from 'react-native';
+import { Button, Card, Icon, IconButton, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
@@ -63,28 +63,60 @@ export default function QuotesScreen() {
 
   const rangeStart = filteredQuotes.length === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, filteredQuotes.length);
+  const newJobSegmentBackground = theme.dark ? '#47627F' : '#ECF4FD';
+  const newJobSegmentBorder = theme.dark ? '#FFFFFF' : '#D2E1F3';
+  const newJobSegmentTextColor = theme.dark ? theme.colors.titleOnSoft : theme.colors.primary;
 
   return (
     <AppScreen title="Trabajos">
-      <View style={styles.topActions}>
-        <Button mode="contained" onPress={() => router.push('/quotes/new')}>
-          Nuevo trabajo
-        </Button>
-      </View>
-
-      <Searchbar
-        placeholder="Buscar por titulo, cliente o fecha"
-        value={search}
-        onChangeText={setSearch}
-        inputStyle={styles.searchbarInput}
+      <View
         style={[
-          styles.searchbar,
+          styles.searchComposer,
           {
             backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
             borderColor: theme.colors.borderSoft,
           },
         ]}
-      />
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Nuevo trabajo"
+          onPress={() => router.push('/quotes/new')}
+          style={({ pressed }) => [
+            styles.newJobSegment,
+            {
+              backgroundColor: newJobSegmentBackground,
+              borderRightColor: newJobSegmentBorder,
+            },
+            pressed && styles.newJobSegmentPressed,
+          ]}
+        >
+          <Text style={[styles.newJobSegmentText, { color: newJobSegmentTextColor }]}>Nuevo</Text>
+        </Pressable>
+        <View style={styles.searchInputSegment}>
+          <Icon source="magnify" size={20} color={theme.colors.textMuted} />
+          <NativeTextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar trabajo..."
+            placeholderTextColor={theme.colors.textMuted}
+            style={[styles.searchInput, { color: theme.colors.onSurface }]}
+            selectionColor={theme.colors.primary}
+            accessibilityLabel="Buscar trabajos"
+            returnKeyType="search"
+          />
+          {search.trim() ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Limpiar busqueda"
+              onPress={() => setSearch('')}
+              style={({ pressed }) => [styles.clearSearchButton, pressed && styles.clearSearchButtonPressed]}
+            >
+              <Icon source="close-circle" size={18} color={theme.colors.textMuted} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
 
       <LoadingOrError isLoading={isLoading} error={error} />
 
@@ -219,17 +251,47 @@ export default function QuotesScreen() {
 }
 
 const styles = StyleSheet.create({
-  topActions: {
+  searchComposer: {
+    minHeight: 56,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  searchbar: {
-    borderRadius: 14,
+    alignItems: 'stretch',
+    borderRadius: 16,
     borderWidth: 1,
+    overflow: 'hidden',
   },
-  searchbarInput: {
-    paddingLeft: 4,
+  newJobSegment: {
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderRightWidth: 1,
+  },
+  newJobSegmentPressed: {
+    opacity: 0.88,
+  },
+  newJobSegmentText: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  searchInputSegment: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 0,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  clearSearchButton: {
+    paddingVertical: 6,
+  },
+  clearSearchButtonPressed: {
+    opacity: 0.72,
   },
   listContent: {
     paddingTop: 4,
@@ -319,17 +381,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   metaValue: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   totalCard: {
   },
   totalLabel: {},
   descriptionCard: {},
   totalValue: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: '700',
   },
   cancelledHint: {

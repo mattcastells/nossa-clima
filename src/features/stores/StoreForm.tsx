@@ -8,9 +8,10 @@ import { StoreFormValues, storeSchema } from './schemas';
 interface Props {
   defaultValues?: Partial<StoreFormValues>;
   onSubmit: (values: StoreFormValues) => Promise<void>;
+  submitLabel?: string;
 }
 
-export const StoreForm = ({ defaultValues, onSubmit }: Props) => {
+export const StoreForm = ({ defaultValues, onSubmit, submitLabel = 'Guardar tienda' }: Props) => {
   const {
     control,
     handleSubmit,
@@ -55,7 +56,7 @@ export const StoreForm = ({ defaultValues, onSubmit }: Props) => {
       />
       {errors.name && <Text style={{ color: '#B00020' }}>{errors.name.message}</Text>}
       <Button mode="contained" loading={isSubmitting} onPress={handleSubmit(onSubmit)}>
-        Guardar tienda
+        {submitLabel}
       </Button>
     </View>
   );

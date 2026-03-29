@@ -100,7 +100,7 @@ export const StoreSelectorDialog = ({
                 onPress={() => handleSelect(null)}
                 style={styles.noneButton}
                 buttonColor={theme.colors.softYellow}
-                textColor={theme.colors.titleOnSoft}
+                textColor={theme.colors.onSoftYellow}
               >
                 Sin tienda
               </Button>
@@ -110,9 +110,9 @@ export const StoreSelectorDialog = ({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScroll}>
             <View style={[styles.table, { borderColor: theme.colors.borderSoft }]}>
               <View style={[styles.tableHeader, { backgroundColor: theme.colors.softYellow }]}>
-                <Text style={[styles.headerCell, styles.nameColumn, { color: theme.colors.titleOnSoft }]}>Tienda</Text>
-                <Text style={[styles.headerCell, styles.addressColumn, { color: theme.colors.titleOnSoft }]}>Direccion</Text>
-                <Text style={[styles.headerCell, styles.phoneColumn, { color: theme.colors.titleOnSoft }]}>Telefono</Text>
+                <Text style={[styles.headerCell, styles.nameColumn, { color: theme.colors.onSoftYellow }]}>Tienda</Text>
+                <Text style={[styles.headerCell, styles.addressColumn, { color: theme.colors.onSoftYellow }]}>Direccion</Text>
+                <Text style={[styles.headerCell, styles.phoneColumn, { color: theme.colors.onSoftYellow }]}>Telefono</Text>
               </View>
 
               {pageRows.length > 0 ? (

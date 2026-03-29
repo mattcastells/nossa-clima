@@ -14,7 +14,7 @@ export const QuoteTotalsSummary = ({ subtotalMaterials, subtotalServices, total 
   const theme = useAppTheme();
 
   return (
-    <Surface style={[styles.container, { borderColor: theme.colors.borderSoft }]} elevation={2}>
+    <Surface style={[styles.container, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surface }]} elevation={2}>
       <View style={styles.grid}>
         <View style={[styles.cell, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Text variant="labelMedium" style={[styles.label, { color: theme.colors.textMuted }]}>
@@ -50,21 +50,18 @@ const styles = StyleSheet.create({
     padding: 0,
     borderRadius: 10,
     borderWidth: 1,
+    overflow: 'hidden',
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
   },
   cell: {
-    flexGrow: 1,
-    flexBasis: 220,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    borderRightWidth: 1,
     borderBottomWidth: 1,
   },
   totalCell: {
-    borderRightWidth: 0,
+    borderBottomWidth: 0,
   },
   label: {
     marginBottom: 6,

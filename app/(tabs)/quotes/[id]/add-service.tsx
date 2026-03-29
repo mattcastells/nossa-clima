@@ -16,10 +16,12 @@ import { QuoteServiceItemFormValues, quoteServiceItemSchema } from '@/features/q
 import { useServices } from '@/features/services/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
+import { getSingleRouteParam } from '@/lib/routeParams';
 import { BRAND_BLUE, useAppTheme } from '@/theme';
 
 export default function AddServiceToQuotePage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = getSingleRouteParam(params.id).trim();
   const router = useRouter();
   const theme = useAppTheme();
   const { data: services, isLoading: servicesLoading, error: servicesError } = useServices();

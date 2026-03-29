@@ -15,7 +15,8 @@ import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatDateTimeAr } from '@/lib/format';
-import { BRAND_GREEN, BRAND_GREEN_SOFT, BRAND_YELLOW, useAppTheme } from '@/theme';
+import { getSingleRouteParam } from '@/lib/routeParams';
+import { BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
 import type { ItemMeasurement, LatestStoreItemMeasurementPrice, LatestStoreItemPrice } from '@/types/db';
 
 const formatAuditActor = (userId: string | null | undefined, namesById: Map<string, string>): string => {
@@ -83,7 +84,8 @@ const formatStorePriceSummary = (
 
 export default function ItemDetailPage() {
   const theme = useAppTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = getSingleRouteParam(params.id).trim();
   const router = useRouter();
   const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
   const { data: measurements, isLoading: measurementsLoading, error: measurementsError } = useItemMeasurements(id ?? '');
@@ -381,7 +383,7 @@ export default function ItemDetailPage() {
                     <Button
                       mode="contained-tonal"
                       style={styles.priceActionButton}
-                      textColor={theme.dark ? theme.colors.titleOnSoft : BRAND_YELLOW}
+                      textColor={theme.colors.onSoftYellow}
                       buttonColor={theme.colors.softYellow}
                     >
                       {summary.hasPrice ? 'Actualizar' : 'Asignar'}

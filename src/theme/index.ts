@@ -6,15 +6,16 @@ export const BRAND_BLUE_MID = '#6E87A7';
 export const BRAND_GREEN = '#43663D';
 export const BRAND_GREEN_SOFT = '#EDF3EA';
 export const BRAND_GREEN_MID = '#C9DDB7';
-export const BRAND_YELLOW = '#8C6C1E';
-export const BRAND_YELLOW_SOFT = '#F6F1DC';
-export const BRAND_YELLOW_MID = '#E7D8A4';
+export const BRAND_YELLOW = '#5F4A0D';
+export const BRAND_YELLOW_SOFT = '#E6CF84';
+export const BRAND_YELLOW_MID = '#CFAE55';
 
 type AppExtendedColors = {
   softBlue: string;
   softGreen: string;
   softYellow: string;
   softYellowStrong: string;
+  onSoftYellow: string;
   softBlueStrong: string;
   softGreenStrong: string;
   tableHeaderBg: string;
@@ -50,7 +51,8 @@ export const lightTheme: AppTheme = {
     softBlue: '#E2ECF8',
     softGreen: '#E4EDE0',
     softYellow: BRAND_YELLOW_SOFT,
-    softYellowStrong: '#E7D8A4',
+    softYellowStrong: BRAND_YELLOW_MID,
+    onSoftYellow: BRAND_YELLOW,
     softBlueStrong: '#B8CFE6',
     softGreenStrong: '#C0D4B8',
     tableHeaderBg: '#DFE5ED',
@@ -82,8 +84,9 @@ export const darkTheme: AppTheme = {
     error: '#FFB4AB',
     softBlue: '#2B4058',
     softGreen: '#344A39',
-    softYellow: '#4B4225',
-    softYellowStrong: '#6A5930',
+    softYellow: '#4B3F1A',
+    softYellowStrong: '#7A672D',
+    onSoftYellow: '#F2E4BA',
     softBlueStrong: '#3B5572',
     softGreenStrong: '#486252',
     tableHeaderBg: '#3A4555',

@@ -84,6 +84,9 @@ Apply the SQL migration files in the `supabase/migrations/` folder to your Supab
 - `supabase/migrations/202603100001_initial_schema.sql`
 - `supabase/migrations/202603100002_quotes_services.sql`
 - `supabase/migrations/202603100003_appointments.sql`
+- `supabase/migrations/202603100004_jobs_calendar_material_notes.sql`
+- `supabase/migrations/202603100005_remove_is_active.sql`
+- `supabase/migrations/202603100006_service_categories.sql`
 
 You can apply them with the Supabase dashboard SQL editor or the Supabase CLI.
 

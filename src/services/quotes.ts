@@ -54,6 +54,9 @@ export interface RefreshQuoteMaterialPricingResult {
 }
 
 const CANCELLED_QUOTE_RETENTION_DAYS = 3;
+const CANCELLED_PURGE_MIN_INTERVAL_MS = 30_000;
+let lastExpiredCancelledPurgeAt = 0;
+let expiredCancelledPurgeInFlight: Promise<number> | null = null;
 
 export interface QuoteMaterialItemInput {
   quote_id: string;
@@ -101,8 +104,30 @@ export const purgeExpiredCancelledQuotes = async (): Promise<number> => {
   return deleteQuotesByIds((quoteRows ?? []).map((row) => row.id));
 };
 
+const runExpiredCancelledQuotePurgeIfNeeded = async (): Promise<number> => {
+  const now = Date.now();
+  if (expiredCancelledPurgeInFlight) {
+    return expiredCancelledPurgeInFlight;
+  }
+
+  if (now - lastExpiredCancelledPurgeAt < CANCELLED_PURGE_MIN_INTERVAL_MS) {
+    return 0;
+  }
+
+  expiredCancelledPurgeInFlight = purgeExpiredCancelledQuotes()
+    .then((deletedCount) => {
+      lastExpiredCancelledPurgeAt = Date.now();
+      return deletedCount;
+    })
+    .finally(() => {
+      expiredCancelledPurgeInFlight = null;
+    });
+
+  return expiredCancelledPurgeInFlight;
+};
+
 export const listQuotes = async (status?: JobQuoteStatus | 'all'): Promise<QuoteListItem[]> => {
-  await purgeExpiredCancelledQuotes();
+  await runExpiredCancelledQuotePurgeIfNeeded();
 
   let query = supabase.from('quotes').select('*').order('created_at', { ascending: false });
   if (status && status !== 'all') {
@@ -140,7 +165,7 @@ export const listQuotes = async (status?: JobQuoteStatus | 'all'): Promise<Quote
 };
 
 export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
-  await purgeExpiredCancelledQuotes();
+  await runExpiredCancelledQuotePurgeIfNeeded();
 
   const { data: quote, error: quoteError } = await supabase.from('quotes').select('*').eq('id', quoteId).single();
   if (quoteError) throw quoteError;
@@ -155,25 +180,16 @@ export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
     // If we can't determine the current user, continue and let RLS handle enforcement
   }
 
-  const { data: materials, error: materialsError } = await supabase
-    .from('quote_material_items')
-    .select('*')
-    .eq('quote_id', quoteId)
-    .order('created_at');
+  const [materialsResult, servicesResult, appointmentResult] = await Promise.all([
+    supabase.from('quote_material_items').select('*').eq('quote_id', quoteId).order('created_at'),
+    supabase.from('quote_service_items').select('*').eq('quote_id', quoteId).order('created_at'),
+    supabase.from('appointments').select('*').eq('quote_id', quoteId).maybeSingle(),
+  ]);
+  const { data: materials, error: materialsError } = materialsResult;
+  const { data: services, error: servicesError } = servicesResult;
+  const { data: appointment, error: appointmentError } = appointmentResult;
   if (materialsError) throw materialsError;
-
-  const { data: services, error: servicesError } = await supabase
-    .from('quote_service_items')
-    .select('*')
-    .eq('quote_id', quoteId)
-    .order('created_at');
   if (servicesError) throw servicesError;
-
-  const { data: appointment, error: appointmentError } = await supabase
-    .from('appointments')
-    .select('*')
-    .eq('quote_id', quoteId)
-    .maybeSingle();
   if (appointmentError && !isMissingAppointmentQuoteLinkError(appointmentError)) throw appointmentError;
 
   return { quote, materials, services, appointment: appointment ?? null };
@@ -293,16 +309,16 @@ const deleteQuotesByIds = async (quoteIds: string[]): Promise<number> => {
   let deletedQuotes = 0;
 
   for (const idChunk of chunkIds(quoteIds)) {
-    const { error: appointmentError } = await supabase.from('appointments').delete().in('quote_id', idChunk);
-    if (appointmentError && !isMissingAppointmentQuoteLinkError(appointmentError)) {
-      throw appointmentError;
+    const [appointmentDeleteResult, materialsDeleteResult, servicesDeleteResult] = await Promise.all([
+      supabase.from('appointments').delete().in('quote_id', idChunk),
+      supabase.from('quote_material_items').delete().in('quote_id', idChunk),
+      supabase.from('quote_service_items').delete().in('quote_id', idChunk),
+    ]);
+    if (appointmentDeleteResult.error && !isMissingAppointmentQuoteLinkError(appointmentDeleteResult.error)) {
+      throw appointmentDeleteResult.error;
     }
-
-    const { error: materialsError } = await supabase.from('quote_material_items').delete().in('quote_id', idChunk);
-    if (materialsError) throw materialsError;
-
-    const { error: servicesError } = await supabase.from('quote_service_items').delete().in('quote_id', idChunk);
-    if (servicesError) throw servicesError;
+    if (materialsDeleteResult.error) throw materialsDeleteResult.error;
+    if (servicesDeleteResult.error) throw servicesDeleteResult.error;
 
     const { data: deletedRows, error: quoteDeleteError } = await supabase.from('quotes').delete().in('id', idChunk).select('id');
     if (quoteDeleteError) throw quoteDeleteError;

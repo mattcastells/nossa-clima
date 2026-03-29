@@ -6,12 +6,18 @@ const normalizeCategoryName = (name: string): string => name.trim().replace(/\s+
 
 const SERVICE_CATEGORIES_MISSING_TABLE_CODES = new Set(['42P01', 'PGRST204', 'PGRST205']);
 
-const isMissingServiceCategoriesTableError = (error: { code?: string; message?: string; details?: string } | null | undefined): boolean => {
+const isMissingServiceCategoriesTableError = (
+  error: { code?: string; message?: string; details?: string; status?: number; statusCode?: number } | null | undefined,
+): boolean => {
   if (!error) return false;
   if (error.code && SERVICE_CATEGORIES_MISSING_TABLE_CODES.has(error.code)) return true;
+  if (error.status === 404 || error.statusCode === 404) return true;
 
   const text = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase();
-  return text.includes('service_categories') && (text.includes('not found') || text.includes('does not exist') || text.includes('schema cache'));
+  return (
+    text.includes('service_categories') &&
+    (text.includes('not found') || text.includes('does not exist') || text.includes('schema cache') || text.includes('404'))
+  );
 };
 
 const missingServiceCategoriesTableError = (): Error =>
