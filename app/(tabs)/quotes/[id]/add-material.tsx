@@ -383,7 +383,19 @@ export default function AddMaterialToQuotePage() {
                   <Text style={styles.helperText}>Se usa para traer el precio actual del material o de cada medida.</Text>
                 </View>
 
-                <Searchbar placeholder="Buscar tienda" value={storeSearch} onChangeText={setStoreSearch} inputStyle={styles.searchbarInput} style={styles.searchbar} />
+                <Searchbar
+                  placeholder="Buscar tienda"
+                  value={storeSearch}
+                  onChangeText={setStoreSearch}
+                  inputStyle={styles.searchbarInput}
+                  style={[
+                    styles.searchbar,
+                    {
+                      backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
+                      borderColor: theme.colors.borderSoft,
+                    },
+                  ]}
+                />
 
                 {selectedStore ? (
                   <View style={styles.storeSelectedBanner}>
@@ -464,7 +476,13 @@ export default function AddMaterialToQuotePage() {
                   onChangeText={setMaterialSearch}
                   editable={Boolean(selectedStoreId)}
                   inputStyle={styles.searchbarInput}
-                  style={styles.searchbar}
+                  style={[
+                    styles.searchbar,
+                    {
+                      backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
+                      borderColor: theme.colors.borderSoft,
+                    },
+                  ]}
                 />
 
                 {selectedStoreId ? (

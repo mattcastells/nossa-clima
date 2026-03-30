@@ -1,8 +1,9 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Button, Card, Chip, Menu, Searchbar, Text, TouchableRipple } from 'react-native-paper';
+import { Card, Chip, Icon, Menu, Text, TouchableRipple } from 'react-native-paper';
 
+import { ActionSearchComposer } from '@/components/ActionSearchComposer';
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
@@ -19,6 +20,11 @@ export default function ItemsScreen() {
   const menuWidth = screenWidth - 32;
   const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : '#1A1A1A';
   const filterChipBorderColor = theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID;
+  const menuItemBackgroundColor = theme.dark ? theme.colors.surface : '#FFFFFF';
+  const menuItemBorderColor = theme.dark ? theme.colors.borderSoft : '#D5D5D5';
+  const menuItemSelectedBackgroundColor = theme.dark ? theme.colors.softGreen : '#E4EDE0';
+  const menuItemSelectedBorderColor = theme.dark ? theme.colors.softGreenStrong : '#C0D4B8';
+  const menuItemTextColor = theme.dark ? theme.colors.onSurface : '#1A1A1A';
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
@@ -64,81 +70,93 @@ export default function ItemsScreen() {
 
   return (
     <AppScreen title="Materiales">
-      <Searchbar
-        placeholder="Buscar material"
+      <ActionSearchComposer
+        actionLabel="Nuevo"
+        actionAccessibilityLabel="Nuevo material"
+        onActionPress={() => router.push('/items/new')}
         value={search}
         onChangeText={setSearch}
-        inputStyle={styles.searchbarInput}
-        style={[
-          styles.searchbar,
-          {
-            backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
-            borderColor: theme.colors.borderSoft,
-          },
-        ]}
+        placeholder="Buscar material..."
+        searchAccessibilityLabel="Buscar material"
+        accentBackgroundColor={theme.colors.softGreen}
+        accentBorderColor={filterChipBorderColor}
+        accentTextColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
       />
 
-      <View style={styles.topActions}>
-        <Link href="/items/new" asChild style={styles.topActionItem}>
-          <Button
-            mode="contained-tonal"
-            buttonColor={theme.colors.softGreen}
-            textColor={theme.dark ? theme.colors.titleOnSoft : '#1A1A1A'}
-            style={{ borderWidth: 1, borderColor: theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID, borderRadius: 8, flex: 1 }}
-            contentStyle={styles.newButtonContent}
+      <View style={styles.filtersRow}>
+        <View style={styles.menuAnchorWrapper}>
+          <Menu
+            visible={categoryMenuOpen}
+            onDismiss={() => setCategoryMenuOpen(false)}
+            anchorPosition="bottom"
+            contentStyle={[styles.menuContent, { width: menuWidth, backgroundColor: theme.colors.surfaceAlt }]}
+            style={styles.menuWrapper}
+            anchor={
+              <TouchableRipple
+                onPress={() => setCategoryMenuOpen(true)}
+                style={[
+                  styles.filterDropdown,
+                  {
+                    backgroundColor: theme.colors.softGreen,
+                    borderColor: filterChipBorderColor,
+                  },
+                ]}
+                borderless
+              >
+                <View style={styles.filterDropdownInner}>
+                  <Icon source="menu" size={16} color={filterChipTextColor} />
+                  <Text style={[styles.filterDropdownText, { color: filterChipTextColor }]} numberOfLines={1}>
+                    {selectedCategoryLabel}
+                  </Text>
+                  <Icon source="chevron-down" size={16} color={filterChipTextColor} />
+                </View>
+              </TouchableRipple>
+            }
           >
-            Nuevo material
-          </Button>
-        </Link>
-
-        <Menu
-          visible={categoryMenuOpen}
-          onDismiss={() => setCategoryMenuOpen(false)}
-          anchorPosition="bottom"
-          contentStyle={[styles.menuContent, { width: menuWidth }]}
-          style={styles.menuWrapper}
-          anchor={
-            <TouchableRipple
-              onPress={() => setCategoryMenuOpen(true)}
-              style={[
-                styles.filterDropdown,
-                {
-                  backgroundColor: theme.colors.softGreen,
-                  borderColor: filterChipBorderColor,
-                },
-              ]}
-              borderless
-            >
-              <View style={styles.filterDropdownInner}>
-                <Text style={[styles.filterDropdownIcon, { color: filterChipTextColor }]}>☰</Text>
-                <Text style={[styles.filterDropdownText, { color: filterChipTextColor }]} numberOfLines={1}>
-                  {selectedCategoryLabel}
-                </Text>
-                <Text style={[styles.filterDropdownArrow, { color: filterChipTextColor }]}>▾</Text>
-              </View>
-            </TouchableRipple>
-          }
-        >
-          <View style={styles.menuGrid}>
-            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories.map((c) => ({ key: c, label: c }))].map((item) => {
-              const isSelected = selectedCategory === item.key;
-              return (
-                <TouchableRipple
-                  key={item.key}
-                  onPress={() => { setSelectedCategory(item.key); setCategoryMenuOpen(false); }}
-                  style={[styles.menuGridItem, isSelected && styles.menuGridItemSelected]}
-                  borderless
-                >
-                  <View style={styles.menuGridItemInner}>
-                    {isSelected && <Text style={[styles.menuCheckIcon, { color: filterChipTextColor }]}>✓</Text>}
-                    <Text style={[styles.menuGridItemText, isSelected && styles.menuGridItemTextSelected]} numberOfLines={1}>{item.label}</Text>
-                  </View>
-                </TouchableRipple>
-              );
-            })}
-          </View>
-        </Menu>
+            <View style={styles.menuGrid}>
+              {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories.map((category) => ({ key: category, label: category }))].map((item) => {
+                const isSelected = selectedCategory === item.key;
+                return (
+                  <TouchableRipple
+                    key={item.key}
+                    onPress={() => {
+                      setSelectedCategory(item.key);
+                      setCategoryMenuOpen(false);
+                    }}
+                    style={[
+                      styles.menuGridItem,
+                      {
+                        backgroundColor: menuItemBackgroundColor,
+                        borderColor: menuItemBorderColor,
+                      },
+                      isSelected && {
+                        backgroundColor: menuItemSelectedBackgroundColor,
+                        borderColor: menuItemSelectedBorderColor,
+                      },
+                    ]}
+                    borderless
+                  >
+                    <View style={styles.menuGridItemInner}>
+                      {isSelected ? <Icon source="check" size={14} color={filterChipTextColor} /> : null}
+                      <Text
+                        style={[
+                          styles.menuGridItemText,
+                          { color: menuItemTextColor },
+                          isSelected && styles.menuGridItemTextSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.label}
+                      </Text>
+                    </View>
+                  </TouchableRipple>
+                );
+              })}
+            </View>
+          </Menu>
+        </View>
       </View>
+
       <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Las categorias se crean al guardar un material con una categoria nueva.</Text>
 
       <LoadingOrError isLoading={isLoading} error={error} />
@@ -185,39 +203,21 @@ export default function ItemsScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchbar: {
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  searchbarInput: {
-    paddingLeft: 4,
-  },
-  topActions: {
+  filtersRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 8,
+    width: '100%',
   },
-  topActionItem: {
-    flex: 1,
-  },
-  newButtonContent: {
-    height: 42,
-  },
-  categoryRow: {
-    gap: 8,
-    paddingVertical: 2,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  menuAnchorWrapper: {
+    width: '100%',
   },
   filterDropdown: {
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 0,
-    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     minHeight: 42,
   },
@@ -227,15 +227,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  filterDropdownIcon: {
-    fontSize: 13,
-  },
   filterDropdownText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  filterDropdownArrow: {
-    fontSize: 11,
   },
   menuContent: {
     paddingVertical: 6,
@@ -255,21 +249,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D5D5D5',
-    backgroundColor: '#FFFFFF',
-  },
-  menuGridItemSelected: {
-    borderColor: '#C0D4B8',
-    backgroundColor: '#E4EDE0',
   },
   menuGridItemInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-  },
-  menuCheckIcon: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   menuGridItemText: {
     fontSize: 13,
@@ -278,13 +262,6 @@ const styles = StyleSheet.create({
   },
   menuGridItemTextSelected: {
     fontWeight: '700',
-  },
-  filterChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontWeight: '500',
   },
   helperText: {
     marginTop: -6,

@@ -120,29 +120,22 @@ export default function DocumentsScreen() {
 
   return (
     <AppScreen title="PDFs">
-      <Card mode="contained" style={[styles.heroCard, { backgroundColor: theme.colors.softBlue }]}>
-        <Card.Content style={styles.heroContent}>
-          <Text variant="titleMedium" style={{ color: theme.colors.titleOnSoft }}>
-            Carga y consulta PDFs desde la app
-          </Text>
-          <Text style={{ color: theme.colors.textMuted }}>
-            Sube manuales, fichas tecnicas o archivos de trabajo y luego abre o descarga cada PDF cuando lo necesites.
-          </Text>
-          <Text style={{ color: theme.colors.textMuted }}>
-            Limite por archivo: {MAX_PDF_SIZE_MB} MB.
-          </Text>
-          <Button
-            mode="contained"
-            icon="file-upload-outline"
-            onPress={pickPdf}
-            loading={pendingActionKey === 'upload'}
-            disabled={isBusy}
-            style={styles.uploadButton}
-          >
-            Cargar manual
-          </Button>
-        </Card.Content>
-      </Card>
+      <View style={styles.uploadSection}>
+        <Button
+          mode="contained"
+          icon="file-upload-outline"
+          onPress={pickPdf}
+          loading={pendingActionKey === 'upload'}
+          disabled={isBusy}
+          style={styles.uploadButton}
+          contentStyle={styles.uploadButtonContent}
+        >
+          Cargar PDF
+        </Button>
+        <Text style={{ color: theme.colors.textMuted }}>
+          Limite por archivo: {MAX_PDF_SIZE_MB} MB.
+        </Text>
+      </View>
 
       <LoadingOrError isLoading={isLoading} error={error} />
 
@@ -226,14 +219,14 @@ export default function DocumentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    borderRadius: 16,
-  },
-  heroContent: {
-    gap: 12,
+  uploadSection: {
+    gap: 10,
   },
   uploadButton: {
-    alignSelf: 'flex-start',
+    width: '100%',
+  },
+  uploadButtonContent: {
+    minHeight: 46,
   },
   emptyCard: {
     borderRadius: 16,

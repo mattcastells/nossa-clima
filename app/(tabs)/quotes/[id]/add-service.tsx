@@ -126,7 +126,7 @@ export default function AddServiceToQuotePage() {
           style={[
             styles.searchbar,
             {
-              backgroundColor: theme.dark ? '#2B3138' : theme.colors.surface,
+              backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
               borderWidth: 1,
               borderColor: theme.colors.borderSoft,
             },

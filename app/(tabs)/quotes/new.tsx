@@ -495,7 +495,13 @@ export default function NewQuotePage() {
                       placeholder="Buscar servicio"
                       value={serviceSearch}
                       onChangeText={setServiceSearch}
-                      style={styles.searchbar}
+                      style={[
+                        styles.searchbar,
+                        {
+                          backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
+                          borderColor: theme.colors.borderSoft,
+                        },
+                      ]}
                       inputStyle={styles.searchbarInput}
                     />
 
@@ -598,7 +604,13 @@ export default function NewQuotePage() {
                       placeholder="Buscar tienda"
                       value={storeSearch}
                       onChangeText={setStoreSearch}
-                      style={styles.searchbar}
+                      style={[
+                        styles.searchbar,
+                        {
+                          backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
+                          borderColor: theme.colors.borderSoft,
+                        },
+                      ]}
                       inputStyle={styles.searchbarInput}
                     />
 
@@ -643,7 +655,13 @@ export default function NewQuotePage() {
                       placeholder={selectedStoreId ? 'Buscar material' : 'Selecciona una tienda primero'}
                       value={materialSearch}
                       onChangeText={setMaterialSearch}
-                      style={styles.searchbar}
+                      style={[
+                        styles.searchbar,
+                        {
+                          backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
+                          borderColor: theme.colors.borderSoft,
+                        },
+                      ]}
                       inputStyle={styles.searchbarInput}
                       editable={Boolean(selectedStoreId)}
                     />

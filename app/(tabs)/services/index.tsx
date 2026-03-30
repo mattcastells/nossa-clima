@@ -27,6 +27,11 @@ export default function ServicesScreen() {
   const menuWidth = screenWidth - 32;
   const filterChipTextColor = theme.dark ? theme.colors.titleOnSoft : '#1A1A1A';
   const filterChipBorderColor = theme.dark ? theme.colors.softBlueStrong : BRAND_BLUE_MID;
+  const menuItemBackgroundColor = theme.dark ? theme.colors.surface : '#FFFFFF';
+  const menuItemBorderColor = theme.dark ? theme.colors.borderSoft : '#D5D5D5';
+  const menuItemSelectedBackgroundColor = theme.dark ? theme.colors.softBlue : '#E0EEF8';
+  const menuItemSelectedBorderColor = theme.dark ? theme.colors.softBlueStrong : '#AECCE8';
+  const menuItemTextColor = theme.dark ? theme.colors.onSurface : '#1A1A1A';
   const { data: categoryNames, isLoading: categoriesLoading, error: categoriesError } = useServiceCategories();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
@@ -133,60 +138,74 @@ export default function ServicesScreen() {
       />
 
       <View style={styles.filtersRow}>
-        <Menu
-          visible={categoryMenuOpen}
-          onDismiss={() => setCategoryMenuOpen(false)}
-          anchorPosition="bottom"
-          contentStyle={[styles.menuContent, { width: menuWidth }]}
-          style={styles.menuWrapper}
-          anchor={
-            <TouchableRipple
-              onPress={() => setCategoryMenuOpen(true)}
-              style={[
-                styles.filterDropdown,
-                {
-                  backgroundColor: theme.colors.softBlue,
-                  borderColor: filterChipBorderColor,
-                },
-              ]}
-              borderless
-            >
-              <View style={styles.filterDropdownInner}>
-                <Icon source="menu" size={16} color={filterChipTextColor} />
-                <Text style={[styles.filterDropdownText, { color: filterChipTextColor }]} numberOfLines={1}>
-                  {selectedCategoryLabel}
-                </Text>
-                <Icon source="chevron-down" size={16} color={filterChipTextColor} />
-              </View>
-            </TouchableRipple>
-          }
-        >
-          <View style={styles.menuGrid}>
-            {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories].map((item) => {
-              const isSelected = selectedCategory === item.key;
-              return (
-                <TouchableRipple
-                  key={item.key}
-                  onPress={() => { setSelectedCategory(item.key); setCategoryMenuOpen(false); }}
-                  style={[styles.menuGridItem, isSelected && styles.menuGridItemSelected]}
-                  borderless
-                >
-                  <View style={styles.menuGridItemInner}>
-                    {isSelected && (
-                      <Icon source="check" size={14} color={filterChipTextColor} />
-                    )}
-                    <Text
-                      style={[styles.menuGridItemText, isSelected && styles.menuGridItemTextSelected]}
-                      numberOfLines={1}
-                    >
-                      {item.label}
-                    </Text>
-                  </View>
-                </TouchableRipple>
-              );
-            })}
-          </View>
-        </Menu>
+        <View style={styles.menuAnchorWrapper}>
+          <Menu
+            visible={categoryMenuOpen}
+            onDismiss={() => setCategoryMenuOpen(false)}
+            anchorPosition="bottom"
+            contentStyle={[styles.menuContent, { width: menuWidth, backgroundColor: theme.colors.surfaceAlt }]}
+            style={styles.menuWrapper}
+            anchor={
+              <TouchableRipple
+                onPress={() => setCategoryMenuOpen(true)}
+                style={[
+                  styles.filterDropdown,
+                  {
+                    backgroundColor: theme.colors.softBlue,
+                    borderColor: filterChipBorderColor,
+                  },
+                ]}
+                borderless
+              >
+                <View style={styles.filterDropdownInner}>
+                  <Icon source="menu" size={16} color={filterChipTextColor} />
+                  <Text style={[styles.filterDropdownText, { color: filterChipTextColor }]} numberOfLines={1}>
+                    {selectedCategoryLabel}
+                  </Text>
+                  <Icon source="chevron-down" size={16} color={filterChipTextColor} />
+                </View>
+              </TouchableRipple>
+            }
+          >
+            <View style={styles.menuGrid}>
+              {[{ key: ALL_CATEGORIES, label: 'Todas' }, ...categories].map((item) => {
+                const isSelected = selectedCategory === item.key;
+                return (
+                  <TouchableRipple
+                    key={item.key}
+                    onPress={() => { setSelectedCategory(item.key); setCategoryMenuOpen(false); }}
+                    style={[
+                      styles.menuGridItem,
+                      {
+                        backgroundColor: menuItemBackgroundColor,
+                        borderColor: menuItemBorderColor,
+                      },
+                      isSelected && {
+                        backgroundColor: menuItemSelectedBackgroundColor,
+                        borderColor: menuItemSelectedBorderColor,
+                      },
+                    ]}
+                    borderless
+                  >
+                    <View style={styles.menuGridItemInner}>
+                      {isSelected ? <Icon source="check" size={14} color={filterChipTextColor} /> : null}
+                      <Text
+                        style={[
+                          styles.menuGridItemText,
+                          { color: menuItemTextColor },
+                          isSelected && styles.menuGridItemTextSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.label}
+                      </Text>
+                    </View>
+                  </TouchableRipple>
+                );
+              })}
+            </View>
+          </Menu>
+        </View>
       </View>
 
       <LoadingOrError isLoading={isLoading || categoriesLoading} error={error ?? categoriesError} />
@@ -276,13 +295,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 8,
+    width: '100%',
+  },
+  menuAnchorWrapper: {
+    width: '100%',
   },
   filterDropdown: {
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 0,
-    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     minHeight: 42,
   },
@@ -314,12 +337,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D5D5D5',
-    backgroundColor: '#FFFFFF',
-  },
-  menuGridItemSelected: {
-    borderColor: '#AECCE8',
-    backgroundColor: '#E0EEF8',
   },
   menuGridItemInner: {
     flexDirection: 'row',
