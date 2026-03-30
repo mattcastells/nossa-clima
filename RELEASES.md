@@ -128,10 +128,11 @@ Tags detectados en el repo:
 - `v0.4.0-b12`
 - `v0.4.1-b13`
 - `v0.4.2-b14`
+- `v0.5.0-b15`
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.4.3-b15` (patch) o `v0.5.0-b15` (minor)
+- `v0.5.1-b16` (patch) o `v0.6.0-b16` (minor)
 
 ## Pasos de setup para privacidad del repo (hacelos una sola vez)
 

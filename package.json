@@ -1,6 +1,6 @@
 {
   "name": "precios-tecnicos",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "private": true,
   "packageManager": "npm@10.9.6",
   "main": "expo-router/entry",
