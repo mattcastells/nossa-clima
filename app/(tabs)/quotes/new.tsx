@@ -115,6 +115,24 @@ export default function NewQuotePage() {
   const [materialNotesInput, setMaterialNotesInput] = useState('');
   const [draftMaterials, setDraftMaterials] = useState<DraftMaterialLine[]>([]);
 
+  const safeNavigateToQuote = (id: string | null | undefined, opts?: { warning?: string }) => {
+    if (!id || !String(id).trim()) {
+      setMessage('Trabajo creado pero no se pudo abrir el detalle.');
+      return;
+    }
+
+    try {
+      if (opts?.warning) {
+        router.replace({ pathname: '/quotes/[id]', params: { id, warning: opts.warning } });
+      } else {
+        router.replace(`/quotes/${id}`);
+      }
+    } catch (err) {
+      // Don't let navigation errors crash the app; show a user message instead.
+      setMessage('Trabajo creado pero falló la navegación al detalle.');
+    }
+  };
+
   const latestMeasurePricesQuery = useLatestMeasurePrices(selectedStoreId ? { storeId: selectedStoreId } : {});
   const { data: measurements, isLoading: measurementsLoading, error: measurementsError } = useItemMeasurements(selectedItemId);
 
@@ -844,22 +862,28 @@ export default function NewQuotePage() {
                       notes: values.notes?.trim() ? values.notes.trim() : null,
                     });
                     toast.success('Trabajo creado y vinculado.');
-                    router.replace(`/quotes/${quote.id}`);
+                    safeNavigateToQuote(quote.id);
                     return;
                   } catch {
-                    router.replace({
-                      pathname: '/quotes/[id]',
-                      params: {
-                        id: quote.id,
-                        warning: 'link-appointment',
-                      },
-                    });
+                    safeNavigateToQuote(quote.id, { warning: 'link-appointment' });
                     return;
                   }
                 }
 
                 if (normalizedDate) {
                   try {
+                    // Validate normalizedDate can form a valid Date (YYYY-MM-DD)
+                    const parts = normalizedDate.split('-').map(Number);
+                    const y = Number(parts[0]) || 0;
+                    const m = Number(parts[1]) || 0;
+                    const d = Number(parts[2]) || 0;
+                    const scheduledDateObj = new Date(y, m - 1, d);
+                    if (!y || !m || !d || Number.isNaN(scheduledDateObj.getTime())) {
+                      // Skip scheduling if date malformed; navigate to quote with warning.
+                      toast.success('Trabajo creado. La fecha indicada no es válida para agendar.');
+                      safeNavigateToQuote(quote.id, { warning: 'schedule-invalid-date' });
+                      return;
+                    }
                     await scheduleQuote.mutateAsync({
                       quote_id: quote.id,
                       title: `${values.client_name.trim()} - ${values.title.trim()}`,
@@ -871,22 +895,16 @@ export default function NewQuotePage() {
                       store_id: null,
                     });
                     toast.success(`Trabajo creado y programado para ${formatDateAr(normalizedDate)}${normalizedTime ? ` - ${formatTimeShort(normalizedTime)}` : ''}.`);
-                    router.replace(`/quotes/${quote.id}`);
+                    safeNavigateToQuote(quote.id);
                     return;
                   } catch {
-                    router.replace({
-                      pathname: '/quotes/[id]',
-                      params: {
-                        id: quote.id,
-                        warning: 'schedule-appointment',
-                      },
-                    });
+                    safeNavigateToQuote(quote.id, { warning: 'schedule-appointment' });
                     return;
                   }
                 }
 
                 toast.success('Trabajo creado.');
-                router.replace(`/quotes/${quote.id}`);
+                safeNavigateToQuote(quote.id);
               } catch (error) {
                 if (quoteId) {
                   await deleteQuoteById(quoteId).catch(() => {});

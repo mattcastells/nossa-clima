@@ -301,6 +301,11 @@ export const uploadPdfFile = async (asset: PdfUploadAsset): Promise<PdfFile> => 
 export const openPdfFile = async (file: PdfFile): Promise<void> => {
   const signedUrl = await getSignedPdfUrl(file.storage_path);
 
+  // Protect devices from attempting to open very large PDFs that could OOM.
+  if (file.file_size_bytes && file.file_size_bytes > MAX_PDF_FILE_SIZE_BYTES) {
+    throw new Error('El PDF es demasiado grande para abrir en el dispositivo.');
+  }
+
   if (Platform.OS === 'web' || Platform.OS === 'ios') {
     await Linking.openURL(signedUrl);
     return;
@@ -340,11 +345,22 @@ export const downloadPdfFile = async (file: PdfFile): Promise<void> => {
 
   const downloadResult = await FileSystem.downloadAsync(signedUrl, buildTempPdfUri(file.file_name));
 
+  // Prevent loading huge files into memory on device when using StorageAccessFramework / readAsStringAsync
+  if (file.file_size_bytes && file.file_size_bytes > MAX_PDF_FILE_SIZE_BYTES) {
+    // Cleanup the downloaded temporary file and inform caller
+    try {
+      await FileSystem.deleteAsync(downloadResult.uri, { idempotent: true });
+    } catch (_err) {
+      // ignore cleanup failure
+    }
+    throw new Error('El PDF es demasiado grande para descargar en el dispositivo.');
+  }
+
   try {
     if (Platform.OS === 'android') {
       const { StorageAccessFramework } = FileSystem;
       const directoryUri = await requestAndroidPdfDirectoryUri(StorageAccessFramework);
-      const fileBase64 = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+  const fileBase64 = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
       const targetUri = await createUniqueSafFileUri(directoryUri, sanitizeStorageFileName(file.file_name), 'application/pdf', StorageAccessFramework);
       await StorageAccessFramework.writeAsStringAsync(targetUri, fileBase64, { encoding: FileSystem.EncodingType.Base64 });
       return;

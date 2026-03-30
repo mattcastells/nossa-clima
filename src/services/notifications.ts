@@ -104,13 +104,23 @@ export const scheduleAppointmentReminder = async (
 
     if (reminderDate.getTime() <= Date.now()) return;
 
-    const notificationId = buildNotificationId(appointment.id);
-    await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
-
     const timeLabel = `${String(timeHour).padStart(2, '0')}:${String(timeMin).padStart(2, '0')}`;
 
+    // Cancel any existing scheduled notification for this appointment (best-effort).
+    // Note: scheduleNotificationAsync returns a generated identifier that we don't control here,
+    // so cancelling by a custom identifier is not reliable. We keep a best-effort cancel above
+    // (using the same string id) but don't rely on it for correctness.
+    try {
+      const notificationId = buildNotificationId(appointment.id);
+      await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
+    } catch {
+      // ignore
+    }
+
+    // Schedule the notification with content and trigger.date only. Do not pass unsupported
+    // top-level fields (like `identifier`) or invalid keys inside trigger (like channelId),
+    // which may cause native errors on some platforms.
     await Notifications.scheduleNotificationAsync({
-      identifier: notificationId,
       content: {
         title: appointment.title,
         body: `Hoy a las ${timeLabel} tenes un turno agendado.`,
@@ -120,11 +130,11 @@ export const scheduleAppointmentReminder = async (
         },
         sound: 'default',
         priority: Notifications.AndroidNotificationPriority.HIGH,
+        // channelId belongs in content for Android
         ...(Platform.OS === 'android' && { channelId: CHANNEL_ID }),
       },
       trigger: {
         date: reminderDate,
-        ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
       },
     });
   } catch (error) {
