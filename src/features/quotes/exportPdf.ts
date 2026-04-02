@@ -2,9 +2,26 @@ import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Platform } from 'react-native';
+
+// jsPDF and jspdf-autotable use browser-only APIs (document, canvas, window.Image)
+// that crash Hermes / React Native when evaluated at module load time.
+// They are imported lazily inside the functions that need them (web PDF export only).
+type JsPDFModule = typeof import('jspdf');
+type AutoTableModule = typeof import('jspdf-autotable');
+
+let _jsPDFModule: JsPDFModule | null = null;
+let _autoTableModule: AutoTableModule | null = null;
+
+const loadJsPDF = async () => {
+  if (!_jsPDFModule) {
+    _jsPDFModule = await import('jspdf');
+  }
+  if (!_autoTableModule) {
+    _autoTableModule = await import('jspdf-autotable');
+  }
+  return { jsPDF: _jsPDFModule.jsPDF, autoTable: _autoTableModule.default };
+};
 
 import brandBanner from '../../../assets/nc-logo-light.png';
 import { formatCurrencyArs, formatDateAr } from '@/lib/format';
@@ -26,7 +43,7 @@ const PDF_SUMMARY_CARD_WIDTH = 240;
 const PDF_SUMMARY_ROW_HEIGHT = 24;
 const PDF_SUMMARY_CARD_HEIGHT = PDF_SUMMARY_ROW_HEIGHT * 3;
 
-type PdfDocument = InstanceType<typeof jsPDF>;
+type PdfDocument = InstanceType<Awaited<ReturnType<typeof loadJsPDF>>['jsPDF']>;
 
 type WebLogoImage = {
   dataUrl: string;
@@ -609,7 +626,8 @@ const drawTotalsPanel = (doc: PdfDocument, detail: QuoteDetail, x: number, y: nu
 };
 
 const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Promise<void> => {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const { jsPDF: JsPDFClass, autoTable: autoTableFn } = await loadJsPDF();
+  const doc = new JsPDFClass({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   const marginX = 44;
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -655,7 +673,7 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   cursorY = ensureVerticalSpace(doc, cursorY, 140);
   cursorY = drawSectionTitle(doc, 'Servicios', marginX, cursorY, pageWidth - marginX);
 
-  autoTable(doc, {
+  autoTableFn(doc, {
     startY: cursorY,
     margin: { left: marginX, right: marginX },
     head: [['Servicio', 'Cantidad', 'Unitario', 'Total']],
@@ -696,7 +714,7 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   cursorY = ensureVerticalSpace(doc, cursorY, 160);
   cursorY = drawSectionTitle(doc, 'Materiales', marginX, cursorY, pageWidth - marginX);
 
-  autoTable(doc, {
+  autoTableFn(doc, {
     startY: cursorY,
     margin: { left: marginX, right: marginX },
     head: [['Material', 'Cantidad', 'Unitario', 'Total']],
