@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { logDevWarning } from '@/lib/devLogger';
+import { setAppointmentScheduledNotificationId, getAppointmentById } from '@/services/appointments';
 
 /** Notifications are only supported on Android (and iOS). Web is a no-op. */
 const IS_SUPPORTED = Platform.OS !== 'web';
@@ -120,7 +121,7 @@ export const scheduleAppointmentReminder = async (
     // Schedule the notification with content and trigger.date only. Do not pass unsupported
     // top-level fields (like `identifier`) or invalid keys inside trigger (like channelId),
     // which may cause native errors on some platforms.
-    await Notifications.scheduleNotificationAsync({
+    const scheduledId = await Notifications.scheduleNotificationAsync({
       content: {
         title: appointment.title,
         body: `Hoy a las ${timeLabel} tenes un turno agendado.`,
@@ -137,6 +138,14 @@ export const scheduleAppointmentReminder = async (
         date: reminderDate,
       },
     });
+
+    // Persist the scheduled id so we can cancel reliably later.
+    try {
+      await setAppointmentScheduledNotificationId(appointment.id, scheduledId);
+    } catch (err) {
+      // best-effort - do not fail the scheduling flow if the DB write fails
+      logDevWarning('Failed to persist scheduled notification id for appointment.', err);
+    }
   } catch (error) {
     logDevWarning('Failed to schedule an appointment reminder.', error);
   }
@@ -150,6 +159,21 @@ export const cancelAppointmentReminder = async (appointmentId: string): Promise<
   if (!IS_SUPPORTED) return;
 
   try {
+    // Try to cancel using the stored scheduled_notification_id if available.
+    try {
+      const appt = await getAppointmentById(appointmentId);
+  const maybe = appt as unknown as { scheduled_notification_id?: string | null } | null;
+  const scheduledId = maybe?.scheduled_notification_id ?? null;
+      if (scheduledId) {
+        await Notifications.cancelScheduledNotificationAsync(scheduledId).catch(() => {});
+        // clear stored id
+        await setAppointmentScheduledNotificationId(appointmentId, null).catch(() => {});
+        return;
+      }
+    } catch {
+      // ignore and fallback to best-effort cancel by generated id
+    }
+
     const notificationId = buildNotificationId(appointmentId);
     await Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {});
   } catch (error) {

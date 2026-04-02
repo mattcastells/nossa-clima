@@ -159,3 +159,21 @@ export const linkAppointmentToQuote = async ({
 
   return data;
 };
+
+export const setAppointmentScheduledNotificationId = async (
+  appointmentId: string,
+  scheduledNotificationId: string | null,
+): Promise<void> => {
+  const { error } = await supabase
+    .from('appointments')
+    .update({ scheduled_notification_id: scheduledNotificationId })
+    .eq('id', appointmentId);
+
+  if (error) throw error;
+};
+
+export const getAppointmentById = async (appointmentId: string): Promise<Appointment | null> => {
+  const { data, error } = await supabase.from('appointments').select('*').eq('id', appointmentId).maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+};
