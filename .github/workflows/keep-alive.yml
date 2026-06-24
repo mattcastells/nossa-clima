@@ -1,6 +1,7 @@
 name: Keep Supabase Alive
 
 on:
+  workflow_dispatch: {}
   schedule:
     - cron: '0 12 */3 * *' # every 3 days at noon UTC
 
@@ -9,7 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
-          curl -sf "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}/rest/v1/" \
-            -H "apikey: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}"
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Missing repo secret EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY (Settings > Secrets and variables > Actions)"
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/body.txt -w "%{http_code}" "$SUPABASE_URL/rest/v1/" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "HTTP status: $status"
+          cat /tmp/body.txt
+          if [ "$status" -ge 400 ]; then
+            exit 1
+          fi
