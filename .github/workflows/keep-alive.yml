@@ -18,7 +18,7 @@ jobs:
             echo "::error::Missing repo secret EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY (Settings > Secrets and variables > Actions)"
             exit 1
           fi
-          status=$(curl -sS -o /tmp/body.txt -w "%{http_code}" "$SUPABASE_URL/rest/v1/" \
+          status=$(curl -sS -o /tmp/body.txt -w "%{http_code}" "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY")
           echo "HTTP status: $status"
