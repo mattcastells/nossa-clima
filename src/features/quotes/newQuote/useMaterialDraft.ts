@@ -37,7 +37,7 @@ export function useMaterialDraft({ items, stores, latestPricesData, onError }: U
     error: measurementsError,
   } = useItemMeasurements(selectedItemId);
 
-  const itemMeasurements: ItemMeasurement[] = measurementsData ?? [];
+  const itemMeasurements: ItemMeasurement[] = useMemo(() => measurementsData ?? [], [measurementsData]);
 
   const materialItems = useMemo(
     () =>

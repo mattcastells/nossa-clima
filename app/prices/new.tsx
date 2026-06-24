@@ -89,10 +89,16 @@ export default function NewPricePage() {
   const availableStores = useMemo(() => (stores ?? []).sort((a, b) => a.name.localeCompare(b.name)), [stores]);
   const availableMaterials = useMemo(() => (items ?? []).filter((item) => item.item_type === 'material'), [items]);
   const selectedItem = availableMaterials.find((item) => item.id === initialItemId) ?? null;
-  const itemMeasurements = measurements ?? [];
+  const itemMeasurements = useMemo(() => measurements ?? [], [measurements]);
   const hasMeasurements = itemMeasurements.length > 0;
-  const calculatedMeasurements = itemMeasurements.filter((measurement) => measurement.pricing_mode === 'calculated');
-  const manualMeasurements = itemMeasurements.filter((measurement) => measurement.pricing_mode === 'manual');
+  const calculatedMeasurements = useMemo(
+    () => itemMeasurements.filter((measurement) => measurement.pricing_mode === 'calculated'),
+    [itemMeasurements],
+  );
+  const manualMeasurements = useMemo(
+    () => itemMeasurements.filter((measurement) => measurement.pricing_mode === 'manual'),
+    [itemMeasurements],
+  );
   const hasCalculatedMeasures = calculatedMeasurements.length > 0;
   const selectedStore = availableStores.find((store) => store.id === selectedStoreId) ?? null;
 
