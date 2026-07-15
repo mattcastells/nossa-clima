@@ -117,12 +117,11 @@ No address bar, no devtools, separate browser profile (no extensions or tabs). I
 
 Options: `npm run web:mobile -- --port 8083 --size 430x932`.
 
-If the window shows `Requiring unknown module "…"`, the open bundle is out of sync with the server (it happens after restarting Metro with the window open), so it asks for module ids that no longer exist. In order:
+If the window shows `Requiring unknown module "…"`: that error comes from Metro's lazy chunks (dynamic imports like jspdf are served as separate chunks in dev, and they break when the page and the server get out of sync). The project disables lazy chunks in dev via `EXPO_NO_METRO_LAZY=1` in `.env` — make sure your `.env` has it (see `.env.example`). `npm run web:mobile` also sets it on its own. If you still see it with the flag in place:
 
-1. `Ctrl+R` in the window.
-2. `Ctrl+Shift+R` to bypass the browser cache.
-3. Close the window and run `npm run web:mobile -- --fresh` (wipes the preview profile).
-4. `npm run web:mobile -- --clear` (restarts Metro with a clean cache).
+1. `Ctrl+R` in the window, or `Ctrl+Shift+R` to bypass the browser cache.
+2. Close the window and run `npm run web:mobile -- --fresh` (wipes the preview profile).
+3. `npm run web:mobile -- --clear` (restarts Metro with a clean cache).
 
 For the real thing, open `http://<your-lan-ip>:8081` from a phone on the same network.
 

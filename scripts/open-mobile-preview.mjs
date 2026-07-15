@@ -109,6 +109,9 @@ const main = async () => {
   const expo = spawn('npx', expoArgs, {
     stdio: 'inherit',
     shell: os.platform() === 'win32', // en Windows npx es un .cmd
+    // Sin chunks lazy en dev: evita "Requiring unknown module" cuando la
+    // ventana y el server quedan desincronizados.
+    env: { ...process.env, EXPO_NO_METRO_LAZY: '1' },
   });
 
   const shutdown = () => {
