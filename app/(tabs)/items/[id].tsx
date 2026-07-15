@@ -16,7 +16,7 @@ import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatDateTimeAr } from '@/lib/format';
 import { getSingleRouteParam } from '@/lib/routeParams';
-import { BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
+import { useAppTheme } from '@/theme';
 import type { ItemMeasurement, LatestStoreItemMeasurementPrice, LatestStoreItemPrice } from '@/types/db';
 
 const formatAuditActor = (userId: string | null | undefined, namesById: Map<string, string>): string => {
@@ -274,14 +274,9 @@ export default function ItemDetailPage() {
         <Card mode="outlined" style={[styles.measurementsCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Card.Content style={styles.measurementsContent}>
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderText}>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>Medidas</Text>
-                <Text style={{ color: theme.colors.textMuted }}>
-                  Cada medida trabaja con precio final por metro. Puede ser manual o calculada desde un costo base por kg.
-                </Text>
-              </View>
-              <Button mode="contained-tonal" icon="plus" onPress={openNewMeasurementDialog} style={styles.sectionHeaderAction}>
-                Agregar medida
+              <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.titleOnSoft }]}>Medidas</Text>
+              <Button mode="contained-tonal" icon="plus" onPress={openNewMeasurementDialog} buttonColor={theme.colors.accentSoft} textColor={theme.colors.accentStrong} style={styles.sectionHeaderAction}>
+                Agregar
               </Button>
             </View>
 
@@ -357,8 +352,7 @@ export default function ItemDetailPage() {
       {material && (
         <Card mode="outlined" style={[styles.pricesCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Card.Content style={styles.pricesContent}>
-            <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>{material.name}</Text>
-            <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>Precios por tienda</Text>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.titleOnSoft }]}>Precios por tienda</Text>
             {availableStores.length === 0 && <Text style={{ color: theme.colors.textMuted }}>No hay tiendas para asignar precio.</Text>}
             {availableStores.map((store) => {
               const latestBaseRow = latestBasePriceByStoreId.get(store.id) ?? null;
@@ -461,15 +455,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   measurementsCard: {
-    borderRadius: 12,
+    borderRadius: 16,
+  },
+  sectionTitle: {
+    fontWeight: '800',
   },
   measurementsContent: {
     gap: 14,
     paddingVertical: 10,
   },
   sectionHeader: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
   sectionHeaderText: {
@@ -504,16 +502,16 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   measurementBadgeManual: {
-    backgroundColor: BRAND_GREEN_SOFT,
+    backgroundColor: '#EEF2F7',
   },
   measurementBadgeCalculated: {
-    backgroundColor: '#D8E4F2',
+    backgroundColor: '#E0F7FC',
   },
   measurementBadgeText: {
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '700',
-    color: BRAND_GREEN,
+    color: '#334155',
   },
   basePriceEditor: {
     gap: 10,
@@ -523,7 +521,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   pricesCard: {
-    borderRadius: 12,
+    borderRadius: 16,
   },
   pricesContent: {
     gap: 12,
@@ -542,7 +540,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   priceActionButton: {
-    borderRadius: 999,
+    borderRadius: 12,
     minWidth: 104,
   },
   measurementDialogContent: {
