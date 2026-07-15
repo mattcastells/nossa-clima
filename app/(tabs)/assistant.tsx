@@ -439,24 +439,24 @@ export default function AssistantScreen() {
   };
 
   return (
-    <AppScreen scrollable={false}>
+    <AppScreen
+      scrollable={false}
+      title="Asistente AI"
+      titleRight={
+        <IconButton
+          icon="refresh"
+          size={18}
+          mode="contained"
+          containerColor={theme.colors.accentSoft}
+          iconColor={theme.colors.accentStrong}
+          style={styles.resetButton}
+          onPress={requestConversationReset}
+          disabled={messages.length === 0 && !pendingImage && !pendingAudio && !input && !isRecordingAudio}
+          accessibilityLabel="Nueva conversacion"
+        />
+      }
+    >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
-        <View style={styles.titleRow}>
-          <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>
-            Asistente AI
-          </Text>
-          <IconButton
-            icon="refresh"
-            size={18}
-            mode="contained-tonal"
-            containerColor={theme.colors.softBlue}
-            iconColor={theme.colors.primary}
-            onPress={requestConversationReset}
-            disabled={messages.length === 0 && !pendingImage && !pendingAudio && !input && !isRecordingAudio}
-            accessibilityLabel="Nueva conversacion"
-          />
-        </View>
-
         {messages.length === 0 ? (
           <Card mode="outlined" style={[styles.emptyCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
             <Card.Content style={styles.emptyContent}>
@@ -737,14 +737,14 @@ export default function AssistantScreen() {
 
             <TextInput
               mode="outlined"
-              label="Consulta"
               value={input}
               onChangeText={setInput}
               multiline
               numberOfLines={4}
               outlineStyle={styles.inputOutline}
               contentStyle={styles.inputContent}
-              placeholder="Escribi tu consulta para el asistente"
+              activeOutlineColor={theme.colors.accent}
+              placeholder="Escribí tu consulta…"
               textColor={theme.colors.onSurface}
               placeholderTextColor={theme.colors.textMuted}
             />
@@ -752,28 +752,36 @@ export default function AssistantScreen() {
             <View style={styles.composerActions}>
               <Button
                 mode="outlined"
+                compact
                 icon="image-outline"
                 onPress={pickImage}
                 disabled={isSending || isRecordingAudio}
+                labelStyle={styles.composerLabel}
                 style={[styles.attachButton, { borderColor: theme.colors.borderSoft }]}
               >
                 Imagen
               </Button>
               <Button
                 mode={isRecordingAudio ? 'contained-tonal' : 'outlined'}
+                compact
                 icon={isRecordingAudio ? 'stop-circle-outline' : 'microphone-outline'}
                 onPress={toggleAudioRecording}
                 disabled={isSending}
+                labelStyle={styles.composerLabel}
                 style={[styles.attachButton, { borderColor: theme.colors.borderSoft }]}
               >
                 {isRecordingAudio ? 'Detener' : 'Audio'}
               </Button>
               <Button
                 mode="contained"
+                compact
                 icon="send"
                 onPress={submit}
                 loading={isSending}
                 disabled={!canSend || isSending || isRecordingAudio}
+                buttonColor={theme.colors.accent}
+                textColor={theme.colors.onAccent}
+                labelStyle={styles.composerLabel}
                 style={styles.sendButton}
               >
                 Enviar
@@ -810,12 +818,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
     gap: 12,
   },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 42,
-  },
+  resetButton: { margin: 0 },
   helperText: {
     lineHeight: 18,
   },
@@ -1024,16 +1027,21 @@ const styles = StyleSheet.create({
   },
   composerActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
+  },
+  // Paper deja marginHorizontal 16 en el label: con tres botones flex no entra el texto.
+  composerLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginHorizontal: 6,
+    marginVertical: 10,
   },
   attachButton: {
     flex: 1,
-    minWidth: 110,
     borderRadius: 12,
   },
   sendButton: {
-    flexBasis: '100%',
+    flex: 1,
     borderRadius: 12,
   },
   dialogActions: {
