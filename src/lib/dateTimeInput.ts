@@ -155,6 +155,28 @@ export const getCalendarCells = (anchor: Date): Array<number | null> => {
   return cells;
 };
 
+/** Fecha ISO (YYYY-MM-DD) a Date local, sin pasar por UTC (evita correr un día). */
+export const parseIsoDate = (isoDate: string): Date => {
+  const [rawYear = '1970', rawMonth = '01', rawDay = '01'] = isoDate.split('-');
+  return new Date(Number(rawYear), Number(rawMonth) - 1, Number(rawDay));
+};
+
+/** Los 7 días (lunes a domingo) de la semana que contiene isoDate. */
+export const getWeekDays = (isoDate: string): string[] => {
+  const date = parseIsoDate(isoDate);
+  const mondayOffset = (date.getDay() + 6) % 7;
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, index) =>
+    formatIsoDate(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index)),
+  );
+};
+
+/** "Martes 16" — encabezado de la agenda del día. */
+export const dayHeadingLabel = (isoDate: string): string => {
+  const label = parseIsoDate(isoDate).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric' });
+  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : label;
+};
+
 export const monthLabel = (anchor: Date): string => {
   const label = anchor.toLocaleDateString('es-AR', {
     month: 'long',
