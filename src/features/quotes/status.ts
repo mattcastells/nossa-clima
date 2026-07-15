@@ -33,21 +33,21 @@ export const quoteStatusAccent = (status: QuoteStatus | null | undefined): {
   switch (normalizeQuoteStatus(status)) {
     case 'completed':
       return {
-        backgroundColor: '#E8F3E3',
+        backgroundColor: '#EAF9EF',
         textColor: BRAND_GREEN,
-        borderColor: '#C8DCBC',
+        borderColor: '#B6E6C5',
       };
     case 'cancelled':
       return {
-        backgroundColor: '#F8E4E4',
-        textColor: '#A13838',
-        borderColor: '#E7C1C1',
+        backgroundColor: '#FEECEC',
+        textColor: '#B91C1C',
+        borderColor: '#FBD0D0',
       };
     default:
       return {
-        backgroundColor: '#FFF4D9',
-        textColor: '#8D6B12',
-        borderColor: '#E8D7A2',
+        backgroundColor: '#FEF6E7',
+        textColor: '#B45309',
+        borderColor: '#FADFA6',
       };
   }
 };
