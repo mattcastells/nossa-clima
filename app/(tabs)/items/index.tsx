@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, useWindowDimensions, View } from 'react-native';
 import { Icon, IconButton, Menu, Text, TouchableRipple } from 'react-native-paper';
@@ -6,14 +6,24 @@ import { Icon, IconButton, Menu, Text, TouchableRipple } from 'react-native-pape
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
-import { useItems } from '@/features/items/hooks';
+import { useItemsWithStats } from '@/features/items/hooks';
 import { formatItemDisplayName } from '@/lib/itemDisplay';
+import type { ItemListStats } from '@/services/items';
 import { useAppTheme } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
 
+const pluralize = (count: number, singular: string, plural: string) => `${count} ${count === 1 ? singular : plural}`;
+
+/** "2 medidas · precio en 2 tiendas" / "Precio directo · 3 tiendas" */
+const buildItemSummary = ({ measurementCount, storeCount }: ItemListStats): string => {
+  const stores = storeCount > 0 ? `precio en ${pluralize(storeCount, 'tienda', 'tiendas')}` : 'sin precios';
+  if (measurementCount > 0) return `${pluralize(measurementCount, 'medida', 'medidas')} · ${stores}`;
+  return storeCount > 0 ? `Precio directo · ${pluralize(storeCount, 'tienda', 'tiendas')}` : 'Sin precios cargados';
+};
+
 export default function ItemsScreen() {
-  const { data, isLoading, error } = useItems();
+  const { data, isLoading, error } = useItemsWithStats();
   const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const menuWidth = screenWidth - 32;
@@ -139,37 +149,34 @@ export default function ItemsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => {
-          const secondary = item.base_price_label?.trim()
-            ? `Base: ${item.base_price_label.trim()}`
-            : item.description?.trim() || null;
+          const secondary = buildItemSummary(item);
           return (
             <AnimatedEntrance delay={60 + index * 35} distance={12}>
-              <Link href={`/items/${item.id}`} asChild>
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.materialCard,
-                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
-                    pressed && styles.cardPressed,
-                  ]}
-                >
-                  <View style={styles.materialHeader}>
-                    <Text style={[styles.materialTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
-                      {formatItemDisplayName(item)}
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push(`/items/${item.id}`)}
+                style={({ pressed }) => [
+                  styles.materialCard,
+                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
+                  pressed && styles.cardPressed,
+                ]}
+              >
+                <View style={styles.materialHeader}>
+                  <Text style={[styles.materialTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
+                    {formatItemDisplayName(item)}
+                  </Text>
+                  <View style={[styles.categoryChip, { backgroundColor: theme.colors.softGreen }]}>
+                    <Text style={[styles.categoryChipText, { color: theme.colors.toastSuccessText }]} numberOfLines={1}>
+                      {item.category ?? 'Sin categoría'}
                     </Text>
-                    <View style={[styles.categoryChip, { backgroundColor: theme.colors.softGreen }]}>
-                      <Text style={[styles.categoryChipText, { color: theme.colors.toastSuccessText }]} numberOfLines={1}>
-                        {item.category ?? 'Sin categoría'}
-                      </Text>
-                    </View>
                   </View>
-                  {secondary ? (
-                    <Text style={[styles.materialMeta, { color: theme.colors.textMuted }]} numberOfLines={1}>
-                      {secondary}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              </Link>
+                </View>
+                {secondary ? (
+                  <Text style={[styles.materialMeta, { color: theme.colors.textMuted }]} numberOfLines={1}>
+                    {secondary}
+                  </Text>
+                ) : null}
+              </Pressable>
             </AnimatedEntrance>
           );
         }}

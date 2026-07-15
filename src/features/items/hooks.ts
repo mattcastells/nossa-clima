@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { listItems, upsertItem } from '@/services/items';
+import { listItems, listItemsWithStats, upsertItem } from '@/services/items';
 import { listItemMeasurements, upsertItemMeasurement } from '@/services/itemMeasurements';
 import type { Item, ItemMeasurement } from '@/types/db';
 
@@ -8,6 +8,13 @@ export const useItems = (includeArchivedIds: string[] = []) =>
   useQuery({
     queryKey: ['items', includeArchivedIds.slice().sort().join(',')],
     queryFn: () => listItems({ includeArchivedIds }),
+  });
+
+/** Materials list with the measurement/store counters shown on each card. */
+export const useItemsWithStats = (includeArchivedIds: string[] = []) =>
+  useQuery({
+    queryKey: ['items-with-stats', includeArchivedIds.slice().sort().join(',')],
+    queryFn: () => listItemsWithStats({ includeArchivedIds }),
   });
 
 export const useSaveItem = () => {
