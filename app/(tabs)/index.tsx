@@ -29,13 +29,14 @@ export default function HomeScreen() {
   ];
 
   return (
-    <AppScreen showBackButton={false}>
-      <AnimatedEntrance delay={30} distance={10}>
+    <AppScreen
+      showBackButton={false}
+      headerLeading={
         <View style={styles.bannerBand}>
           <Image source={homeBannerSource} style={styles.bannerImage} resizeMode="contain" />
         </View>
-      </AnimatedEntrance>
-
+      }
+    >
       <AnimatedEntrance delay={70} distance={12}>
         <Pressable
           accessibilityRole="button"
@@ -80,8 +81,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   bannerBand: {
     alignItems: 'flex-start',
-    marginBottom: 18,
-    marginTop: 2,
   },
   bannerImage: {
     width: 210,

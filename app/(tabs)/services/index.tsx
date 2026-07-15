@@ -104,9 +104,9 @@ export default function ServicesScreen() {
           />
         </View>
       }
-    >
+      headerContent={
       <View style={styles.toolsRow}>
-        <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Icon source="magnify" size={20} color={theme.colors.textMuted} />
           <NativeTextInput
             value={search}
@@ -169,7 +169,8 @@ export default function ServicesScreen() {
           </View>
         </Menu>
       </View>
-
+      }
+    >
       <LoadingOrError isLoading={isLoading || categoriesLoading} error={error ?? categoriesError} />
 
       <FlatList
@@ -234,16 +235,15 @@ const styles = StyleSheet.create({
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
   searchBar: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 9,
+    borderRadius: 12,
     paddingHorizontal: 14,
   },
   searchInput: { flex: 1, minWidth: 0, paddingVertical: 0, fontSize: 15, lineHeight: 20 },
-  filterChip: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center' },
+  filterChip: { minHeight: 44, borderRadius: 12, paddingHorizontal: 14, justifyContent: 'center' },
   filterChipInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   filterChipText: { fontSize: 14, fontFamily: FONT_SANS_BOLD, maxWidth: 120 },
   menuContent: { paddingVertical: 6, borderRadius: 14 },

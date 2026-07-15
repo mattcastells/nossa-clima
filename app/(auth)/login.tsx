@@ -56,6 +56,8 @@ export default function LoginScreen() {
                 error={Boolean(errors.email)}
                 outlineStyle={styles.inputOutline}
                 activeOutlineColor={theme.colors.accent}
+                outlineColor={theme.colors.outline}
+                style={styles.input}
               />
             )}
           />
@@ -73,6 +75,8 @@ export default function LoginScreen() {
                 error={Boolean(errors.password)}
                 outlineStyle={styles.inputOutline}
                 activeOutlineColor={theme.colors.accent}
+                outlineColor={theme.colors.outline}
+                style={styles.input}
               />
             )}
           />
@@ -125,6 +129,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   cardTitle: { fontFamily: FONT_SANS_EXTRABOLD, marginBottom: 2 },
+  // El diseño usa inputs blancos sobre la tarjeta; paper los tiñe de gris por defecto.
+  input: { backgroundColor: 'transparent' },
   inputOutline: { borderRadius: 12 },
   submit: { borderRadius: 12, marginTop: 4 },
   submitContent: { minHeight: 48 },

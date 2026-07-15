@@ -42,8 +42,8 @@ export default function StoresScreen() {
           onPress={() => router.push('/stores/new')}
         />
       }
-    >
-      <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+      headerContent={
+      <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
         <Icon source="magnify" size={20} color={theme.colors.textMuted} />
         <NativeTextInput
           value={search}
@@ -60,7 +60,8 @@ export default function StoresScreen() {
           </Pressable>
         ) : null}
       </View>
-
+      }
+    >
       <LoadingOrError isLoading={isLoading} error={error} />
 
       <FlatList
@@ -116,12 +117,11 @@ export default function StoresScreen() {
 const styles = StyleSheet.create({
   newButton: { margin: 0, borderRadius: 13 },
   searchBar: {
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 9,
+    borderRadius: 12,
     paddingHorizontal: 14,
   },
   searchInput: { flex: 1, minWidth: 0, paddingVertical: 0, fontSize: 15, lineHeight: 20 },
