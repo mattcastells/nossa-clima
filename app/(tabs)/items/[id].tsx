@@ -1,6 +1,6 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppDialog } from '@/components/AppDialog';
@@ -16,7 +16,7 @@ import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatDateAr, formatDateTimeAr } from '@/lib/format';
 import { getSingleRouteParam } from '@/lib/routeParams';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_SEMIBOLD, useAppTheme } from '@/theme';
 import type { ItemMeasurement, LatestStoreItemMeasurementPrice, LatestStoreItemPrice } from '@/types/db';
 
 const formatAuditActor = (userId: string | null | undefined, namesById: Map<string, string>): string => {
@@ -51,7 +51,7 @@ const formatStorePriceSummary = (
         latestBaseRow.price ? `cargada` : 'sin cargar'
       }`,
       secondary: `${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(latestBaseRow.price)} / kg`,
-      tertiary: `Ultimo registro: ${formatDateAr(latestBaseRow.observed_at)}`,
+      tertiary: `Último registro: ${formatDateAr(latestBaseRow.observed_at)}`,
       hasPrice: true,
     };
   }
@@ -76,13 +76,21 @@ const formatStorePriceSummary = (
   };
 
   if (latestObservedAt) {
-    summary.tertiary = `Ultimo registro: ${formatDateAr(latestObservedAt)}`;
+    summary.tertiary = `Último registro: ${formatDateAr(latestObservedAt)}`;
   }
 
   return summary;
 };
 
+type DetailTab = 'data' | 'prices';
+
+const DETAIL_TABS: Array<{ key: DetailTab; label: string }> = [
+  { key: 'data', label: 'Datos' },
+  { key: 'prices', label: 'Medidas y precios' },
+];
+
 export default function ItemDetailPage() {
+  const [activeTab, setActiveTab] = useState<DetailTab>('data');
   const theme = useAppTheme();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = getSingleRouteParam(params.id).trim();
@@ -231,13 +239,52 @@ export default function ItemDetailPage() {
   };
 
   return (
-    <AppScreen title="Detalle de material" showHomeButton={false}>
+    <AppScreen
+      showHomeButton={false}
+      backLabel="Materiales"
+      headerLeading={
+        material ? (
+          <View style={styles.titleRow}>
+            <Text style={[styles.detailTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
+              {material.name}
+            </Text>
+            <View style={[styles.categoryChip, { backgroundColor: theme.colors.softGreen }]}>
+              <Text style={[styles.categoryChipText, { color: theme.colors.toastSuccessText }]} numberOfLines={1}>
+                {material.category ?? 'Sin categoría'}
+              </Text>
+            </View>
+          </View>
+        ) : null
+      }
+      headerContent={
+        material ? (
+          <View style={[styles.tabs, { backgroundColor: theme.colors.surfaceVariant }]}>
+            {DETAIL_TABS.map((tab) => {
+              const active = activeTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setActiveTab(tab.key)}
+                  style={[styles.tab, active && [styles.tabActive, { backgroundColor: theme.colors.surface }]]}
+                >
+                  <Text style={[styles.tabText, { color: active ? theme.colors.primary : theme.colors.textMuted }, active && styles.tabTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null
+      }
+    >
       <LoadingOrError
         isLoading={itemsLoading || measurementsLoading || storesLoading || basePricesLoading || measurePricesLoading}
         error={combinedError}
       />
 
-      {material && (
+      {material && activeTab === 'data' && (
         <ItemForm
           categorySuggestions={categorySuggestions}
           defaultValues={{
@@ -270,7 +317,7 @@ export default function ItemDetailPage() {
         />
       )}
 
-      {material && (
+      {material && activeTab === 'prices' && (
         <Card mode="outlined" style={[styles.measurementsCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Card.Content style={styles.measurementsContent}>
             <View style={styles.sectionHeader}>
@@ -281,7 +328,7 @@ export default function ItemDetailPage() {
             </View>
 
             {itemMeasurements.length === 0 ? (
-              <Text style={{ color: theme.colors.textMuted }}>Todavia no hay medidas cargadas.</Text>
+              <Text style={{ color: theme.colors.textMuted }}>Todavía no hay medidas cargadas.</Text>
             ) : (
               itemMeasurements.map((measurement) => (
                 <View key={measurement.id} style={[styles.measurementRow, { borderColor: theme.colors.borderSoft }]}>
@@ -349,7 +396,7 @@ export default function ItemDetailPage() {
         </Card>
       )}
 
-      {material && (
+      {material && activeTab === 'prices' && (
         <Card mode="outlined" style={[styles.pricesCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surfaceAlt }]}>
           <Card.Content style={styles.pricesContent}>
             <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.titleOnSoft }]}>Precios por tienda</Text>
@@ -393,7 +440,7 @@ export default function ItemDetailPage() {
         </Card>
       )}
 
-      {material ? (
+      {material && activeTab === 'data' ? (
         <CatalogAuditCard
           createdBy={formatAuditActor(material.user_id, auditNamesById)}
           createdAt={formatDateTimeAr(material.created_at)}
@@ -451,6 +498,21 @@ export default function ItemDetailPage() {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  detailTitle: { flexShrink: 1, fontSize: 20, lineHeight: 26, fontFamily: FONT_SANS_EXTRABOLD },
+  categoryChip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  categoryChipText: { fontSize: 12, lineHeight: 16, fontFamily: FONT_SANS_BOLD, maxWidth: 120 },
+  tabs: { flexDirection: 'row', alignSelf: 'flex-start', borderRadius: 12, padding: 4, gap: 4 },
+  tab: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 9 },
+  tabActive: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  tabText: { fontSize: 13, fontFamily: FONT_SANS_SEMIBOLD },
+  tabTextActive: { fontFamily: FONT_SANS_EXTRABOLD },
   inputOutline: {
     borderRadius: 10,
   },

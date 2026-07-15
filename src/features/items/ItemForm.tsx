@@ -54,7 +54,7 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
         render={({ field }) => (
           <TextInput
             mode="outlined"
-            label="Descripcion"
+            label="Descripción"
             value={field.value ?? ''}
             onChangeText={field.onChange}
             multiline
@@ -68,7 +68,7 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
         control={control}
         name="category"
         render={({ field }) => (
-          <TextInput mode="outlined" label="Categoria" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
+          <TextInput mode="outlined" label="Categoría" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
         )}
       />
 
