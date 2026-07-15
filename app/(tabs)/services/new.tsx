@@ -15,7 +15,7 @@ export default function NewServicePage() {
   useToastMessageEffect(message, () => setMessage(null));
 
   return (
-    <AppScreen title="Nuevo servicio">
+    <AppScreen title="Nuevo servicio" backLabel="Servicios">
       <ServiceForm
         categorySuggestions={categories ?? []}
         onSubmit={async (values) => {

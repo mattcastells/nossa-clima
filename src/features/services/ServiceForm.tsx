@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Chip, Text, TextInput } from 'react-native-paper';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 
-import { BRAND_BLUE, BRAND_BLUE_MID, useAppTheme } from '@/theme';
+import { getCategoryAccent } from '@/features/items/categoryAccent';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 import { ServiceFormValues, serviceSchema } from './schemas';
 
@@ -15,8 +16,6 @@ interface Props {
 
 export const ServiceForm = ({ defaultValues, categorySuggestions = [], onSubmit }: Props) => {
   const theme = useAppTheme();
-  const chipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE;
-  const chipBorderColor = theme.dark ? theme.colors.softBlueStrong : BRAND_BLUE_MID;
   const {
     control,
     handleSubmit,
@@ -38,72 +37,130 @@ export const ServiceForm = ({ defaultValues, categorySuggestions = [], onSubmit 
 
   return (
     <View style={styles.form}>
-      <Controller
-        control={control}
-        name="name"
-        render={({ field }) => <TextInput mode="outlined" label="Nombre" value={field.value} onChangeText={field.onChange} />}
-      />
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <TextInput mode="outlined" label="Descripcion" value={field.value ?? ''} onChangeText={field.onChange} multiline numberOfLines={3} />
-        )}
-      />
-      <Controller
-        control={control}
-        name="category"
-        render={({ field }) => <TextInput mode="outlined" label="Categoria" value={field.value ?? ''} onChangeText={field.onChange} />}
-      />
-      {categorySuggestions.length > 0 && (
-        <View style={styles.categorySuggestions}>
-          <Text variant="labelMedium" style={{ color: theme.colors.onSurface }}>Categorias disponibles</Text>
+      <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <Controller
+          control={control}
+          name="name"
+          render={({ field }) => (
+            <View>
+              <TextInput
+                mode="outlined"
+                label="Nombre"
+                value={field.value}
+                onChangeText={field.onChange}
+                error={Boolean(errors.name)}
+                outlineStyle={styles.inputOutline}
+                activeOutlineColor={theme.colors.accent}
+              />
+              {errors.name ? <HelperText type="error">{errors.name.message}</HelperText> : null}
+            </View>
+          )}
+        />
+        <Controller
+          control={control}
+          name="category"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Categoría"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
+        {categorySuggestions.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
             {categorySuggestions.map((category) => {
               const selected = selectedCategory.toLowerCase() === category.toLowerCase();
+              const accent = getCategoryAccent(theme, category);
 
               return (
-                <Chip
+                <Pressable
                   key={category}
-                  selected={selected}
-                  selectedColor={chipTextColor}
-                  textStyle={StyleSheet.flatten([styles.categoryChipText, { color: chipTextColor }])}
-                  style={StyleSheet.flatten([
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setValue('category', selected ? '' : category)}
+                  style={({ pressed }) => [
                     styles.categoryChip,
-                    {
-                      backgroundColor: selected ? theme.colors.softBlueStrong : theme.colors.softBlue,
-                      borderColor: chipBorderColor,
-                    },
-                  ])}
-                  onPress={() => setValue('category', category)}
+                    { backgroundColor: accent.backgroundColor, borderColor: selected ? accent.textColor : 'transparent' },
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  {category}
-                </Chip>
+                  <Text style={[styles.categoryChipText, { color: accent.textColor }]}>{category}</Text>
+                </Pressable>
               );
             })}
           </ScrollView>
-        </View>
-      )}
-      <Controller
-        control={control}
-        name="base_price"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Precio base"
-            keyboardType="decimal-pad"
-            value={String(field.value)}
-            onChangeText={field.onChange}
-          />
         )}
-      />
-      <Controller
-        control={control}
-        name="unit_type"
-        render={({ field }) => <TextInput mode="outlined" label="Unidad de trabajo (opcional)" value={field.value ?? ''} onChangeText={field.onChange} />}
-      />
-      {errors.name && <Text style={{ color: '#B00020' }}>{errors.name.message}</Text>}
-      <Button mode="contained" loading={isSubmitting} onPress={handleSubmit(onSubmit)}>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>PRECIO</Text>
+        <Controller
+          control={control}
+          name="base_price"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Precio base"
+              left={<TextInput.Affix text="$" />}
+              keyboardType="decimal-pad"
+              value={String(field.value)}
+              onChangeText={field.onChange}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="unit_type"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Unidad de trabajo (opcional)"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
+      </View>
+
+      <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>DETALLE</Text>
+        <Controller
+          control={control}
+          name="description"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Descripción"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              multiline
+              numberOfLines={3}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
+      </View>
+
+      <Button
+        mode="contained"
+        loading={isSubmitting}
+        disabled={isSubmitting}
+        onPress={handleSubmit(onSubmit)}
+        buttonColor={theme.colors.accent}
+        textColor={theme.colors.onAccent}
+        style={styles.submitButton}
+        contentStyle={styles.submitButtonContent}
+        labelStyle={styles.submitButtonLabel}
+      >
         Guardar servicio
       </Button>
     </View>
@@ -111,21 +168,29 @@ export const ServiceForm = ({ defaultValues, categorySuggestions = [], onSubmit 
 };
 
 const styles = StyleSheet.create({
-  form: {
+  form: { gap: 12 },
+  section: {
     gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
   },
-  categorySuggestions: {
-    gap: 8,
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: FONT_SANS_BOLD,
+    letterSpacing: 0.8,
   },
-  chipsRow: {
-    gap: 8,
-    paddingVertical: 2,
-  },
+  inputOutline: { borderRadius: 12 },
+  chipsRow: { gap: 8, paddingVertical: 2 },
   categoryChip: {
     borderRadius: 999,
     borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
-  categoryChipText: {
-    fontWeight: '500',
-  },
+  categoryChipText: { fontSize: 13, fontFamily: FONT_SANS_BOLD },
+  pressed: { opacity: 0.8 },
+  submitButton: { borderRadius: 12, marginTop: 2 },
+  submitButtonContent: { minHeight: 48 },
+  submitButtonLabel: { fontFamily: FONT_SANS_EXTRABOLD },
 });

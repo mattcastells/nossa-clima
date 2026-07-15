@@ -19,7 +19,7 @@ export default function NewStorePage() {
   const itemId = getSingleParam(params.itemId).trim();
 
   return (
-    <AppScreen title="Nueva tienda">
+    <AppScreen title="Nueva tienda" backLabel="Tiendas">
       <StoreForm
         onSubmit={async (values) => {
           try {

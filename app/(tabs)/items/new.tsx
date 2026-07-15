@@ -129,7 +129,7 @@ export default function NewItemPage() {
   const isBusy = save.isPending || createPrice.isPending;
 
   return (
-    <AppScreen title="Nuevo material">
+    <AppScreen title="Nuevo material" backLabel="Materiales">
       <LoadingOrError isLoading={storesLoading} error={storesError ? new Error(storesError.message) : null} />
 
       <Card mode="outlined" style={styles.formCard}>

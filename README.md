@@ -110,11 +110,12 @@ From the Expo UI you can run on Android, iOS simulator/emulator, or web. Common 
 The UI is designed mobile-first, but `npm run web` opens a full desktop window. To review it at phone size:
 
 ```bash
-npm run web         # leave the dev server running
-npm run web:mobile  # opens a 390x844 window, no address bar, no devtools
+npm run web:mobile  # starts the dev server and opens a 390x844 window
 ```
 
-Options: `npm run web:mobile -- --port 8083 --size 430x932`. It uses a separate browser profile, so it does not inherit extensions or tabs.
+No address bar, no devtools, separate browser profile (no extensions or tabs). If a server is already listening on the port it attaches to that one instead of starting another. Ctrl+C stops both.
+
+Options: `npm run web:mobile -- --port 8083 --size 430x932`.
 
 For the real thing, open `http://<your-lan-ip>:8081` from a phone on the same network.
 
