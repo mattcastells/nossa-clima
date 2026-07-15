@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+<style>
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  body { margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+  .mono { font-variant-numeric: tabular-nums; }
+  .scr { position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; animation: scrfade .22s ease; }
+  .scr::-webkit-scrollbar { width:0; }
+  @keyframes scrfade { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+  .tap { cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; }
+  .tap:active { opacity:.75; }
+</style>
+</helmet>
+<div style="min-height:100%;background:#0B1220;background-image:radial-gradient(circle at 50% 0%, #1a2c46 0%, #0B1220 60%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 16px;font-family:'Plus Jakarta Sans',sans-serif;">
+
+  <div style="width:384px;height:812px;background:#0F1B2D;border-radius:46px;padding:11px;box-shadow:0 40px 100px rgba(0,0,0,0.5);flex:none;">
+    <div style="width:100%;height:100%;background:#F4F6F9;border-radius:36px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+
+      <!-- status bar -->
+      <div style="height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;flex:none;background:{{ statusBg }};z-index:20;">
+        <span style="font-size:13px;font-weight:700;color:{{ statusColor }};">9:41</span>
+        <span style="display:flex;gap:6px;color:{{ statusColor }};font-size:13px;"><i class="mdi mdi-signal"></i><i class="mdi mdi-wifi"></i><i class="mdi mdi-battery"></i></span>
+      </div>
+
+      <!-- screen area -->
+      <div style="flex:1;position:relative;min-height:0;">
+
+        <!-- ===== LOGIN ===== -->
+        <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+          <div class="scr" style="background:#052653;display:flex;flex-direction:column;">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 40px;">
+              <img src="assets/nc-logo-dark.png" alt="Nossa Clima" style="width:230px;height:auto;">
+            </div>
+            <div style="background:#fff;border-radius:26px 26px 36px 36px;padding:26px 22px 30px;box-shadow:0 -20px 50px rgba(0,0,0,0.25);">
+              <div style="font-size:22px;font-weight:800;color:#0F1B2D;margin-bottom:16px;">Ingresá</div>
+              <div style="border:1px solid #E2E8F0;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:10px;color:#94A3B8;font-size:15px;margin-bottom:12px;"><i class="mdi mdi-email-outline" style="font-size:19px;"></i> Email</div>
+              <div style="border:1.5px solid #06B6D4;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:10px;color:#0F1B2D;font-size:15px;margin-bottom:20px;box-shadow:0 0 0 3px rgba(6,182,212,0.14);"><i class="mdi mdi-lock-outline" style="font-size:19px;color:#0891B2;"></i> ••••••••</div>
+              <div class="tap" onClick="{{ goHome }}" style="background:#06B6D4;color:#02323d;text-align:center;font-weight:800;font-size:16px;padding:15px;border-radius:12px;box-shadow:0 8px 20px rgba(6,182,212,0.3);">Ingresar</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== HOME ===== -->
+        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:14px 20px 18px;border-bottom:1px solid #EDF1F6;">
+              <img src="assets/nc-logo-light.png" alt="Nossa Clima" style="width:190px;height:auto;display:block;">
+            </div>
+            <div style="padding:18px 18px 24px;">
+              <div class="tap" onClick="{{ goQuoteNew }}" style="background:#06B6D4;border-radius:18px;padding:17px 18px;display:flex;align-items:center;gap:14px;margin-bottom:22px;box-shadow:0 10px 24px rgba(6,182,212,0.3);">
+                <span style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;color:#02323d;font-size:28px;"><i class="mdi mdi-plus"></i></span>
+                <span style="flex:1;font-size:18px;font-weight:800;color:#02323d;">Nuevo trabajo</span>
+                <i class="mdi mdi-chevron-right" style="font-size:24px;color:#02323d;"></i>
+              </div>
+              <div style="font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Accesos</div>
+              <div style="display:flex;flex-wrap:wrap;gap:11px;">
+                <div class="tap" onClick="{{ goItems }}" style="width:calc(33.33% - 8px);aspect-ratio:1;background:#fff;border:1px solid #E4E9F0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;"><span style="width:48px;height:48px;border-radius:999px;background:#E0F7FC;display:flex;align-items:center;justify-content:center;color:#0891B2;font-size:24px;"><i class="mdi mdi-cube-outline"></i></span><span style="font-size:13px;font-weight:700;color:#0F1B2D;">Materiales</span></div>
+                <div class="tap" onClick="{{ goStores }}" style="width:calc(33.33% - 8px);aspect-ratio:1;background:#fff;border:1px solid #E4E9F0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;"><span style="width:48px;height:48px;border-radius:999px;background:#E7EEF6;display:flex;align-items:center;justify-content:center;color:#052653;font-size:24px;"><i class="mdi mdi-store-outline"></i></span><span style="font-size:13px;font-weight:700;color:#0F1B2D;">Tiendas</span></div>
+                <div class="tap" onClick="{{ goServices }}" style="width:calc(33.33% - 8px);aspect-ratio:1;background:#fff;border:1px solid #E4E9F0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;"><span style="width:48px;height:48px;border-radius:999px;background:#FBEFD2;display:flex;align-items:center;justify-content:center;color:#B45309;font-size:24px;"><i class="mdi mdi-wrench-outline"></i></span><span style="font-size:13px;font-weight:700;color:#0F1B2D;">Servicios</span></div>
+                <div class="tap" onClick="{{ goPrices }}" style="width:calc(33.33% - 8px);aspect-ratio:1;background:#fff;border:1px solid #E4E9F0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;"><span style="width:48px;height:48px;border-radius:999px;background:#E7F6EC;display:flex;align-items:center;justify-content:center;color:#15803D;font-size:24px;"><i class="mdi mdi-scale-balance"></i></span><span style="font-size:13px;font-weight:700;color:#0F1B2D;">Precios</span></div>
+                <div class="tap" onClick="{{ goSettings }}" style="width:calc(33.33% - 8px);aspect-ratio:1;background:#fff;border:1px solid #E4E9F0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;"><span style="width:48px;height:48px;border-radius:999px;background:#E7EEF6;display:flex;align-items:center;justify-content:center;color:#052653;font-size:24px;"><i class="mdi mdi-file-pdf-box"></i></span><span style="font-size:13px;font-weight:700;color:#0F1B2D;">Manuales</span></div>
+                <div class="tap" onClick="{{ goSettings }}" style="width:calc(33.33% - 8px);aspect-ratio:1;background:#fff;border:1px solid #E4E9F0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;"><span style="width:48px;height:48px;border-radius:999px;background:#EAEFF5;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:24px;"><i class="mdi mdi-cog-outline"></i></span><span style="font-size:13px;font-weight:700;color:#0F1B2D;">Opciones</span></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== TRABAJOS (lista) ===== -->
+        <sc-if value="{{ isQuotes }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:14px 20px 14px;border-bottom:1px solid #EDF1F6;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <span style="font-size:26px;font-weight:800;color:#0F1B2D;">Trabajos</span>
+                <span class="tap" onClick="{{ goQuoteNew }}" style="width:40px;height:40px;border-radius:13px;background:#06B6D4;color:#02323d;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(6,182,212,0.3);"><i class="mdi mdi-plus"></i></span>
+              </div>
+              <div style="background:#F1F5F9;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:9px;color:#94A3B8;font-size:15px;margin-bottom:14px;"><i class="mdi mdi-magnify" style="font-size:19px;"></i> Buscar cliente o trabajo</div>
+              <div style="display:flex;gap:7px;">
+                <span style="background:#052653;color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;">Todos</span>
+                <span style="background:#FEF6E7;color:#B45309;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;">Pendientes</span>
+                <span style="background:#fff;border:1px solid #E4E9F0;color:#64748B;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;">Terminados</span>
+              </div>
+            </div>
+            <div style="padding:16px 18px 24px;">
+              <div class="tap" onClick="{{ goQuoteDetail }}" style="background:#fff;border:1px solid #E4E9F0;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(15,27,45,0.05);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;"><span style="font-size:16px;font-weight:800;color:#0F1B2D;line-height:1.25;">Reparación LG Multi F Max</span><span style="background:#FEF6E7;color:#B45309;border:1px solid #FADFA6;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;">● Pendiente</span></div>
+                <div style="display:flex;align-items:center;gap:7px;color:#64748B;font-size:14px;margin-bottom:5px;"><i class="mdi mdi-account-outline" style="font-size:17px;"></i> Mónica</div>
+                <div style="display:flex;align-items:center;gap:7px;color:#64748B;font-size:14px;margin-bottom:14px;"><i class="mdi mdi-calendar-outline" style="font-size:17px;"></i> 16/04/2026 · 09:30</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #EEF1F5;padding-top:12px;"><span style="font-size:12px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Total</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:21px;font-weight:700;color:#052653;">$ 354.000</span></div>
+              </div>
+              <div class="tap" onClick="{{ goQuoteDetail }}" style="background:#fff;border:1px solid #E4E9F0;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(15,27,45,0.05);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;"><span style="font-size:16px;font-weight:800;color:#0F1B2D;line-height:1.25;">Instalación split Pérez</span><span style="background:#EAF9EF;color:#15803D;border:1px solid #B6E6C5;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;">● Terminado</span></div>
+                <div style="display:flex;align-items:center;gap:7px;color:#64748B;font-size:14px;margin-bottom:14px;"><i class="mdi mdi-account-outline" style="font-size:17px;"></i> Juan Pérez</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #EEF1F5;padding-top:12px;"><span style="font-size:12px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Total</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:21px;font-weight:700;color:#052653;">$ 180.000</span></div>
+              </div>
+              <div class="tap" onClick="{{ goQuoteDetail }}" style="background:#fff;border:1px solid #E4E9F0;border-radius:18px;padding:16px;box-shadow:0 2px 10px rgba(15,27,45,0.05);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;"><span style="font-size:16px;font-weight:800;color:#0F1B2D;line-height:1.25;">Cambio de compresor</span><span style="background:#FEECEC;color:#B91C1C;border:1px solid #FBD0D0;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;">● Cancelado</span></div>
+                <div style="display:flex;align-items:center;gap:7px;color:#64748B;font-size:14px;margin-bottom:14px;"><i class="mdi mdi-account-outline" style="font-size:17px;"></i> Consorcio Rivadavia</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #EEF1F5;padding-top:12px;"><span style="font-size:12px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Total</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:21px;font-weight:700;color:#052653;">$ 96.000</span></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== TRABAJO (detalle) ===== -->
+        <sc-if value="{{ isQuoteDetail }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 16px 16px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goQuotes }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:12px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Trabajos</div>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;"><span style="font-size:20px;font-weight:800;color:#0F1B2D;line-height:1.2;">Reparación LG Multi F Max</span><span style="background:#FEF6E7;color:#B45309;border:1px solid #FADFA6;font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;">● Pendiente</span></div>
+            </div>
+            <div style="padding:16px 18px 28px;display:flex;flex-direction:column;gap:14px;">
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Cliente</span><i class="mdi mdi-chevron-down" style="color:#94A3B8;font-size:22px;"></i></div>
+                <div style="margin-top:10px;color:#64748B;font-size:14px;line-height:1.7;"><div><span style="color:#94A3B8;">Nombre</span> · Mónica</div><div><span style="color:#94A3B8;">Teléfono</span> · 11 3134 3677</div></div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Fecha</span><span style="color:#64748B;font-size:14px;font-weight:600;">16/04 · 09:30</span></div>
+              </div>
+              <div>
+                <div style="font-size:15px;font-weight:800;color:#0F1B2D;margin:2px 4px 10px;">Conceptos</div>
+                <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;overflow:hidden;">
+                  <div style="padding:9px 14px;background:#FBEFD2;color:#B45309;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;">Mano de obra</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #EEF1F5;"><div><div style="font-weight:600;color:#0F1B2D;font-size:14px;">Reparación LG Inverter</div><div style="color:#94A3B8;font-size:12px;">1 unidad</div></div><span class="mono" style="font-family:'Space Grotesk',monospace;font-weight:700;color:#0F1B2D;">$ 310.000</span></div>
+                  <div style="padding:9px 14px;background:#E7F6EC;color:#15803D;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;">Materiales</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;"><div><div style="font-weight:600;color:#0F1B2D;font-size:14px;">Caño TPR 3×1,5 · 1/2"</div><div style="color:#94A3B8;font-size:12px;">10 mt · Refrimax</div></div><span class="mono" style="font-family:'Space Grotesk',monospace;font-weight:700;color:#0F1B2D;">$ 44.000</span></div>
+                </div>
+              </div>
+              <div style="background:#052653;border-radius:16px;padding:16px;color:#fff;">
+                <div style="display:flex;justify-content:space-between;padding:3px 0;color:#9Fc4e0;font-size:14px;"><span>Subtotal mano de obra</span><span class="mono">$ 310.000</span></div>
+                <div style="display:flex;justify-content:space-between;padding:3px 0;color:#9Fc4e0;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:10px;"><span>Subtotal materiales</span><span class="mono">$ 44.000</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;"><span style="font-weight:700;font-size:15px;">Total</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-weight:700;font-size:22px;">$ 354.000</span></div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <span style="flex:1;text-align:center;background:#FEF6E7;color:#B45309;border:1px solid #FADFA6;font-size:13px;font-weight:700;padding:11px;border-radius:12px;">Pendiente</span>
+                <span style="flex:1;text-align:center;background:#fff;color:#64748B;border:1px solid #E4E9F0;font-size:13px;font-weight:600;padding:11px;border-radius:12px;">Terminado</span>
+                <span style="flex:1;text-align:center;background:#fff;color:#64748B;border:1px solid #E4E9F0;font-size:13px;font-weight:600;padding:11px;border-radius:12px;">Cancelado</span>
+              </div>
+              <div style="display:flex;gap:10px;">
+                <div style="flex:1;background:#052653;color:#fff;text-align:center;font-weight:700;font-size:14px;padding:13px;border-radius:12px;"><i class="mdi mdi-content-save-outline"></i> Guardar</div>
+                <div style="flex:1;background:#06B6D4;color:#02323d;text-align:center;font-weight:800;font-size:14px;padding:13px;border-radius:12px;"><i class="mdi mdi-file-pdf-box"></i> PDF</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== TRABAJO (nuevo) ===== -->
+        <sc-if value="{{ isQuoteNew }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 16px 16px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goHome }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:10px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Inicio</div>
+              <span style="font-size:22px;font-weight:800;color:#0F1B2D;">Nuevo trabajo</span>
+            </div>
+            <div style="padding:16px 18px 28px;display:flex;flex-direction:column;gap:14px;">
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;display:flex;flex-direction:column;gap:11px;">
+                <div style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;">Cliente</div>
+                <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 13px;color:#0F1B2D;font-size:15px;font-weight:500;">Mónica</div>
+                <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 13px;color:#94A3B8;font-size:15px;">Teléfono</div>
+                <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 13px;color:#94A3B8;font-size:15px;">Título del trabajo</div>
+                <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;color:#0F1B2D;font-size:15px;">16-04-2026 · 09:30 <i class="mdi mdi-calendar-month-outline" style="color:#0891B2;font-size:20px;"></i></div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Servicios</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;background:#F8FAFC;border-radius:10px;padding:10px 12px;margin-bottom:8px;"><span style="font-size:14px;font-weight:600;color:#334155;">Reparación LG Inverter</span><span class="mono" style="font-weight:700;color:#0F1B2D;">$ 310.000</span></div>
+                <div style="border:1.5px dashed #C4D0DE;border-radius:11px;padding:11px;text-align:center;color:#0891B2;font-weight:700;font-size:14px;"><i class="mdi mdi-plus"></i> Agregar servicio</div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Materiales</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;background:#F8FAFC;border-radius:10px;padding:10px 12px;margin-bottom:8px;"><div><div style="font-size:14px;font-weight:600;color:#334155;">Caño TPR 3×1,5 · 1/2"</div><div style="font-size:12px;color:#94A3B8;">10 mt · Refrimax</div></div><span class="mono" style="font-weight:700;color:#0F1B2D;">$ 44.000</span></div>
+                <div class="tap" onClick="{{ goItemDetail }}" style="border:1.5px dashed #06B6D4;background:#F0FBFE;border-radius:11px;padding:11px;text-align:center;color:#0891B2;font-weight:800;font-size:14px;"><i class="mdi mdi-plus"></i> Agregar material</div>
+              </div>
+              <div style="background:#06B6D4;color:#02323d;text-align:center;font-weight:800;font-size:16px;padding:15px;border-radius:14px;box-shadow:0 8px 20px rgba(6,182,212,0.3);">Guardar trabajo</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== AGENDA ===== -->
+        <sc-if value="{{ isAgenda }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:14px 18px 14px;border-bottom:1px solid #EDF1F6;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><span style="font-size:26px;font-weight:800;color:#0F1B2D;">Agenda</span><span class="tap" onClick="{{ goQuoteNew }}" style="width:40px;height:40px;border-radius:13px;background:#06B6D4;color:#02323d;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(6,182,212,0.3);"><i class="mdi mdi-plus"></i></span></div>
+              <div style="display:flex;gap:6px;">
+                <div style="flex:1;text-align:center;padding:9px 0;border-radius:14px;color:#94A3B8;"><div style="font-size:11px;">Lu</div><div style="font-size:16px;font-weight:700;">15</div></div>
+                <div style="flex:1;text-align:center;padding:9px 0;border-radius:14px;background:#052653;color:#fff;"><div style="font-size:11px;">Ma</div><div style="font-size:16px;font-weight:800;">16</div><div style="width:5px;height:5px;border-radius:999px;background:#06B6D4;margin:3px auto 0;"></div></div>
+                <div style="flex:1;text-align:center;padding:9px 0;border-radius:14px;color:#0F1B2D;"><div style="font-size:11px;">Mi</div><div style="font-size:16px;font-weight:700;">17</div><div style="width:5px;height:5px;border-radius:999px;background:#CBD5E1;margin:3px auto 0;"></div></div>
+                <div style="flex:1;text-align:center;padding:9px 0;border-radius:14px;color:#0F1B2D;"><div style="font-size:11px;">Ju</div><div style="font-size:16px;font-weight:700;">18</div></div>
+                <div style="flex:1;text-align:center;padding:9px 0;border-radius:14px;color:#0F1B2D;"><div style="font-size:11px;">Vi</div><div style="font-size:16px;font-weight:700;">19</div></div>
+                <div style="flex:1;text-align:center;padding:9px 0;border-radius:14px;color:#0F1B2D;"><div style="font-size:11px;">Sá</div><div style="font-size:16px;font-weight:700;">20</div></div>
+              </div>
+            </div>
+            <div style="padding:16px 18px 24px;">
+              <div style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px;">Martes 16 · 2 turnos</div>
+              <div class="tap" onClick="{{ goQuoteDetail }}" style="display:flex;gap:14px;margin-bottom:14px;">
+                <div class="mono" style="flex:none;width:46px;text-align:right;font-family:'Space Grotesk',monospace;font-weight:700;color:#052653;font-size:14px;padding-top:3px;">09:30</div>
+                <div style="flex:1;background:#fff;border:1px solid #E4E9F0;border-left:3px solid #E08A00;border-radius:13px;padding:13px 14px;box-shadow:0 2px 8px rgba(15,27,45,0.05);"><div style="font-weight:800;color:#0F1B2D;font-size:15px;">Reparación LG</div><div style="color:#64748B;font-size:13px;margin-top:3px;"><i class="mdi mdi-account-outline"></i> Mónica · <i class="mdi mdi-map-marker-outline"></i> S. M. del Carril 3677</div></div>
+              </div>
+              <div style="display:flex;gap:14px;">
+                <div class="mono" style="flex:none;width:46px;text-align:right;font-family:'Space Grotesk',monospace;font-weight:700;color:#052653;font-size:14px;padding-top:3px;">14:00</div>
+                <div style="flex:1;background:#fff;border:1px solid #E4E9F0;border-left:3px solid #16A34A;border-radius:13px;padding:13px 14px;box-shadow:0 2px 8px rgba(15,27,45,0.05);"><div style="font-weight:800;color:#0F1B2D;font-size:15px;">Mantenimiento preventivo</div><div style="color:#64748B;font-size:13px;margin-top:3px;"><i class="mdi mdi-account-outline"></i> Consorcio Rivadavia</div></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== MATERIALES (lista) ===== -->
+        <sc-if value="{{ isItems }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:14px 18px 14px;border-bottom:1px solid #EDF1F6;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><span style="font-size:26px;font-weight:800;color:#0F1B2D;">Materiales</span><span class="tap" onClick="{{ goItemDetail }}" style="width:40px;height:40px;border-radius:13px;background:#06B6D4;color:#02323d;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(6,182,212,0.3);"><i class="mdi mdi-plus"></i></span></div>
+              <div style="display:flex;gap:8px;">
+                <div style="flex:1;background:#F1F5F9;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:9px;color:#94A3B8;font-size:15px;"><i class="mdi mdi-magnify" style="font-size:19px;"></i> Buscar material</div>
+                <div style="background:#E7F6EC;color:#15803D;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;">Todas <i class="mdi mdi-chevron-down"></i></div>
+              </div>
+            </div>
+            <div style="padding:16px 18px 24px;display:flex;flex-direction:column;gap:12px;">
+              <div class="tap" onClick="{{ goItemDetail }}" style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Caño TPR 3×1,5</span><span style="background:#E7F6EC;color:#15803D;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;">Cañería</span></div>
+                <div style="color:#64748B;font-size:13px;margin-top:8px;">2 medidas · precio en 2 tiendas</div>
+              </div>
+              <div class="tap" onClick="{{ goItemDetail }}" style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Cable unipolar 2,5mm</span><span style="background:#E0F7FC;color:#0E7490;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;">Electricidad</span></div>
+                <div style="color:#64748B;font-size:13px;margin-top:8px;">Precio directo · 3 tiendas</div>
+              </div>
+              <div class="tap" onClick="{{ goItemDetail }}" style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Gas R410A</span><span style="background:#EEF2F7;color:#475569;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;">Refrigerante</span></div>
+                <div style="color:#64748B;font-size:13px;margin-top:8px;">Precio directo · 1 tienda</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== MATERIAL (detalle: medidas y precios) ===== -->
+        <sc-if value="{{ isItemDetail }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 16px 14px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goItems }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:12px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Materiales</div>
+              <div style="display:flex;align-items:center;gap:9px;"><span style="font-size:20px;font-weight:800;color:#0F1B2D;">Caño TPR 3×1,5</span><span style="background:#E7F6EC;color:#15803D;font-size:12px;font-weight:700;padding:4px 10px;border-radius:8px;">Cañería</span></div>
+              <div style="display:inline-flex;background:#EEF2F7;border-radius:12px;padding:4px;gap:4px;margin-top:14px;">
+                <span style="color:#64748B;font-weight:600;font-size:13px;padding:7px 16px;">Datos</span>
+                <span style="background:#fff;color:#052653;font-weight:800;font-size:13px;padding:7px 16px;border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">Medidas y precios</span>
+              </div>
+            </div>
+            <div style="padding:16px 18px 28px;">
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:17px;font-weight:800;color:#0F1B2D;">1/2"</span><span style="background:#E0F7FC;color:#0E7490;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;">Calculada · 270 gr/mt</span></div><i class="mdi mdi-pencil-outline" style="color:#94A3B8;font-size:18px;"></i></div>
+                <div style="font-size:11px;color:#94A3B8;margin:10px 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Precio por metro · por tienda</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F8FAFC;border-radius:11px;margin-bottom:7px;"><span style="font-size:14px;font-weight:600;color:#334155;"><i class="mdi mdi-store-outline" style="color:#0891B2;"></i> Refrimax</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:15px;font-weight:700;color:#0F1B2D;">$ 4.400</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F8FAFC;border-radius:11px;"><span style="font-size:14px;font-weight:600;color:#334155;"><i class="mdi mdi-store-outline" style="color:#0891B2;"></i> Frío Sur</span><span style="display:flex;align-items:center;gap:5px;color:#0891B2;font-size:14px;font-weight:700;"><i class="mdi mdi-plus-circle-outline"></i> Precio</span></div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;margin-bottom:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:17px;font-weight:800;color:#0F1B2D;">3/4"</span><span style="background:#EEF2F7;color:#475569;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;">Manual</span></div><i class="mdi mdi-pencil-outline" style="color:#94A3B8;font-size:18px;"></i></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F8FAFC;border-radius:11px;margin-top:12px;"><span style="font-size:14px;font-weight:600;color:#334155;"><i class="mdi mdi-store-outline" style="color:#0891B2;"></i> Refrimax</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:15px;font-weight:700;color:#0F1B2D;">$ 6.200</span></div>
+              </div>
+              <div style="border:1.5px dashed #C4D0DE;border-radius:14px;padding:14px;text-align:center;color:#0891B2;font-weight:800;font-size:15px;"><i class="mdi mdi-plus"></i> Agregar medida</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== TIENDAS ===== -->
+        <sc-if value="{{ isStores }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 18px 14px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goHome }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:10px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Inicio</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:24px;font-weight:800;color:#0F1B2D;">Tiendas</span><span style="width:40px;height:40px;border-radius:13px;background:#06B6D4;color:#02323d;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(6,182,212,0.3);"><i class="mdi mdi-plus"></i></span></div>
+            </div>
+            <div style="padding:16px 18px 24px;display:flex;flex-direction:column;gap:12px;">
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;align-items:center;gap:12px;"><span style="width:44px;height:44px;border-radius:12px;background:#E7EEF6;display:flex;align-items:center;justify-content:center;color:#052653;font-size:22px;"><i class="mdi mdi-store-outline"></i></span><div style="flex:1;"><div style="font-size:15px;font-weight:800;color:#0F1B2D;">Refrimax</div><div style="color:#64748B;font-size:13px;">Av. San Martín 100 · 18 materiales</div></div><i class="mdi mdi-chevron-right" style="color:#CBD5E1;font-size:22px;"></i></div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;align-items:center;gap:12px;"><span style="width:44px;height:44px;border-radius:12px;background:#E7EEF6;display:flex;align-items:center;justify-content:center;color:#052653;font-size:22px;"><i class="mdi mdi-store-outline"></i></span><div style="flex:1;"><div style="font-size:15px;font-weight:800;color:#0F1B2D;">Frío Sur</div><div style="color:#64748B;font-size:13px;">Belgrano 900 · 9 materiales</div></div><i class="mdi mdi-chevron-right" style="color:#CBD5E1;font-size:22px;"></i></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== SERVICIOS ===== -->
+        <sc-if value="{{ isServices }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 18px 14px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goHome }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:10px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Inicio</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><span style="font-size:24px;font-weight:800;color:#0F1B2D;">Servicios</span><span style="width:40px;height:40px;border-radius:13px;background:#06B6D4;color:#02323d;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(6,182,212,0.3);"><i class="mdi mdi-plus"></i></span></div>
+              <div style="background:#F1F5F9;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:9px;color:#94A3B8;font-size:15px;"><i class="mdi mdi-magnify" style="font-size:19px;"></i> Buscar servicio</div>
+            </div>
+            <div style="padding:16px 18px 24px;display:flex;flex-direction:column;gap:12px;">
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><div style="font-size:15px;font-weight:800;color:#0F1B2D;">Reparación LG Inverter</div><span style="display:inline-block;margin-top:8px;background:#FBEFD2;color:#B45309;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;">Reparación</span></div><span class="mono" style="font-family:'Space Grotesk',monospace;font-weight:700;color:#052653;font-size:15px;">$ 310.000</span></div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><div style="font-size:15px;font-weight:800;color:#0F1B2D;">Instalación split 3000 fr</div><span style="display:inline-block;margin-top:8px;background:#FBEFD2;color:#B45309;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;">Instalación</span></div><span class="mono" style="font-family:'Space Grotesk',monospace;font-weight:700;color:#052653;font-size:15px;">$ 150.000</span></div>
+              </div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:15px;box-shadow:0 2px 8px rgba(15,27,45,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><div style="font-size:15px;font-weight:800;color:#0F1B2D;">Mantenimiento preventivo</div><span style="display:inline-block;margin-top:8px;background:#FBEFD2;color:#B45309;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;">Service</span></div><span class="mono" style="font-family:'Space Grotesk',monospace;font-weight:700;color:#052653;font-size:15px;">$ 45.000</span></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== PRECIOS (comparación) ===== -->
+        <sc-if value="{{ isPrices }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 18px 14px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goHome }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:10px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Inicio</div>
+              <span style="font-size:24px;font-weight:800;color:#0F1B2D;">Comparar precios</span>
+            </div>
+            <div style="padding:16px 18px 24px;">
+              <div style="background:#fff;border:1.5px solid #06B6D4;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;box-shadow:0 0 0 3px rgba(6,182,212,0.1);"><span style="font-size:15px;font-weight:700;color:#0F1B2D;">Caño TPR 3×1,5 · 1/2"</span><i class="mdi mdi-chevron-down" style="color:#0891B2;font-size:22px;"></i></div>
+              <div style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Precio por metro</div>
+              <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;overflow:hidden;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 16px;background:#EAF9EF;border-left:3px solid #16A34A;"><div style="display:flex;align-items:center;gap:9px;"><i class="mdi mdi-trophy-outline" style="color:#15803D;font-size:19px;"></i><span style="font-size:15px;font-weight:800;color:#0F1B2D;">Refrimax</span><span style="background:#16A34A;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;">MÁS BARATA</span></div><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:17px;font-weight:700;color:#15803D;">$ 4.400</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 16px;border-top:1px solid #EEF1F5;"><span style="font-size:15px;font-weight:600;color:#334155;">Frío Sur</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:700;color:#0F1B2D;">$ 5.100</span></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 16px;border-top:1px solid #EEF1F5;"><span style="font-size:15px;font-weight:600;color:#334155;">Clima Center</span><span class="mono" style="font-family:'Space Grotesk',monospace;font-size:16px;font-weight:700;color:#0F1B2D;">$ 5.600</span></div>
+              </div>
+              <div style="margin-top:14px;background:#EFFAFD;border:1px solid #BAEBF7;border-radius:12px;padding:12px 14px;color:#0E5A6E;font-size:13px;line-height:1.5;"><i class="mdi mdi-information-outline"></i> Comprando en Refrimax ahorrás hasta $ 1.200 por metro.</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== ASISTENTE ===== -->
+        <sc-if value="{{ isAssistant }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;display:flex;flex-direction:column;">
+            <div style="background:#fff;padding:14px 18px 14px;border-bottom:1px solid #EDF1F6;display:flex;align-items:center;justify-content:space-between;flex:none;"><span style="font-size:22px;font-weight:800;color:#0F1B2D;">Asistente AI</span><span style="width:36px;height:36px;border-radius:999px;background:#E0F7FC;color:#0891B2;display:flex;align-items:center;justify-content:center;font-size:18px;"><i class="mdi mdi-refresh"></i></span></div>
+            <div style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+              <div style="align-self:flex-end;max-width:80%;background:#E0F7FC;border:1px solid #B9E4F2;border-radius:16px 16px 4px 16px;padding:12px 14px;color:#0F1B2D;font-size:14px;line-height:1.5;">¿Cuánto sale cambiar el compresor de un split 3000 fr?</div>
+              <div style="align-self:flex-start;max-width:82%;background:#fff;border:1px solid #E4E9F0;border-radius:16px 16px 16px 4px;padding:12px 14px;color:#334155;font-size:14px;line-height:1.55;">Depende del modelo, pero un compresor 3000 fr ronda los $ 180.000 más mano de obra. ¿Querés que cargue el trabajo?</div>
+              <div style="align-self:flex-start;max-width:88%;background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:14px;box-shadow:0 2px 10px rgba(15,27,45,0.05);">
+                <div style="display:flex;align-items:center;gap:7px;color:#0891B2;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;"><i class="mdi mdi-lightning-bolt-outline"></i> Crear trabajo</div>
+                <div style="font-size:14px;font-weight:700;color:#0F1B2D;margin-bottom:10px;">Cambio de compresor — split 3000 fr</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:#64748B;padding:4px 0;"><span>Servicio</span><span class="mono" style="color:#0F1B2D;font-weight:600;">$ 180.000</span></div>
+                <div class="tap" style="margin-top:12px;background:#06B6D4;color:#02323d;text-align:center;font-weight:800;font-size:14px;padding:11px;border-radius:11px;"><i class="mdi mdi-check"></i> Confirmar</div>
+              </div>
+            </div>
+            <div style="flex:none;padding:12px 16px 16px;background:#fff;border-top:1px solid #EDF1F6;">
+              <div style="border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px;color:#94A3B8;font-size:14px;margin-bottom:10px;">Escribí tu consulta…</div>
+              <div style="display:flex;gap:8px;">
+                <div style="flex:1;border:1px solid #E4E9F0;border-radius:12px;padding:10px;text-align:center;color:#475569;font-size:13px;font-weight:600;"><i class="mdi mdi-image-outline"></i> Imagen</div>
+                <div style="flex:1;border:1px solid #E4E9F0;border-radius:12px;padding:10px;text-align:center;color:#475569;font-size:13px;font-weight:600;"><i class="mdi mdi-microphone-outline"></i> Audio</div>
+                <div style="flex:1;background:#06B6D4;border-radius:12px;padding:10px;text-align:center;color:#02323d;font-size:13px;font-weight:800;"><i class="mdi mdi-send"></i> Enviar</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== OPCIONES ===== -->
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div class="scr" style="background:#F4F6F9;">
+            <div style="background:#fff;padding:10px 18px 14px;border-bottom:1px solid #EDF1F6;">
+              <div class="tap" onClick="{{ goHome }}" style="display:flex;align-items:center;gap:8px;color:#0891B2;font-size:14px;font-weight:700;margin-bottom:10px;"><i class="mdi mdi-arrow-left" style="font-size:20px;"></i> Inicio</div>
+              <span style="font-size:24px;font-weight:800;color:#0F1B2D;">Opciones</span>
+            </div>
+            <div style="padding:16px 18px 24px;display:flex;flex-direction:column;gap:20px;">
+              <div>
+                <div style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin:0 4px 8px;">Apariencia</div>
+                <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;padding:16px;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:15px;font-weight:600;color:#0F1B2D;">Modo oscuro</span><span style="width:44px;height:26px;border-radius:999px;background:#E2E8F0;position:relative;"><span style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span></span></div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;margin:0 4px 8px;">Aplicación</div>
+                <div style="background:#fff;border:1px solid #E4E9F0;border-radius:16px;overflow:hidden;">
+                  <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid #EEF1F5;"><i class="mdi mdi-cloud-download-outline" style="color:#0891B2;font-size:21px;"></i><span style="flex:1;font-size:15px;font-weight:600;color:#0F1B2D;">Buscar actualizaciones</span><i class="mdi mdi-chevron-right" style="color:#CBD5E1;font-size:22px;"></i></div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;"><i class="mdi mdi-delete-sweep-outline" style="color:#64748B;font-size:21px;"></i><span style="flex:1;font-size:15px;font-weight:600;color:#0F1B2D;">Limpiar trabajos antiguos</span><i class="mdi mdi-chevron-right" style="color:#CBD5E1;font-size:22px;"></i></div>
+                </div>
+              </div>
+              <div class="tap" onClick="{{ goLogin }}" style="background:#fff;border:1px solid #FBD0D0;border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px;"><i class="mdi mdi-logout" style="color:#DC2626;font-size:21px;"></i><span style="flex:1;font-size:15px;font-weight:700;color:#DC2626;">Cerrar sesión</span></div>
+              <div style="text-align:center;color:#94A3B8;font-size:13px;">v1.4.0</div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+
+      <!-- ===== TAB BAR ===== -->
+      <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:none;background:#fff;border-top:1px solid #E4E9F0;display:flex;padding:8px 4px 12px;z-index:20;">
+          <div class="tap" onClick="{{ goHome }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="width:46px;height:30px;border-radius:999px;background:{{ homeB }};display:flex;align-items:center;justify-content:center;color:{{ homeC }};font-size:22px;"><i class="mdi mdi-home-variant-outline"></i></span><span style="font-size:11px;font-weight:700;color:{{ homeC }};">Inicio</span></div>
+          <div class="tap" onClick="{{ goQuotes }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="width:46px;height:30px;border-radius:999px;background:{{ quotesB }};display:flex;align-items:center;justify-content:center;color:{{ quotesC }};font-size:22px;"><i class="mdi mdi-briefcase-outline"></i></span><span style="font-size:11px;font-weight:700;color:{{ quotesC }};">Trabajos</span></div>
+          <div class="tap" onClick="{{ goAgenda }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="width:46px;height:30px;border-radius:999px;background:{{ agendaB }};display:flex;align-items:center;justify-content:center;color:{{ agendaC }};font-size:22px;"><i class="mdi mdi-calendar-month-outline"></i></span><span style="font-size:11px;font-weight:700;color:{{ agendaC }};">Agenda</span></div>
+          <div class="tap" onClick="{{ goItems }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="width:46px;height:30px;border-radius:999px;background:{{ itemsB }};display:flex;align-items:center;justify-content:center;color:{{ itemsC }};font-size:22px;"><i class="mdi mdi-cube-outline"></i></span><span style="font-size:11px;font-weight:700;color:{{ itemsC }};">Materiales</span></div>
+          <div class="tap" onClick="{{ goAssistant }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="width:46px;height:30px;border-radius:999px;background:{{ assistB }};display:flex;align-items:center;justify-content:center;color:{{ assistC }};font-size:22px;"><i class="mdi mdi-robot-outline"></i></span><span style="font-size:11px;font-weight:700;color:{{ assistC }};">Asistente</span></div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="color:#5b6b82;font-size:13px;margin-top:20px;font-weight:600;">Tocá la interfaz para navegar · prototipo interactivo</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'login' };
+
+  go(screen) {
+    return () => this.setState({ screen });
+  }
+
+  renderVals() {
+    const s = this.state.screen;
+    const is = (x) => s === x;
+    const AON = '#0891B2', AOFF = '#94A3B8', BON = '#E0F7FC', BOFF = 'transparent';
+    const tabHome = is('home');
+    const tabQuotes = is('quotes') || is('quoteDetail') || is('quoteNew');
+    const tabAgenda = is('agenda');
+    const tabItems = is('items') || is('itemDetail');
+    const tabAssist = is('assistant');
+    return {
+      isLogin: is('login'),
+      isHome: is('home'),
+      isQuotes: is('quotes'),
+      isQuoteDetail: is('quoteDetail'),
+      isQuoteNew: is('quoteNew'),
+      isAgenda: is('agenda'),
+      isItems: is('items'),
+      isItemDetail: is('itemDetail'),
+      isStores: is('stores'),
+      isServices: is('services'),
+      isPrices: is('prices'),
+      isAssistant: is('assistant'),
+      isSettings: is('settings'),
+      showTabs: !is('login'),
+      statusBg: is('login') ? '#052653' : '#FFFFFF',
+      statusColor: is('login') ? '#FFFFFF' : '#0F1B2D',
+      homeC: tabHome ? AON : AOFF, homeB: tabHome ? BON : BOFF,
+      quotesC: tabQuotes ? AON : AOFF, quotesB: tabQuotes ? BON : BOFF,
+      agendaC: tabAgenda ? AON : AOFF, agendaB: tabAgenda ? BON : BOFF,
+      itemsC: tabItems ? AON : AOFF, itemsB: tabItems ? BON : BOFF,
+      assistC: tabAssist ? AON : AOFF, assistB: tabAssist ? BON : BOFF,
+      goHome: this.go('home'),
+      goLogin: this.go('login'),
+      goQuotes: this.go('quotes'),
+      goQuoteDetail: this.go('quoteDetail'),
+      goQuoteNew: this.go('quoteNew'),
+      goAgenda: this.go('agenda'),
+      goItems: this.go('items'),
+      goItemDetail: this.go('itemDetail'),
+      goStores: this.go('stores'),
+      goServices: this.go('services'),
+      goPrices: this.go('prices'),
+      goAssistant: this.go('assistant'),
+      goSettings: this.go('settings'),
+    };
+  }
+}
+</script>
+</body>
+</html>
