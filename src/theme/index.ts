@@ -1,14 +1,22 @@
 import { MD3DarkTheme, MD3LightTheme, useTheme, type MD3Theme } from 'react-native-paper';
 
+// ── Marca ────────────────────────────────────────────────────────────────
+// Azul institucional (se mantiene). Sumamos un acento cian vivo para CTAs,
+// foco y links, y colores semánticos claros para estados.
 export const BRAND_BLUE = '#052653';
-export const BRAND_BLUE_SOFT = '#EAF0F7';
+export const BRAND_BLUE_SOFT = '#E7EEF6';
 export const BRAND_BLUE_MID = '#6E87A7';
-export const BRAND_GREEN = '#43663D';
-export const BRAND_GREEN_SOFT = '#EDF3EA';
-export const BRAND_GREEN_MID = '#C9DDB7';
-export const BRAND_YELLOW = '#5F4A0D';
-export const BRAND_YELLOW_SOFT = '#E6CF84';
-export const BRAND_YELLOW_MID = '#CFAE55';
+export const BRAND_GREEN = '#15803D';
+export const BRAND_GREEN_SOFT = '#E7F6EC';
+export const BRAND_GREEN_MID = '#BEE6C9';
+export const BRAND_YELLOW = '#8A5A00';
+export const BRAND_YELLOW_SOFT = '#FBEFD2';
+export const BRAND_YELLOW_MID = '#F2D89A';
+
+// Acento nuevo (cian)
+export const BRAND_CYAN = '#06B6D4';
+export const BRAND_CYAN_DARK = '#0891B2';
+export const BRAND_CYAN_SOFT = '#E0F7FC';
 
 type AppExtendedColors = {
   softBlue: string;
@@ -30,6 +38,11 @@ type AppExtendedColors = {
   toastSuccessText: string;
   toastErrorSurface: string;
   toastErrorText: string;
+  // Acento
+  accent: string;
+  accentStrong: string;
+  accentSoft: string;
+  onAccent: string;
 };
 
 export type AppTheme = MD3Theme & {
@@ -38,69 +51,77 @@ export type AppTheme = MD3Theme & {
 
 export const lightTheme: AppTheme = {
   ...MD3LightTheme,
-  roundness: 7,
+  roundness: 12,
   colors: {
     ...MD3LightTheme.colors,
-    background: '#F3F5F7',
+    background: '#F4F6F9',
     surface: '#FFFFFF',
-    surfaceVariant: '#E6EBF1',
+    surfaceVariant: '#EAEFF5',
     primary: BRAND_BLUE,
-    secondary: '#3478F6',
-    outline: '#BCC6D1',
-    error: '#C62828',
-    softBlue: '#E2ECF8',
-    softGreen: '#E4EDE0',
+    secondary: BRAND_CYAN,
+    outline: '#CBD5E1',
+    error: '#DC2626',
+    softBlue: '#E2F4FB',
+    softGreen: BRAND_GREEN_SOFT,
     softYellow: BRAND_YELLOW_SOFT,
     softYellowStrong: BRAND_YELLOW_MID,
     onSoftYellow: BRAND_YELLOW,
-    softBlueStrong: '#B8CFE6',
-    softGreenStrong: '#C0D4B8',
-    tableHeaderBg: '#DFE5ED',
-    surfaceMuted: '#F6F8FB',
-    surfaceAlt: '#F7FAFD',
-    surfaceSoft: '#F9FBFC',
-    borderSoft: '#DCE4EC',
-    textMuted: '#5F6A76',
-    titleOnSoft: '#13263F',
-    dialogSurface: '#F8F3FB',
-    toastSuccessSurface: '#EAF4E6',
-    toastSuccessText: '#2F5A2B',
-    toastErrorSurface: '#FBEAEC',
-    toastErrorText: '#92293C',
+    softBlueStrong: '#B9E4F2',
+    softGreenStrong: BRAND_GREEN_MID,
+    tableHeaderBg: '#EAEFF5',
+    surfaceMuted: '#F7F9FC',
+    surfaceAlt: '#F8FAFC',
+    surfaceSoft: '#F8FAFC',
+    borderSoft: '#E4E9F0',
+    textMuted: '#64748B',
+    titleOnSoft: '#0F1B2D',
+    dialogSurface: '#FFFFFF',
+    toastSuccessSurface: '#EAF7EE',
+    toastSuccessText: '#15803D',
+    toastErrorSurface: '#FDECEC',
+    toastErrorText: '#B91C1C',
+    accent: BRAND_CYAN,
+    accentStrong: BRAND_CYAN_DARK,
+    accentSoft: BRAND_CYAN_SOFT,
+    onAccent: '#02323D',
   },
 };
 
 export const darkTheme: AppTheme = {
   ...MD3DarkTheme,
-  roundness: 7,
+  roundness: 12,
   colors: {
     ...MD3DarkTheme.colors,
-    background: '#0F141A',
-    surface: '#151C24',
-    surfaceVariant: '#202A34',
-    primary: '#A9C4EA',
-    secondary: '#8EB8FF',
-    outline: '#506171',
+    background: '#0B1220',
+    surface: '#131C2B',
+    surfaceVariant: '#1E2A3D',
+    primary: '#8FD8EE',
+    secondary: '#5FD3EE',
+    outline: '#3A4A5E',
     error: '#FFB4AB',
-    softBlue: '#2B4058',
-    softGreen: '#344A39',
-    softYellow: '#4B3F1A',
-    softYellowStrong: '#7A672D',
-    onSoftYellow: '#F2E4BA',
-    softBlueStrong: '#3B5572',
-    softGreenStrong: '#486252',
-    tableHeaderBg: '#3A4555',
-    surfaceMuted: '#22303E',
-    surfaceAlt: '#1B2631',
-    surfaceSoft: '#23313F',
-    borderSoft: '#425261',
-    textMuted: '#B1BECC',
-    titleOnSoft: '#F1F6FC',
-    dialogSurface: '#1B2430',
-    toastSuccessSurface: '#223426',
-    toastSuccessText: '#D6EECF',
-    toastErrorSurface: '#43252B',
+    softBlue: '#173044',
+    softGreen: '#183527',
+    softYellow: '#3D3212',
+    softYellowStrong: '#6E5A22',
+    onSoftYellow: '#F2D89A',
+    softBlueStrong: '#2C4A63',
+    softGreenStrong: '#2E5240',
+    tableHeaderBg: '#25344A',
+    surfaceMuted: '#1A2536',
+    surfaceAlt: '#16202F',
+    surfaceSoft: '#1B2739',
+    borderSoft: '#2A3A4F',
+    textMuted: '#9FB0C4',
+    titleOnSoft: '#EAF2FB',
+    dialogSurface: '#16202F',
+    toastSuccessSurface: '#173226',
+    toastSuccessText: '#C9EED4',
+    toastErrorSurface: '#3A2126',
     toastErrorText: '#FFD9DE',
+    accent: '#22C3E6',
+    accentStrong: '#5FD3EE',
+    accentSoft: '#12303B',
+    onAccent: '#02323D',
   },
 };
 
