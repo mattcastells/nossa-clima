@@ -105,6 +105,19 @@ npm run start
 
 From the Expo UI you can run on Android, iOS simulator/emulator, or web. Common shortcuts shown in the Expo terminal apply (for example: `a` to open Android).
 
+### Mobile preview without an emulator
+
+The UI is designed mobile-first, but `npm run web` opens a full desktop window. To review it at phone size:
+
+```bash
+npm run web         # leave the dev server running
+npm run web:mobile  # opens a 390x844 window, no address bar, no devtools
+```
+
+Options: `npm run web:mobile -- --port 8083 --size 430x932`. It uses a separate browser profile, so it does not inherit extensions or tabs.
+
+For the real thing, open `http://<your-lan-ip>:8081` from a phone on the same network.
+
 ### Android development workflow
 
 - Use `npm run android` for the normal development loop. It starts Expo and opens the installed development client without recompiling native Android code.

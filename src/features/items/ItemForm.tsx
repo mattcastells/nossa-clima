@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Chip, Text, TextInput } from 'react-native-paper';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 
-import { BRAND_GREEN, BRAND_GREEN_MID, useAppTheme } from '@/theme';
+import { getCategoryAccent } from '@/features/items/categoryAccent';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 import { ItemFormValues, itemSchema } from './schemas';
 
@@ -15,8 +16,6 @@ interface Props {
 
 export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: Props) => {
   const theme = useAppTheme();
-  const chipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_GREEN;
-  const chipBorderColor = theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID;
   const {
     control,
     handleSubmit,
@@ -40,87 +39,114 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
 
   return (
     <View style={styles.form}>
-      <Controller
-        control={control}
-        name="name"
-        render={({ field }) => (
-          <TextInput mode="outlined" label="Nombre del material" value={field.value} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
-        )}
-      />
+      <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <Controller
+          control={control}
+          name="name"
+          render={({ field }) => (
+            <View>
+              <TextInput
+                mode="outlined"
+                label="Nombre del material"
+                value={field.value}
+                onChangeText={field.onChange}
+                error={Boolean(errors.name)}
+                outlineStyle={styles.inputOutline}
+                activeOutlineColor={theme.colors.accent}
+              />
+              {errors.name ? <HelperText type="error">{errors.name.message}</HelperText> : null}
+            </View>
+          )}
+        />
 
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Descripción"
-            value={field.value ?? ''}
-            onChangeText={field.onChange}
-            multiline
-            numberOfLines={3}
-            outlineStyle={styles.inputOutline}
-          />
-        )}
-      />
+        <Controller
+          control={control}
+          name="category"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Categoría"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
 
-      <Controller
-        control={control}
-        name="category"
-        render={({ field }) => (
-          <TextInput mode="outlined" label="Categoría" value={field.value ?? ''} onChangeText={field.onChange} outlineStyle={styles.inputOutline} />
-        )}
-      />
-
-      {categorySuggestions.length > 0 && (
-        <View style={styles.categorySuggestions}>
-          <Text variant="labelMedium" style={{ color: theme.colors.onSurface }}>Categorias existentes</Text>
+        {categorySuggestions.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
             {categorySuggestions.map((category) => {
               const selected = selectedCategory.toLowerCase() === category.toLowerCase();
+              const accent = getCategoryAccent(theme, category);
 
               return (
-                <Chip
+                <Pressable
                   key={category}
-                  selected={selected}
-                  selectedColor={chipTextColor}
-                  textStyle={StyleSheet.flatten([styles.categoryChipText, { color: chipTextColor }])}
-                  style={StyleSheet.flatten([
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setValue('category', selected ? '' : category)}
+                  style={({ pressed }) => [
                     styles.categoryChip,
-                    {
-                      backgroundColor: selected ? theme.colors.softGreenStrong : theme.colors.softGreen,
-                      borderColor: chipBorderColor,
-                    },
-                  ])}
-                  onPress={() => setValue('category', category)}
+                    { backgroundColor: accent.backgroundColor, borderColor: selected ? accent.textColor : 'transparent' },
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  {category}
-                </Chip>
+                  <Text style={[styles.categoryChipText, { color: accent.textColor }]}>{category}</Text>
+                </Pressable>
               );
             })}
           </ScrollView>
-        </View>
-      )}
-
-      <Controller
-        control={control}
-        name="notes"
-        render={({ field }) => (
-          <TextInput
-            mode="outlined"
-            label="Notas"
-            value={field.value ?? ''}
-            onChangeText={field.onChange}
-            multiline
-            numberOfLines={3}
-            outlineStyle={styles.inputOutline}
-          />
         )}
-      />
+      </View>
 
-      {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+      <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>DETALLE</Text>
+        <Controller
+          control={control}
+          name="description"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Descripción"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              multiline
+              numberOfLines={3}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="notes"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Notas"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              multiline
+              numberOfLines={3}
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
+      </View>
 
-      <Button mode="contained" loading={isSubmitting} onPress={handleSubmit(onSubmit)} style={styles.submitButton} contentStyle={styles.submitButtonContent}>
+      <Button
+        mode="contained"
+        loading={isSubmitting}
+        disabled={isSubmitting}
+        onPress={handleSubmit(onSubmit)}
+        buttonColor={theme.colors.accent}
+        textColor={theme.colors.onAccent}
+        style={styles.submitButton}
+        contentStyle={styles.submitButtonContent}
+        labelStyle={styles.submitButtonLabel}
+      >
         Guardar material
       </Button>
     </View>
@@ -128,34 +154,29 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
 };
 
 const styles = StyleSheet.create({
-  form: {
-    gap: 14,
+  form: { gap: 12 },
+  section: {
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
   },
-  inputOutline: {
-    borderRadius: 10,
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: FONT_SANS_BOLD,
+    letterSpacing: 0.8,
   },
-  categorySuggestions: {
-    gap: 8,
-  },
-  chipsRow: {
-    gap: 8,
-    paddingVertical: 2,
-  },
+  inputOutline: { borderRadius: 12 },
+  chipsRow: { gap: 8, paddingVertical: 2 },
   categoryChip: {
     borderRadius: 999,
     borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
-  categoryChipText: {
-    fontWeight: '500',
-  },
-  submitButton: {
-    borderRadius: 10,
-    marginTop: 2,
-  },
-  submitButtonContent: {
-    minHeight: 42,
-  },
-  errorText: {
-    color: '#B00020',
-  },
+  categoryChipText: { fontSize: 13, fontFamily: FONT_SANS_BOLD },
+  pressed: { opacity: 0.8 },
+  submitButton: { borderRadius: 12, marginTop: 2 },
+  submitButtonContent: { minHeight: 48 },
+  submitButtonLabel: { fontFamily: FONT_SANS_EXTRABOLD },
 });
