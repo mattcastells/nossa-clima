@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -13,12 +12,14 @@ interface ThemeState {
   setHasHydrated: (hasHydrated: boolean) => void;
 }
 
-const getDefaultPreference = (): ThemePreference => (Appearance.getColorScheme() === 'dark' ? 'dark' : 'light');
+// El rediseño está definido en claro; el modo oscuro queda como opción explícita
+// del usuario y no se hereda del sistema.
+const DEFAULT_PREFERENCE: ThemePreference = 'light';
 
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      preference: getDefaultPreference(),
+      preference: DEFAULT_PREFERENCE,
       hasHydrated: false,
       setPreference: (preference) => set({ preference }),
       togglePreference: () => set({ preference: get().preference === 'dark' ? 'light' : 'dark' }),

@@ -51,6 +51,8 @@ export default function HomeScreen() {
         </Pressable>
       </AnimatedEntrance>
 
+      <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>ACCESOS</Text>
+
       <View style={styles.grid}>
         {actions.map((action, index) => (
           <AnimatedEntrance key={action.title} delay={110 + index * 40} distance={14} style={styles.tileShell}>
@@ -125,14 +127,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: 6,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
   },
   iconBubble: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -142,5 +144,12 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginTop: -8,
   },
 });
