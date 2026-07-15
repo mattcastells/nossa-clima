@@ -30,6 +30,19 @@ if (!width || !height || Number.isNaN(Number(width)) || Number.isNaN(Number(heig
 // Perfil aparte: así la ventana no hereda extensiones ni pestañas del navegador normal.
 const userDataDir = path.join(os.tmpdir(), 'nossa-clima-mobile-preview');
 
+// --fresh borra el perfil. Es la salida cuando la ventana quedó con un bundle
+// viejo cacheado y reporta "Requiring unknown module".
+if (process.argv.includes('--fresh') && fs.existsSync(userDataDir)) {
+  try {
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+    console.log('Perfil del navegador borrado: la ventana arranca sin cache.');
+  } catch {
+    // El perfil está tomado mientras la ventana siga abierta.
+    console.error('No pude borrar el perfil: cerra la ventana de preview y volve a correr el comando.');
+    process.exit(1);
+  }
+}
+
 const CANDIDATES = {
   win32: [
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
