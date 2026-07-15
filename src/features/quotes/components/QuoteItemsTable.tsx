@@ -1,13 +1,13 @@
 import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Button, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Icon, IconButton, Portal, Text, TextInput } from 'react-native-paper';
 
 import { AppDialog } from '@/components/AppDialog';
 import type { QuoteMaterialItem, QuoteServiceItem, Store, QuoteStatus } from '@/types/db';
 
 import { formatCurrencyArs, formatPercent } from '@/lib/format';
-import { BRAND_BLUE, BRAND_GREEN, useAppTheme } from '@/theme';
+import { BRAND_BLUE, BRAND_GREEN, FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 import { getEffectiveMaterialMarginPercent, getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from '../materialPricing';
 
@@ -61,9 +61,8 @@ export const QuoteItemsTable = ({
 }: Props) => {
   const theme = useAppTheme();
   const { width } = useWindowDimensions();
-  const serviceTint = theme.colors.softBlueStrong;
-  const materialTint = theme.colors.softGreenStrong;
   const [editingTarget, setEditingTarget] = useState<EditingTarget>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [serviceQuantityInput, setServiceQuantityInput] = useState('');
   const [servicePriceInput, setServicePriceInput] = useState('');
   const [serviceMarginInput, setServiceMarginInput] = useState('');
@@ -157,118 +156,93 @@ export const QuoteItemsTable = ({
   return (
     <>
       <View style={styles.container}>
-        <View style={styles.tableWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={[styles.table, { borderColor: theme.colors.borderSoft }]}>
-              <View style={[styles.headerRow, { backgroundColor: theme.colors.tableHeaderBg, borderBottomColor: theme.colors.borderSoft }]}>
-                <Text style={[styles.hCell, styles.hCellName, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-                  Concepto
-                </Text>
-                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-                  Cant.
-                </Text>
-                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-                  Costo
-                </Text>
-                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-                  Margen
-                </Text>
-                <Text style={[styles.hCell, styles.hCellNum, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-                  Total
-                </Text>
-                <Text style={[styles.hCell, styles.hCellSource, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}>
-                  Origen
-                </Text>
-                <View style={[styles.hCell, styles.hCellAction]} />
-              </View>
-
-              {rows.length === 0 ? (
-                <View style={[styles.emptyRow, { borderBottomColor: theme.colors.borderSoft }]}>
-                  <Text style={{ color: theme.colors.onSurface }}>No hay items cargados.</Text>
-                </View>
-              ) : (
-                rows.map((row, index) => {
-                  const isService = row.kind === 'service';
-                  const tint = isService ? serviceTint : materialTint;
-                  const busy = isService ? serviceActionsBusy : materialActionsBusy;
-
-                  return (
-                    <Pressable
-                      key={row.key}
-                      onPress={() => {
-                        if (isCompleted) return;
-                        setEditingTarget({ kind: row.kind, id: row.id });
-                      }}
-                      disabled={isCompleted || busy}
-                      style={({ pressed }) => [pressed && { opacity: 0.8 }]}
-                    >
-                      <View
-                        style={[
-                          styles.dataRow,
-                          { backgroundColor: tint, borderBottomColor: theme.colors.borderSoft },
-                          index > 0 && { borderTopWidth: 1, borderTopColor: theme.colors.borderSoft },
-                        ]}
-                      >
-                        <View style={[styles.dCell, styles.dCellName, { borderRightColor: theme.colors.borderSoft }]}>
-                          <Text style={[styles.nameTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
-                            {row.title}
-                          </Text>
-                          {row.notes ? (
-                            <Text style={[styles.nameNotes, { color: theme.colors.textMuted }]} numberOfLines={1}>
-                              {row.notes}
-                            </Text>
-                          ) : null}
-                        </View>
-                        <Text
-                          style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
-                          numberOfLines={1}
-                        >
-                          {row.quantity}
-                        </Text>
-                        <Text
-                          style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
-                          numberOfLines={1}
-                        >
-                          {row.base}
-                        </Text>
-                        <Text
-                          style={[styles.dCell, styles.dCellNum, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
-                          numberOfLines={1}
-                        >
-                          {row.margin}
-                        </Text>
-                        <Text
-                          style={[styles.dCell, styles.dCellNum, styles.dValueStrong, { color: theme.colors.primary, borderRightColor: theme.colors.borderSoft }]}
-                          numberOfLines={1}
-                        >
-                          {row.total}
-                        </Text>
-                        <Text
-                          style={[styles.dCell, styles.dCellSource, styles.dValue, { color: theme.colors.titleOnSoft, borderRightColor: theme.colors.borderSoft }]}
-                          numberOfLines={1}
-                        >
-                          {row.source}
-                        </Text>
-                        <View style={[styles.dCell, styles.dCellAction]}>
-                          <IconButton
-                            icon="trash-can-outline"
-                            size={16}
-                            iconColor="#B00020"
-                            onPress={() => {
-                              if (isCompleted) return;
-                              isService ? onDeleteService(row.id) : onDeleteMaterial(row.id);
-                            }}
-                            disabled={isCompleted || busy}
-                            style={styles.deleteIcon}
-                          />
-                        </View>
-                      </View>
-                    </Pressable>
-                  );
-                })
-              )}
+        <View style={styles.rowsList}>
+          {rows.length === 0 ? (
+            <View style={[styles.emptyRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+              <Text style={{ color: theme.colors.textMuted }}>No hay items cargados.</Text>
             </View>
-          </ScrollView>
+          ) : (
+            rows.map((row) => {
+              const isService = row.kind === 'service';
+              const busy = isService ? serviceActionsBusy : materialActionsBusy;
+              const expanded = expandedKey === row.key;
+              const kindColor = isService ? theme.colors.primary : theme.colors.toastSuccessText;
+              const kindBackground = isService ? theme.colors.softBlue : theme.colors.softGreen;
+
+              const details: Array<[string, string]> = [
+                ['Cantidad', row.quantity],
+                ['Costo', row.base],
+                ['Margen', row.margin],
+                ...(isService ? [] : ([['Origen', row.source]] as Array<[string, string]>)),
+              ];
+
+              return (
+                <View
+                  key={row.key}
+                  style={[
+                    styles.rowCard,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft, borderLeftColor: kindColor },
+                  ]}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded }}
+                    onPress={() => setExpandedKey(expanded ? null : row.key)}
+                    style={({ pressed }) => [styles.rowHeader, pressed && styles.rowPressed]}
+                  >
+                    <View style={styles.rowTitleWrap}>
+                      <Text style={[styles.rowTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={expanded ? undefined : 1}>
+                        {row.title}
+                      </Text>
+                      <View style={[styles.kindBadge, { backgroundColor: kindBackground }]}>
+                        <Text style={[styles.kindBadgeText, { color: kindColor }]}>{row.label}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.rowTotal, { color: theme.colors.primary }]}>{row.total}</Text>
+                    <Icon source={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textMuted} />
+                  </Pressable>
+
+                  {expanded ? (
+                    <View style={[styles.rowDetails, { borderTopColor: theme.colors.borderSoft }]}>
+                      {details.map(([label, value]) => (
+                        <View key={label} style={styles.detailRow}>
+                          <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>{label}</Text>
+                          <Text style={[styles.detailValue, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
+                            {value}
+                          </Text>
+                        </View>
+                      ))}
+                      {row.notes ? (
+                        <Text style={[styles.detailNotes, { color: theme.colors.textMuted }]}>{row.notes}</Text>
+                      ) : null}
+                      <View style={styles.rowActions}>
+                        <Button
+                          compact
+                          mode="text"
+                          icon="pencil-outline"
+                          textColor={theme.colors.accentStrong}
+                          disabled={isCompleted || busy}
+                          onPress={() => setEditingTarget({ kind: row.kind, id: row.id })}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          compact
+                          mode="text"
+                          icon="trash-can-outline"
+                          textColor={theme.colors.error}
+                          disabled={isCompleted || busy}
+                          onPress={() => (isService ? onDeleteService(row.id) : onDeleteMaterial(row.id))}
+                        >
+                          Borrar
+                        </Button>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })
+          )}
         </View>
 
         <View style={[styles.bottomBar, isCompact && styles.bottomBarCompact]}>
@@ -544,99 +518,87 @@ const styles = StyleSheet.create({
   container: {
     gap: 12,
   },
-  tableWrap: {
-    position: 'relative',
+  rowsList: {
+    gap: 10,
   },
-  table: {
-    minWidth: 520,
+  rowCard: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderRadius: 13,
     overflow: 'hidden',
   },
-  headerRow: {
+  rowHeader: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    borderBottomWidth: 1,
-  },
-  hCell: {
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRightWidth: 1,
-    justifyContent: 'center',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  hCellName: {
-    flex: 1,
-    minWidth: 80,
-  },
-  hCellNum: {
-    width: 68,
-    textAlign: 'right',
-  },
-  hCellSource: {
-    width: 72,
-  },
-  hCellAction: {
-    width: 36,
-    borderRightWidth: 0,
-  },
-  nameTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  nameNotes: {
-    fontSize: 10,
-    lineHeight: 13,
-  },
-  deleteIcon: {
-    margin: 0,
-    width: 28,
-    height: 28,
-  },
-  dataRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    borderBottomWidth: 1,
-    minHeight: 38,
-  },
-  dCell: {
-    paddingHorizontal: 5,
-    paddingVertical: 4,
-    borderRightWidth: 1,
-    justifyContent: 'center',
-  },
-  dCellName: {
-    flex: 1,
-    minWidth: 80,
-    justifyContent: 'center',
-  },
-  dCellNum: {
-    width: 68,
-    textAlign: 'right',
-  },
-  dCellSource: {
-    width: 72,
-  },
-  dCellAction: {
-    width: 36,
-    borderRightWidth: 0,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
   },
-  dValue: {
-    fontSize: 11,
-    fontWeight: '500',
+  rowPressed: {
+    opacity: 0.75,
   },
-  dValueStrong: {
+  rowTitleWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  rowTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontFamily: FONT_SANS_BOLD,
+  },
+  kindBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  kindBadgeText: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontFamily: FONT_SANS_BOLD,
+  },
+  rowTotal: {
+    fontSize: 14,
+    fontFamily: FONT_SANS_EXTRABOLD,
+    fontVariant: ['tabular-nums'],
+  },
+  rowDetails: {
+    borderTopWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    gap: 7,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  detailLabel: {
     fontSize: 12,
-    fontWeight: '700',
+  },
+  detailValue: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontFamily: FONT_SANS_BOLD,
+    fontVariant: ['tabular-nums'],
+  },
+  detailNotes: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 2,
   },
   emptyRow: {
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    alignItems: 'center',
   },
   bottomBar: {
     flexDirection: 'row',
