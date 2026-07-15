@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { IconButton } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
+import { MonthCalendar } from '@/features/appointments/MonthCalendar';
 import { WeekSelector } from '@/features/appointments/WeekSelector';
 import { WorkCalendarCard } from '@/features/appointments/WorkCalendarCard';
 import { useWorkAgenda } from '@/features/appointments/useWorkAgenda';
@@ -31,6 +32,7 @@ export default function CalendarScreen() {
       headerContent={<WeekSelector agenda={agenda} />}
     >
       <WorkCalendarCard agenda={agenda} showQuickForm={showQuickForm} onCloseQuickForm={() => setShowQuickForm(false)} />
+      <MonthCalendar agenda={agenda} />
     </AppScreen>
   );
 }
