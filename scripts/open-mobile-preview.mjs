@@ -86,8 +86,14 @@ const main = async () => {
     return;
   }
 
-  console.log(`Levantando Expo web en el puerto ${port}...`);
-  const expo = spawn('npx', ['expo', 'start', '--web', '--port', port], {
+  // --clear reinicia Metro con la cache limpia. Sirve cuando el navegador
+  // reporta "Requiring unknown module": el bundle abierto quedo desincronizado
+  // con el server y los ids de modulo ya no coinciden.
+  const clearCache = process.argv.includes('--clear');
+  const expoArgs = ['expo', 'start', '--web', '--port', port, ...(clearCache ? ['--clear'] : [])];
+
+  console.log(`Levantando Expo web en el puerto ${port}${clearCache ? ' (cache limpia)' : ''}...`);
+  const expo = spawn('npx', expoArgs, {
     stdio: 'inherit',
     shell: os.platform() === 'win32', // en Windows npx es un .cmd
   });

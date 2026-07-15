@@ -117,6 +117,8 @@ No address bar, no devtools, separate browser profile (no extensions or tabs). I
 
 Options: `npm run web:mobile -- --port 8083 --size 430x932`.
 
+If the window shows `Requiring unknown module "…"`, the open bundle is out of sync with the server (it happens after restarting Metro with the window open). Reload with `Ctrl+R`, or `Ctrl+Shift+R` to bypass the cache. If it persists, restart with a clean cache: `npm run web:mobile -- --clear`.
+
 For the real thing, open `http://<your-lan-ip>:8081` from a phone on the same network.
 
 ### Android development workflow
