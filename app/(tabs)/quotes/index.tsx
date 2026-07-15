@@ -1,6 +1,6 @@
 import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, TextInput as NativeTextInput, View, useWindowDimensions } from 'react-native';
 import { Button, Card, Icon, IconButton, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
@@ -88,8 +88,9 @@ export default function QuotesScreen() {
           onPress={() => router.push('/quotes/new')}
         />
       }
-    >
-      <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+      headerContent={
+      <>
+      <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
         <Icon source="magnify" size={20} color={theme.colors.textMuted} />
         <NativeTextInput
           value={search}
@@ -108,7 +109,12 @@ export default function QuotesScreen() {
         ) : null}
       </View>
 
-      <View style={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+        keyboardShouldPersistTaps="handled"
+      >
         {STATUS_FILTERS.map((filter) => {
           const active = statusFilter === filter.value;
           const accent = filter.value === 'all' ? null : quoteStatusAccent(filter.value);
@@ -130,8 +136,10 @@ export default function QuotesScreen() {
             </Pressable>
           );
         })}
-      </View>
-
+      </ScrollView>
+      </>
+      }
+    >
       <LoadingOrError isLoading={isLoading} error={error} />
 
       <FlatList
@@ -239,12 +247,11 @@ export default function QuotesScreen() {
 const styles = StyleSheet.create({
   newButton: { margin: 0, borderRadius: 13 },
   searchBar: {
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 9,
+    borderRadius: 12,
     paddingHorizontal: 14,
   },
   searchInput: {
@@ -256,14 +263,14 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingRight: 18,
   },
   filterChip: {
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
   },
   filterChipText: {
     fontSize: 13,

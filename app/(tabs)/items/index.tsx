@@ -73,9 +73,9 @@ export default function ItemsScreen() {
           onPress={() => router.push('/items/new')}
         />
       }
-    >
+      headerContent={
       <View style={styles.toolsRow}>
-        <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>
+        <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Icon source="magnify" size={20} color={theme.colors.textMuted} />
           <NativeTextInput
             value={search}
@@ -141,7 +141,8 @@ export default function ItemsScreen() {
           </View>
         </Menu>
       </View>
-
+      }
+    >
       <LoadingOrError isLoading={isLoading} error={error} />
 
       <FlatList
@@ -202,12 +203,11 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 9,
+    borderRadius: 12,
     paddingHorizontal: 14,
   },
   searchInput: {
@@ -218,8 +218,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   filterChip: {
-    borderRadius: 14,
-    borderWidth: 1,
+    minHeight: 44,
+    borderRadius: 12,
     paddingHorizontal: 14,
     justifyContent: 'center',
   },

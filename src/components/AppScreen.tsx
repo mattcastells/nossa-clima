@@ -3,7 +3,7 @@ import { PropsWithChildren, ReactNode } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Icon, Text } from 'react-native-paper';
+import { Icon, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { useAppTheme } from '@/theme';
@@ -14,6 +14,12 @@ interface Props extends PropsWithChildren {
   showBackButton?: boolean;
   showHomeButton?: boolean;
   scrollable?: boolean;
+  /** Contenido fijo dentro del encabezado blanco: buscador, chips de filtro, selector de fecha. */
+  headerContent?: ReactNode;
+  /** Texto del volver. El diseño usa el nombre de la sección padre ("Trabajos"), no "Volver". */
+  backLabel?: string;
+  /** Reemplaza el título por contenido propio dentro del encabezado (p. ej. el logo del inicio). */
+  headerLeading?: ReactNode;
 }
 
 type TabDef = { key: string; icon: string; label: string; href: Href };
@@ -26,7 +32,16 @@ const TABS: TabDef[] = [
   { key: 'assistant', icon: 'robot-outline', label: 'Asistente', href: '/(tabs)/assistant' },
 ];
 
-export const AppScreen = ({ title, titleRight, children, showBackButton = true, scrollable = true }: Props) => {
+export const AppScreen = ({
+  title,
+  titleRight,
+  children,
+  showBackButton = true,
+  scrollable = true,
+  headerContent,
+  backLabel = 'Volver',
+  headerLeading,
+}: Props) => {
   const router = useRouter();
   const segments = useSegments();
   const theme = useAppTheme();
@@ -41,30 +56,41 @@ export const AppScreen = ({ title, titleRight, children, showBackButton = true, 
   const showBack = showBackButton && (nestedInTabs || outsideTabsAndAuth);
   const fallback: Href = inTabs && segments[1] ? (`/(tabs)/${segments[1]}` as Href) : '/(tabs)';
 
-  const innerContent = (
-    <AnimatedEntrance active={isFocused} delay={20} distance={16} style={scrollable ? styles.container : [styles.container, styles.flexContainer]}>
+  const hasHeader = Boolean(showBack || title || headerLeading || titleRight || headerContent);
+
+  const header = hasHeader ? (
+    <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderSoft }]}>
       {showBack ? (
-        <View style={styles.navRow}>
-          <Button
-            mode="text"
-            compact
-            icon="arrow-left"
-            textColor={theme.colors.primary}
-            style={styles.backButton}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
-          >
-            Volver
-          </Button>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={backLabel}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
+          style={({ pressed }) => [styles.backRow, pressed && styles.pressed]}
+          hitSlop={6}
+        >
+          <Icon source="arrow-left" size={20} color={theme.colors.accentStrong} />
+          <Text style={[styles.backLabel, { color: theme.colors.accentStrong }]}>{backLabel}</Text>
+        </Pressable>
       ) : null}
-      {title ? (
+      {headerLeading ?? null}
+      {title || titleRight ? (
         <View style={styles.titleRow}>
-          <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.titleOnSoft }, titleRight ? styles.titleFlex : undefined]}>
-            {title}
-          </Text>
+          {title ? (
+            <Text style={[styles.title, { color: theme.colors.titleOnSoft }, titleRight ? styles.titleFlex : undefined]} numberOfLines={2}>
+              {title}
+            </Text>
+          ) : (
+            <View style={styles.titleFlex} />
+          )}
           {titleRight ? <View style={styles.titleRightContainer}>{titleRight}</View> : null}
         </View>
       ) : null}
+      {headerContent ?? null}
+    </View>
+  ) : null;
+
+  const innerContent = (
+    <AnimatedEntrance active={isFocused} delay={20} distance={16} style={scrollable ? styles.container : [styles.container, styles.flexContainer]}>
       <View style={[styles.content, !scrollable && styles.flexContent]}>{children}</View>
     </AnimatedEntrance>
   );
@@ -72,6 +98,7 @@ export const AppScreen = ({ title, titleRight, children, showBackButton = true, 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
       <View style={styles.screenShell}>
+        {header}
         {scrollable ? (
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -126,17 +153,25 @@ const NavButton = ({ icon, label, active, onPress }: { icon: string; label: stri
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   screenShell: { flex: 1 },
+  header: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  backLabel: { fontSize: 14, fontWeight: '700' },
+  pressed: { opacity: 0.7 },
   scrollContent: { flexGrow: 1, paddingBottom: 12 },
   scrollContentWithBottomNav: { paddingBottom: 96 },
   fixedWrapper: { flex: 1 },
-  container: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24 },
+  container: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 24 },
   flexContainer: { flex: 1, paddingBottom: 24 },
-  navRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, minHeight: 34 },
-  backButton: { alignSelf: 'flex-start', marginLeft: -6, marginBottom: 2 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 18 },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   titleFlex: { flex: 1 },
-  titleRightContainer: { marginLeft: 8, paddingBottom: 2 },
-  title: { marginBottom: 0, fontWeight: '800' },
+  titleRightContainer: { marginLeft: 8 },
+  title: { fontSize: 26, lineHeight: 32, fontWeight: '800' },
   content: { gap: 16 },
   flexContent: { flex: 1, minHeight: 0 },
   bottomNav: {
