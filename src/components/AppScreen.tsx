@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 interface Props extends PropsWithChildren {
   title?: string;
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
-  backLabel: { fontSize: 14, fontWeight: '700' },
+  backLabel: { fontSize: 14, fontFamily: FONT_SANS_BOLD },
   pressed: { opacity: 0.7 },
   scrollContent: { flexGrow: 1, paddingBottom: 12 },
   scrollContentWithBottomNav: { paddingBottom: 96 },
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   titleFlex: { flex: 1 },
   titleRightContainer: { marginLeft: 8 },
-  title: { fontSize: 26, lineHeight: 32, fontWeight: '800' },
+  title: { fontSize: 26, lineHeight: 32, fontFamily: FONT_SANS_EXTRABOLD },
   content: { gap: 16 },
   flexContent: { flex: 1, minHeight: 0 },
   bottomNav: {
@@ -203,6 +203,6 @@ const styles = StyleSheet.create({
   bottomNavLabel: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
   },
 });

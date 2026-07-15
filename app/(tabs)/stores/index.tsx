@@ -7,7 +7,7 @@ import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 export default function StoresScreen() {
   const { data, isLoading, error } = useStores();
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   storeInfo: { flex: 1, gap: 2 },
-  storeName: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  storeName: { fontSize: 15, lineHeight: 20, fontFamily: FONT_SANS_EXTRABOLD },
   storeMeta: { fontSize: 13, lineHeight: 17 },
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 40 },
   emptyText: { fontSize: 14, textAlign: 'center', maxWidth: 260 },

@@ -1,4 +1,39 @@
-import { MD3DarkTheme, MD3LightTheme, useTheme, type MD3Theme } from 'react-native-paper';
+import { MD3DarkTheme, MD3LightTheme, configureFonts, useTheme, type MD3Theme } from 'react-native-paper';
+
+// ── Tipografía ───────────────────────────────────────────────────────────
+// El diseño usa Plus Jakarta Sans para texto y Space Grotesk para números.
+// Los nombres deben coincidir con las claves cargadas por useFonts en _layout.
+export const FONT_SANS = 'PlusJakartaSans_400Regular';
+export const FONT_SANS_MEDIUM = 'PlusJakartaSans_500Medium';
+export const FONT_SANS_SEMIBOLD = 'PlusJakartaSans_600SemiBold';
+export const FONT_SANS_BOLD = 'PlusJakartaSans_700Bold';
+export const FONT_SANS_EXTRABOLD = 'PlusJakartaSans_800ExtraBold';
+export const FONT_MONO = 'SpaceGrotesk_700Bold';
+
+// react-native-paper ignora fontWeight cuando la familia es una fuente custom:
+// hay que apuntar a la variante concreta. Este mapa traduce los pesos que usa
+// la app a la familia correspondiente.
+export const fontFamilyForWeight = (weight?: string): string => {
+  switch (weight) {
+    case '800':
+    case '900':
+      return FONT_SANS_EXTRABOLD;
+    case '700':
+      return FONT_SANS_BOLD;
+    case '600':
+      return FONT_SANS_SEMIBOLD;
+    case '500':
+      return FONT_SANS_MEDIUM;
+    default:
+      return FONT_SANS;
+  }
+};
+
+const appFonts = configureFonts({
+  config: {
+    fontFamily: FONT_SANS,
+  },
+});
 
 // ── Marca ────────────────────────────────────────────────────────────────
 // Azul institucional (se mantiene). Sumamos un acento cian vivo para CTAs,
@@ -51,6 +86,7 @@ export type AppTheme = MD3Theme & {
 
 export const lightTheme: AppTheme = {
   ...MD3LightTheme,
+  fonts: appFonts,
   roundness: 12,
   colors: {
     ...MD3LightTheme.colors,
@@ -89,6 +125,7 @@ export const lightTheme: AppTheme = {
 
 export const darkTheme: AppTheme = {
   ...MD3DarkTheme,
+  fonts: appFonts,
   roundness: 12,
   colors: {
     ...MD3DarkTheme.colors,

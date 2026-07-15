@@ -16,7 +16,7 @@ import {
   getCurrentBuildNumber,
   type AppUpdateRelease,
 } from '@/services/appUpdates';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_SEMIBOLD, useAppTheme } from '@/theme';
 
 export default function SettingsScreen() {
   const theme = useAppTheme();
@@ -160,7 +160,7 @@ export default function SettingsScreen() {
           <View style={[styles.rowIcon, { backgroundColor: theme.colors.toastErrorSurface }]}>
             <Icon source="logout" size={20} color={theme.colors.error} />
           </View>
-          <Text style={[styles.rowLabel, { color: theme.colors.error, fontWeight: '700' }]}>Cerrar sesión</Text>
+          <Text style={[styles.rowLabel, { color: theme.colors.error, fontFamily: FONT_SANS_BOLD }]}>Cerrar sesión</Text>
           {isSigningOut ? <ActivityIndicator size={18} color={theme.colors.error} /> : null}
         </Pressable>
       </View>
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   group: { gap: 8 },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: FONT_SANS_EXTRABOLD,
     letterSpacing: 0.6,
     marginLeft: 4,
   },
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   rowLabel: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONT_SANS_SEMIBOLD,
   },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },

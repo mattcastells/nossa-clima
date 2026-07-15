@@ -9,7 +9,7 @@ import { LoadingOrError } from '@/components/LoadingOrError';
 import { useItemsWithStats } from '@/features/items/hooks';
 import { formatItemDisplayName } from '@/lib/itemDisplay';
 import type { ItemListStats } from '@/services/items';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_MEDIUM, useAppTheme } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
 
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
     maxWidth: 120,
   },
   menuContent: {
@@ -255,10 +255,10 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: FONT_SANS_MEDIUM,
   },
   menuItemTextSelected: {
-    fontWeight: '800',
+    fontFamily: FONT_SANS_EXTRABOLD,
   },
   listContent: {
     paddingTop: 4,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '800',
+    fontFamily: FONT_SANS_EXTRABOLD,
   },
   categoryChip: {
     borderRadius: 8,
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
     maxWidth: 120,
   },
   materialMeta: {

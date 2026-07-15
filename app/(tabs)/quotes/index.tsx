@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, TextInput as NativeTextInput, View, useWindowDimensions } from 'react-native';
 import { Button, Card, Icon, IconButton, Text } from 'react-native-paper';
@@ -9,7 +9,7 @@ import { LoadingOrError } from '@/components/LoadingOrError';
 import { useQuotes } from '@/features/quotes/hooks';
 import { normalizeQuoteStatus, quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { formatCurrencyArs, formatDateAr, formatTimeShort } from '@/lib/format';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_MEDIUM, useAppTheme } from '@/theme';
 import type { JobQuoteStatus } from '@/types/db';
 
 const PAGE_SIZE_SINGLE_COLUMN = 8;
@@ -158,8 +158,11 @@ export default function QuotesScreen() {
           return (
             <View style={[styles.quoteCardCell, useTwoColumns && styles.quoteCardCellGrid]}>
               <AnimatedEntrance delay={60 + index * 35} distance={12}>
-                <Link href={`/quotes/${item.id}`} asChild>
-                  <Card mode="outlined" style={[styles.quoteCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surface }]}>
+                  <Card
+                    mode="outlined"
+                    onPress={() => router.push(`/quotes/${item.id}`)}
+                    style={[styles.quoteCard, { borderColor: theme.colors.borderSoft, backgroundColor: theme.colors.surface }]}
+                  >
                     <Card.Content style={styles.quoteContent}>
                       <View style={styles.headerRow}>
                         <Text style={[styles.headerTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
@@ -200,7 +203,6 @@ export default function QuotesScreen() {
                       ) : null}
                     </Card.Content>
                   </Card>
-                </Link>
               </AnimatedEntrance>
             </View>
           );
@@ -275,7 +277,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     lineHeight: 16,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
   },
   listContent: {
     paddingTop: 4,
@@ -310,7 +312,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     lineHeight: 21,
-    fontWeight: '800',
+    fontFamily: FONT_SANS_EXTRABOLD,
     flex: 1,
   },
   statusBadge: {
@@ -330,7 +332,7 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 12,
     lineHeight: 15,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
   },
   metaRow: {
     flexDirection: 'row',
@@ -340,7 +342,7 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
     lineHeight: 18,
-    fontWeight: '500',
+    fontFamily: FONT_SANS_MEDIUM,
     flex: 1,
   },
   totalRow: {
@@ -354,14 +356,14 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   totalValue: {
     fontSize: 19,
     lineHeight: 24,
-    fontWeight: '800',
+    fontFamily: FONT_SANS_EXTRABOLD,
   },
   cancelledHint: {
     marginTop: 2,

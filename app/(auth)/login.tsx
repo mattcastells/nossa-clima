@@ -11,7 +11,7 @@ import { LoginFormValues, loginSchema } from '@/features/auth/schemas';
 import { signIn } from '@/features/auth/service';
 import { useAuthStore } from '@/features/auth/store';
 import { toUserErrorMessage } from '@/lib/errors';
-import { BRAND_BLUE, useAppTheme } from '@/theme';
+import { BRAND_BLUE, FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 export default function LoginScreen() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     elevation: 8,
   },
-  cardTitle: { fontWeight: '800', marginBottom: 2 },
+  cardTitle: { fontFamily: FONT_SANS_EXTRABOLD, marginBottom: 2 },
   inputOutline: { borderRadius: 12 },
   submit: { borderRadius: 12, marginTop: 4 },
   submitContent: { minHeight: 48 },

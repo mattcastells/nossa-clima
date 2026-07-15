@@ -2,6 +2,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { Stack, useGlobalSearchParams, usePathname, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { PaperProvider, Text } from 'react-native-paper';
@@ -68,7 +76,15 @@ function AppShell({ backgroundColor }: { backgroundColor: string }) {
 }
 
 export default function RootLayout() {
-  const [iconFontsLoaded] = useFonts(MaterialCommunityIcons.font);
+  const [iconFontsLoaded] = useFonts({
+    ...MaterialCommunityIcons.font,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    SpaceGrotesk_700Bold,
+  });
   const missingEnvVars = hasMissingRequiredEnvVars ? getMissingRequiredEnvVars() : [];
   const preference = useThemeStore((s) => s.preference);
   const hasHydrated = useThemeStore((s) => s.hasHydrated);

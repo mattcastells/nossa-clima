@@ -8,7 +8,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useServiceCategories, useServices } from '@/features/services/hooks';
 import { formatCurrencyArs } from '@/lib/format';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_MEDIUM, useAppTheme } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
 const UNCATEGORIZED_CATEGORY = '__uncategorized__';
@@ -229,7 +229,7 @@ export default function ServicesScreen() {
 
 const styles = StyleSheet.create({
   titleActions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  categoriesLabel: { fontSize: 13, fontWeight: '700' },
+  categoriesLabel: { fontSize: 13, fontFamily: FONT_SANS_BOLD },
   newButton: { margin: 0, borderRadius: 13 },
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
   searchBar: {
@@ -245,13 +245,13 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, minWidth: 0, paddingVertical: 0, fontSize: 15, lineHeight: 20 },
   filterChip: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center' },
   filterChipInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  filterChipText: { fontSize: 14, fontWeight: '700', maxWidth: 120 },
+  filterChipText: { fontSize: 14, fontFamily: FONT_SANS_BOLD, maxWidth: 120 },
   menuContent: { paddingVertical: 6, borderRadius: 14 },
   menuGrid: { paddingHorizontal: 8, paddingVertical: 4, gap: 6 },
   menuItem: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1 },
   menuItemInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  menuItemText: { fontSize: 14, fontWeight: '500' },
-  menuItemTextSelected: { fontWeight: '800' },
+  menuItemText: { fontSize: 14, fontFamily: FONT_SANS_MEDIUM },
+  menuItemTextSelected: { fontFamily: FONT_SANS_EXTRABOLD },
   listContent: { paddingTop: 4, paddingBottom: 4, gap: 12 },
   serviceCard: {
     borderRadius: 16,
@@ -262,10 +262,10 @@ const styles = StyleSheet.create({
   },
   cardPressed: { opacity: 0.85 },
   serviceMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  serviceTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  serviceTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontFamily: FONT_SANS_EXTRABOLD },
   categoryChip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  categoryChipText: { fontSize: 11, lineHeight: 14, fontWeight: '700', maxWidth: 120 },
-  servicePrice: { fontSize: 18, lineHeight: 22, fontWeight: '800' },
+  categoryChipText: { fontSize: 11, lineHeight: 14, fontFamily: FONT_SANS_BOLD, maxWidth: 120 },
+  servicePrice: { fontSize: 18, lineHeight: 22, fontFamily: FONT_SANS_EXTRABOLD },
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 40 },
   emptyText: { fontSize: 14, textAlign: 'center', maxWidth: 260 },
   paginationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4, paddingBottom: 8 },

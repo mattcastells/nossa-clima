@@ -4,7 +4,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
 
 type HomeAction = {
   title: string;
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   ctaText: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: FONT_SANS_EXTRABOLD,
   },
   pressed: { opacity: 0.85 },
   grid: {
@@ -142,12 +142,12 @@ const styles = StyleSheet.create({
   tileTitle: {
     fontSize: 13,
     lineHeight: 16,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
     textAlign: 'center',
   },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: FONT_SANS_BOLD,
     letterSpacing: 0.8,
     marginBottom: 10,
     marginTop: -8,

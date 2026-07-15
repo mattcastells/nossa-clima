@@ -12,7 +12,7 @@ import { quoteStatusAccent, quoteStatusLabel } from '@/features/quotes/status';
 import { formatIsoDate, getCalendarCells, maskTimeInput, monthLabel, normalizeOptionalTimeInput, toHumanDate } from '@/lib/dateTimeInput';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatTimeShort } from '@/lib/format';
-import { useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_SEMIBOLD, useAppTheme } from '@/theme';
 
 const getCurrentMonthAnchor = (): Date => {
   const today = new Date();
@@ -354,32 +354,32 @@ const styles = StyleSheet.create({
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   monthNav: { flexDirection: 'row', alignItems: 'center' },
   monthIconButton: { margin: 0 },
-  monthLabel: { textTransform: 'capitalize', fontWeight: '800' },
+  monthLabel: { textTransform: 'capitalize', fontFamily: FONT_SANS_EXTRABOLD },
   weekHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  weekLabel: { width: `${100 / 7}%`, textAlign: 'center', fontWeight: '700', fontSize: 12 },
+  weekLabel: { width: `${100 / 7}%`, textAlign: 'center', fontFamily: FONT_SANS_BOLD, fontSize: 12 },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 2 },
   dayPressable: { width: '100%', alignItems: 'center', justifyContent: 'flex-start', paddingVertical: 2 },
   dayPressablePressed: { opacity: 0.72 },
   dayBubble: { width: 34, height: 34, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   todayBubble: { borderWidth: 2 },
-  dayNumber: { textAlign: 'center', fontSize: 14, lineHeight: 16, fontWeight: '600' },
-  todayDayNumber: { fontWeight: '800' },
+  dayNumber: { textAlign: 'center', fontSize: 14, lineHeight: 16, fontFamily: FONT_SANS_SEMIBOLD },
+  todayDayNumber: { fontFamily: FONT_SANS_EXTRABOLD },
   dayMarkersRow: { minHeight: 8, marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
   dayMarker: { width: 4, height: 4, borderRadius: 999 },
   agendaHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  agendaHeading: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  agendaHeading: { fontSize: 12, fontFamily: FONT_SANS_EXTRABOLD, letterSpacing: 0.5, textTransform: 'uppercase' },
   addButton: { margin: 0, borderRadius: 12 },
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 30 },
   emptyText: { fontSize: 14, textAlign: 'center' },
   timelineRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  timelineTime: { width: 46, textAlign: 'right', paddingTop: 14, fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  timelineTime: { width: 46, textAlign: 'right', paddingTop: 14, fontSize: 13, fontFamily: FONT_SANS_EXTRABOLD, fontVariant: ['tabular-nums'] },
   apptCard: { flex: 1, borderRadius: 14, borderWidth: 1, borderLeftWidth: 3 },
   apptContent: { gap: 6, paddingVertical: 10 },
   apptHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  apptTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  apptTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontFamily: FONT_SANS_EXTRABOLD },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
-  statusBadgeText: { fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  statusBadgeText: { fontSize: 11, lineHeight: 14, fontFamily: FONT_SANS_BOLD },
   apptMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   apptMeta: { flex: 1, fontSize: 13, lineHeight: 17 },
   apptActions: { marginTop: 2, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginLeft: -8 },
