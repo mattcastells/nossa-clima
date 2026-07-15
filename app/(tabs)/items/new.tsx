@@ -2,8 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Text, TextInput } from 'react-native-paper';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Button, Card, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { StoreSelectorDialog } from '@/components/StoreSelectorDialog';
@@ -13,8 +13,9 @@ import { useItems, useSaveItem } from '@/features/items/hooks';
 import { ItemFormValues, itemSchema } from '@/features/items/schemas';
 import { useCreatePrice } from '@/features/prices/hooks';
 import { useStores } from '@/features/stores/hooks';
+import { getCategoryAccent } from '@/features/items/categoryAccent';
 import { toUserErrorMessage } from '@/lib/errors';
-import { BRAND_GREEN, BRAND_GREEN_MID, useAppTheme } from '@/theme';
+import { FONT_SANS_BOLD, useAppTheme } from '@/theme';
 
 const parsePriceInput = (value: string): number | null => {
   const normalized = value.trim();
@@ -27,7 +28,6 @@ const parsePriceInput = (value: string): number | null => {
 
 export default function NewItemPage() {
   const theme = useAppTheme();
-  const chipBorderColor = theme.dark ? theme.colors.softGreenStrong : BRAND_GREEN_MID;
   const save = useSaveItem();
   const createPrice = useCreatePrice();
   const { data: items } = useItems();
@@ -157,7 +157,7 @@ export default function NewItemPage() {
             render={({ field }) => (
               <TextInput
                 mode="outlined"
-                label="Referencia de calculo (kg)"
+                label="Referencia de cálculo (kg)"
                 value={field.value ?? ''}
                 onChangeText={field.onChange}
                 outlineStyle={styles.inputOutline}
@@ -174,7 +174,7 @@ export default function NewItemPage() {
             render={({ field }) => (
               <TextInput
                 mode="outlined"
-                label="Categoria"
+                label="Categoría"
                 value={field.value ?? ''}
                 onChangeText={field.onChange}
                 outlineStyle={styles.inputOutline}
@@ -185,33 +185,27 @@ export default function NewItemPage() {
           />
 
           {categorySuggestions.length > 0 && (
-            <View style={styles.categorySuggestions}>
-              <Text variant="labelMedium" style={{ color: theme.colors.onSurface }}>Categorias existentes</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-                {categorySuggestions.map((category) => {
-                  const selected = currentCategory.toLowerCase() === category.toLowerCase();
-                  const chipTextColor = theme.dark ? theme.colors.titleOnSoft : BRAND_GREEN;
+            <View style={styles.chipsRow}>
+              {categorySuggestions.map((category) => {
+                const selected = currentCategory.toLowerCase() === category.toLowerCase();
+                const accent = getCategoryAccent(theme, category);
 
-                  return (
-                    <Chip
-                      key={category}
-                      selected={selected}
-                      selectedColor={chipTextColor}
-                      style={StyleSheet.flatten([
-                        styles.categoryChip,
-                        {
-                          backgroundColor: selected ? theme.colors.softGreenStrong : theme.colors.softGreen,
-                          borderColor: chipBorderColor,
-                        },
-                      ])}
-                      textStyle={StyleSheet.flatten([styles.categoryChipText, { color: chipTextColor }])}
-                      onPress={() => setValue('category', category)}
-                    >
-                      {category}
-                    </Chip>
-                  );
-                })}
-              </ScrollView>
+                return (
+                  <Pressable
+                    key={category}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setValue('category', selected ? '' : category)}
+                    style={({ pressed }) => [
+                      styles.categoryChip,
+                      { backgroundColor: accent.backgroundColor, borderColor: selected ? accent.textColor : 'transparent' },
+                      pressed && styles.chipPressed,
+                    ]}
+                  >
+                    <Text style={[styles.categoryChipText, { color: accent.textColor }]}>{category}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
 
@@ -221,7 +215,7 @@ export default function NewItemPage() {
             render={({ field }) => (
               <TextInput
                 mode="outlined"
-                label="Descripcion"
+                label="Descripción"
                 value={field.value ?? ''}
                 onChangeText={field.onChange}
                 multiline
@@ -340,19 +334,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 8,
   },
-  categorySuggestions: {
-    gap: 8,
-  },
+  // Wrap en vez de scroll horizontal: en escritorio la rueda no scrollea horizontal
+  // y las categorias de mas quedaban fuera de alcance.
   chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     paddingVertical: 2,
   },
   categoryChip: {
     borderRadius: 999,
     borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
+  chipPressed: { opacity: 0.8 },
   categoryChipText: {
-    fontWeight: '500',
+    fontSize: 13,
+    fontFamily: FONT_SANS_BOLD,
   },
   saveButton: {
     borderRadius: 10,

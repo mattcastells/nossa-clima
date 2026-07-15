@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, type ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
@@ -12,9 +12,19 @@ interface Props {
   buttonLabel?: string;
   disabled?: boolean;
   extraContent?: ReactNode;
+  /** Oculta el botón propio cuando quien contiene el form ya ofrece uno. */
+  hideSubmitButton?: boolean;
 }
 
-export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trabajo', disabled = false, extraContent }: Props) => {
+/** Permite guardar el formulario desde afuera (ver el "Guardar trabajo" del detalle). */
+export interface QuoteFormHandle {
+  submit: () => Promise<void>;
+}
+
+export const QuoteForm = forwardRef<QuoteFormHandle, Props>(function QuoteForm(
+  { defaultValues, onSubmit, buttonLabel = 'Guardar trabajo', disabled = false, extraContent, hideSubmitButton = false },
+  ref,
+) {
   const clientName = defaultValues?.client_name ?? '';
   const clientPhone = defaultValues?.client_phone ?? '';
   const title = defaultValues?.title ?? '';
@@ -42,6 +52,8 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
       notes,
     });
   }, [clientName, clientPhone, notes, reset, title]);
+
+  useImperativeHandle(ref, () => ({ submit: () => handleSubmit(onSubmit)() }), [handleSubmit, onSubmit]);
 
   return (
     <View style={styles.form}>
@@ -108,19 +120,21 @@ export const QuoteForm = ({ defaultValues, onSubmit, buttonLabel = 'Guardar trab
         )}
       />
       {extraContent}
-      <Button
-        mode="contained"
-        loading={isSubmitting}
-        disabled={disabled || isSubmitting}
-        onPress={handleSubmit(onSubmit)}
-        style={styles.submitButton}
-        contentStyle={styles.submitButtonContent}
-      >
-        {buttonLabel}
-      </Button>
+      {hideSubmitButton ? null : (
+        <Button
+          mode="contained"
+          loading={isSubmitting}
+          disabled={disabled || isSubmitting}
+          onPress={handleSubmit(onSubmit)}
+          style={styles.submitButton}
+          contentStyle={styles.submitButtonContent}
+        >
+          {buttonLabel}
+        </Button>
+      )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   form: {

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 
 import { formatDateAr, formatTimeShort } from '@/lib/format';

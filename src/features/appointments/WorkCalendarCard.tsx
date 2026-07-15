@@ -79,17 +79,19 @@ export const WorkCalendarCard = ({ agenda, showQuickForm, onCloseQuickForm }: {
         const clientLabel = getAppointmentClientLabel(appointment);
 
         return (
-          <View key={appointment.id} style={styles.timelineRow}>
-            <Text style={[styles.timelineTime, { color: theme.colors.primary }]}>{timeLabel}</Text>
             <View
+              key={appointment.id}
               style={[
                 styles.apptCard,
                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft, borderLeftColor: barColor },
               ]}
             >
-              <Text style={[styles.apptTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
-                {appointment.quote ? appointment.quote.title : appointment.title}
-              </Text>
+              <View style={styles.apptTitleRow}>
+                <Text style={[styles.apptTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
+                  {appointment.quote ? appointment.quote.title : appointment.title}
+                </Text>
+                <Text style={[styles.timelineTime, { color: theme.colors.primary }]}>{timeLabel}</Text>
+              </View>
               {clientLabel ? (
                 <View style={styles.apptMetaRow}>
                   <Icon source="account-outline" size={14} color={theme.colors.textMuted} />
@@ -141,7 +143,6 @@ export const WorkCalendarCard = ({ agenda, showQuickForm, onCloseQuickForm }: {
                 </Button>
               </View>
             </View>
-          </View>
         );
       })}
 
@@ -206,17 +207,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
-  timelineRow: { flexDirection: 'row', gap: 14 },
+  apptTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   timelineTime: {
-    width: 46,
-    textAlign: 'right',
-    paddingTop: 3,
+    paddingTop: 2,
     fontSize: 14,
     fontFamily: FONT_MONO,
     fontVariant: ['tabular-nums'],
   },
   apptCard: {
-    flex: 1,
     borderWidth: 1,
     borderLeftWidth: 3,
     borderRadius: 13,
@@ -224,7 +222,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     gap: 3,
   },
-  apptTitle: { fontSize: 15, lineHeight: 20, fontFamily: FONT_SANS_EXTRABOLD },
+  apptTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontFamily: FONT_SANS_EXTRABOLD },
   apptMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   apptMeta: { fontSize: 13, lineHeight: 17, flex: 1 },
   apptActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 2 },

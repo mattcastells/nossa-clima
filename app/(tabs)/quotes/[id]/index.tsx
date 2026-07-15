@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Card, Divider, Icon, IconButton, Text, TextInput } from 'react-native-paper';
 
@@ -12,7 +12,7 @@ import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteD
 import { QuoteItemsTable } from '@/features/quotes/components/QuoteItemsTable';
 import { QuoteTotalsSummary } from '@/features/quotes/components/QuoteTotalsSummary';
 import { saveQuotePdf, shareQuotePdf } from '@/features/quotes/exportPdf';
-import { QuoteForm } from '@/features/quotes/QuoteForm';
+import { QuoteForm, type QuoteFormHandle } from '@/features/quotes/QuoteForm';
 import {
   useDeleteQuoteMaterialItem,
   useDeleteQuoteServiceItem,
@@ -87,6 +87,7 @@ export default function QuoteDetailPage() {
   const deleteQuote = useDeleteQuote();
   const refreshMaterialPricing = useRefreshQuoteMaterialPricing();
 
+  const quoteFormRef = useRef<QuoteFormHandle>(null);
   const [isSavingPdf, setIsSavingPdf] = useState(false);
   const [isSharingPdf, setIsSharingPdf] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
@@ -205,20 +206,30 @@ export default function QuoteDetailPage() {
     }
   };
 
+  /**
+   * Guarda lo editado en el formulario de Cliente y vuelve a la pantalla anterior.
+   * Los conceptos, la fecha y el estado se guardan solos al tocarlos, así que lo
+   * único que puede quedar pendiente es ese formulario. Si la sección está
+   * cerrada no hay nada que guardar y solo navega.
+   */
   const saveCurrentJob = async () => {
     if (!data) return;
     try {
-      await save.mutateAsync({
-        id: data.quote.id,
-        title: data.quote.title,
-        client_name: data.quote.client_name,
-        client_phone: data.quote.client_phone,
-        notes: data.quote.notes,
-      });
-      setSnack('Trabajo guardado.');
+      if (quoteFormRef.current) {
+        await quoteFormRef.current.submit();
+      }
+      goBackToQuotes();
     } catch (mutationError) {
       setSnack(toUserErrorMessage(mutationError, 'No se pudo guardar el trabajo.'));
     }
+  };
+
+  const goBackToQuotes = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(tabs)/quotes');
   };
 
   const changeQuoteStatus = async (nextStatus: JobQuoteStatus) => {
@@ -383,6 +394,7 @@ export default function QuoteDetailPage() {
                 </View>
               )}
               <QuoteForm
+                ref={quoteFormRef}
                 defaultValues={{
                   client_name: data.quote.client_name,
                   client_phone: data.quote.client_phone ?? '',
@@ -390,6 +402,7 @@ export default function QuoteDetailPage() {
                   notes: data.quote.notes ?? '',
                 }}
                 buttonLabel="Guardar cliente"
+                hideSubmitButton
                 disabled={isCompleted || isBusy}
                 onSubmit={async (values) => {
                   try {

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 
 import { getCategoryAccent } from '@/features/items/categoryAccent';
@@ -75,7 +75,7 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
         />
 
         {categorySuggestions.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+          <View style={styles.chipsRow}>
             {categorySuggestions.map((category) => {
               const selected = selectedCategory.toLowerCase() === category.toLowerCase();
               const accent = getCategoryAccent(theme, category);
@@ -96,7 +96,7 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
         )}
       </View>
 
@@ -167,7 +167,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   inputOutline: { borderRadius: 12 },
-  chipsRow: { gap: 8, paddingVertical: 2 },
+  // En una fila con scroll horizontal las categorias de mas quedaban fuera de
+  // alcance en escritorio (la rueda no scrollea horizontal). Wrap: se ven todas.
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 2 },
   categoryChip: {
     borderRadius: 999,
     borderWidth: 1,

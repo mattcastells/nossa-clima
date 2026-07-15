@@ -163,8 +163,10 @@ const styles = StyleSheet.create({
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   backLabel: { fontSize: 14, fontFamily: FONT_SANS_BOLD },
   pressed: { opacity: 0.7 },
-  scrollContent: { flexGrow: 1, paddingBottom: 12 },
-  scrollContentWithBottomNav: { paddingBottom: 96 },
+  scrollContent: { flexGrow: 1 },
+  // La tab bar es parte del layout, no flota sobre el scroll: no hace falta
+  // reservarle alto acá. Solo un respiro para que la ultima tarjeta no la toque.
+  scrollContentWithBottomNav: { paddingBottom: 8 },
   fixedWrapper: { flex: 1 },
   container: { width: '100%', maxWidth: 900, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 24 },
   flexContainer: { flex: 1, paddingBottom: 24 },
