@@ -9,6 +9,7 @@ import { CatalogAuditCard } from '@/components/CatalogAuditCard';
 import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { ItemForm } from '@/features/items/ItemForm';
+import { getCategoryAccent } from '@/features/items/categoryAccent';
 import { useItemMeasurements, useItems, useSaveItem, useSaveItemMeasurement } from '@/features/items/hooks';
 import { useProfileDirectory } from '@/features/profiles/hooks';
 import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
@@ -248,8 +249,8 @@ export default function ItemDetailPage() {
             <Text style={[styles.detailTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
               {material.name}
             </Text>
-            <View style={[styles.categoryChip, { backgroundColor: theme.colors.softGreen }]}>
-              <Text style={[styles.categoryChipText, { color: theme.colors.toastSuccessText }]} numberOfLines={1}>
+            <View style={[styles.categoryChip, { backgroundColor: getCategoryAccent(theme, material.category).backgroundColor }]}>
+              <Text style={[styles.categoryChipText, { color: getCategoryAccent(theme, material.category).textColor }]} numberOfLines={1}>
                 {material.category ?? 'Sin categoría'}
               </Text>
             </View>

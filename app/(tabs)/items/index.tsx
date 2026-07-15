@@ -6,6 +6,7 @@ import { Icon, IconButton, Menu, Text, TouchableRipple } from 'react-native-pape
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
 import { LoadingOrError } from '@/components/LoadingOrError';
+import { getCategoryAccent } from '@/features/items/categoryAccent';
 import { useItemsWithStats } from '@/features/items/hooks';
 import { formatItemDisplayName } from '@/lib/itemDisplay';
 import type { ItemListStats } from '@/services/items';
@@ -166,11 +167,16 @@ export default function ItemsScreen() {
                   <Text style={[styles.materialTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
                     {formatItemDisplayName(item)}
                   </Text>
-                  <View style={[styles.categoryChip, { backgroundColor: theme.colors.softGreen }]}>
-                    <Text style={[styles.categoryChipText, { color: theme.colors.toastSuccessText }]} numberOfLines={1}>
-                      {item.category ?? 'Sin categoría'}
-                    </Text>
-                  </View>
+                  {(() => {
+                    const accent = getCategoryAccent(theme, item.category);
+                    return (
+                      <View style={[styles.categoryChip, { backgroundColor: accent.backgroundColor }]}>
+                        <Text style={[styles.categoryChipText, { color: accent.textColor }]} numberOfLines={1}>
+                          {item.category ?? 'Sin categoría'}
+                        </Text>
+                      </View>
+                    );
+                  })()}
                 </View>
                 {secondary ? (
                   <Text style={[styles.materialMeta, { color: theme.colors.textMuted }]} numberOfLines={1}>
