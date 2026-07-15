@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, View } from 'react-native';
 import { Icon, IconButton, Text } from 'react-native-paper';
@@ -69,9 +69,9 @@ export default function StoresScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => (
           <AnimatedEntrance delay={60 + index * 35} distance={12}>
-            <Link href={`/stores/${item.id}`} asChild>
               <Pressable
                 accessibilityRole="button"
+                onPress={() => router.push(`/stores/${item.id}`)}
                 style={({ pressed }) => [
                   styles.storeCard,
                   { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
@@ -98,7 +98,6 @@ export default function StoresScreen() {
                 </View>
                 <Icon source="chevron-right" size={22} color={theme.colors.outline} />
               </Pressable>
-            </Link>
           </AnimatedEntrance>
         )}
         ListEmptyComponent={

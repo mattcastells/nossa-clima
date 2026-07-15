@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Switch, Text } from 'react-native-paper';
@@ -134,19 +134,18 @@ export default function SettingsScreen() {
             <Text style={[styles.rowLabel, { color: theme.colors.titleOnSoft }]}>Buscar actualizaciones</Text>
             {isUpdatingApp ? <ActivityIndicator size={18} color={theme.colors.accent} /> : <Icon source="chevron-right" size={22} color={theme.colors.outline} />}
           </Pressable>
-          <Link href="/quotes/cleanup" asChild>
-            <Pressable
-              accessibilityRole="button"
-              disabled={isBusy}
-              style={({ pressed }) => [styles.row, pressed && styles.pressed, isBusy && styles.disabled]}
-            >
-              <View style={[styles.rowIcon, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <Icon source="delete-sweep-outline" size={20} color={theme.colors.textMuted} />
-              </View>
-              <Text style={[styles.rowLabel, { color: theme.colors.titleOnSoft }]}>Limpiar trabajos antiguos</Text>
-              <Icon source="chevron-right" size={22} color={theme.colors.outline} />
-            </Pressable>
-          </Link>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isBusy}
+            onPress={() => router.push('/quotes/cleanup')}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed, isBusy && styles.disabled]}
+          >
+            <View style={[styles.rowIcon, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Icon source="delete-sweep-outline" size={20} color={theme.colors.textMuted} />
+            </View>
+            <Text style={[styles.rowLabel, { color: theme.colors.titleOnSoft }]}>Limpiar trabajos antiguos</Text>
+            <Icon source="chevron-right" size={22} color={theme.colors.outline} />
+          </Pressable>
         </View>
       </View>
 

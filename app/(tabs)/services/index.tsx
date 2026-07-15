@@ -179,9 +179,9 @@ export default function ServicesScreen() {
         scrollEnabled={false}
         renderItem={({ item, index }) => (
           <AnimatedEntrance delay={60 + index * 35} distance={12}>
-            <Link href={`/services/${item.id}`} asChild>
               <Pressable
                 accessibilityRole="button"
+                onPress={() => router.push(`/services/${item.id}`)}
                 style={({ pressed }) => [
                   styles.serviceCard,
                   { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
@@ -200,7 +200,6 @@ export default function ServicesScreen() {
                 </View>
                 <Text style={[styles.servicePrice, { color: theme.colors.primary }]}>{formatCurrencyArs(item.base_price)}</Text>
               </Pressable>
-            </Link>
           </AnimatedEntrance>
         )}
         ListEmptyComponent={
