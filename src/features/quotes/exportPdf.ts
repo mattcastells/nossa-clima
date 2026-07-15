@@ -28,8 +28,8 @@ import { formatCurrencyArs, formatDateAr } from '@/lib/format';
 import type { QuoteDetail } from '@/services/quotes';
 import { getMaterialEffectiveTotalPrice, getMaterialEffectiveUnitPrice } from './materialPricing';
 
-const BRAND_BLUE_HEX = '#032D6E';
-const BRAND_BLUE_RGB: [number, number, number] = [3, 45, 110];
+const BRAND_BLUE_HEX = '#052653';
+const BRAND_BLUE_RGB: [number, number, number] = [5, 38, 83];
 const BRAND_BLUE_SOFT_HEX = '#CAD7EA';
 const BRAND_BLUE_SOFT_RGB: [number, number, number] = [202, 215, 234];
 const TEXT_DARK_RGB: [number, number, number] = [17, 24, 39];
