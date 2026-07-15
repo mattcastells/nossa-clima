@@ -9,7 +9,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { ActivityIndicator, Button, Card, Dialog, IconButton, Text, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Button, Card, Dialog, Icon, IconButton, Text, TextInput } from 'react-native-paper';
 
 import { AppDialog } from '@/components/AppDialog';
 import { AppScreen } from '@/components/AppScreen';
@@ -494,7 +494,7 @@ export default function AssistantScreen() {
                       {message.imageUri ? <Image source={{ uri: message.imageUri }} style={styles.messageImage} /> : null}
                       {message.audioName ? (
                         <View style={[styles.audioAttachmentRow, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSoft }]}>
-                          <Text style={[styles.audioAttachmentIcon, { color: theme.colors.primary }]}>Audio</Text>
+                          <Icon source="microphone" size={16} color={theme.colors.primary} />
                           <Text style={[styles.audioAttachmentText, { color: theme.colors.onSurface }]}>
                             {message.audioName}
                             {message.audioDurationMillis ? ` - ${formatAssistantAudioDuration(message.audioDurationMillis)}` : ''}
@@ -707,7 +707,7 @@ export default function AssistantScreen() {
             {pendingAudio ? (
               <View style={[styles.previewRow, { backgroundColor: theme.colors.softYellow, borderColor: theme.colors.softYellowStrong }]}>
                 <View style={[styles.audioPreviewBadge, { backgroundColor: theme.colors.softBlue }]}>
-                  <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>MIC</Text>
+                  <Icon source="microphone" size={24} color={theme.colors.primary} />
                 </View>
                 <View style={styles.previewCopy}>
                   <Text variant="labelLarge" style={{ color: theme.colors.onSoftYellow }}>{pendingAudio.name}</Text>
