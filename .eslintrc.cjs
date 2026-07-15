@@ -18,4 +18,5 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'error',
     'react/react-in-jsx-scope': 'off',
   },
+  ignorePatterns: ['design_handoff_rediseno_ui/'],
 };
