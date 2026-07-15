@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, TextInput as NativeTextInput, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, View, useWindowDimensions } from 'react-native';
 import { Button, Card, Icon, IconButton, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
@@ -109,34 +109,40 @@ export default function QuotesScreen() {
         ) : null}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        keyboardShouldPersistTaps="handled"
-      >
+      {/* Fila fija, sin scroll: en escritorio la rueda no scrollea horizontal y
+          los chips de mas quedaban inalcanzables. "Todos" va como icono para
+          que los cuatro entren en pantallas angostas. */}
+      <View style={styles.filterRow}>
         {STATUS_FILTERS.map((filter) => {
           const active = statusFilter === filter.value;
+          const isAll = filter.value === 'all';
           const accent = filter.value === 'all' ? null : quoteStatusAccent(filter.value);
           const activeBg = accent ? accent.backgroundColor : theme.colors.primary;
           const activeBorder = accent ? accent.borderColor : theme.colors.primary;
-          const activeText = accent ? accent.textColor : '#FFFFFF';
+          const activeText = accent ? accent.textColor : theme.colors.onPrimary;
           return (
             <Pressable
               key={filter.value}
               accessibilityRole="button"
+              accessibilityLabel={filter.label}
+              accessibilityState={{ selected: active }}
               onPress={() => setStatusFilter(filter.value)}
               style={[
                 styles.filterChip,
+                isAll && styles.filterChipIcon,
                 { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
                 active && { backgroundColor: activeBg, borderColor: activeBorder },
               ]}
             >
-              <Text style={[styles.filterChipText, { color: active ? activeText : theme.colors.textMuted }]}>{filter.label}</Text>
+              {isAll ? (
+                <Icon source="check-all" size={17} color={active ? theme.colors.onPrimary : theme.colors.textMuted} />
+              ) : (
+                <Text style={[styles.filterChipText, { color: active ? activeText : theme.colors.textMuted }]}>{filter.label}</Text>
+              )}
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
       </>
       }
     >
@@ -265,18 +271,24 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    gap: 8,
-    paddingRight: 18,
+    alignItems: 'center',
+    gap: 6,
   },
   filterChip: {
+    minHeight: 34,
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  filterChipIcon: {
+    width: 38,
+    paddingHorizontal: 0,
+    alignItems: 'center',
   },
   filterChipText: {
-    fontSize: 13,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 15,
     fontFamily: FONT_SANS_BOLD,
   },
   listContent: {
