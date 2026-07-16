@@ -1,28 +1,107 @@
 name: Keep Supabase Alive
 
+# Historia: el ping anonimo de lectura corria verde cada 3 dias y Supabase
+# pauso el proyecto igual (12/07/2026): las lecturas anonimas no cuentan como
+# actividad. Este job genera actividad real: inicia sesion con un usuario
+# (escribe en las tablas de auth), consulta varias tablas autenticado y cierra
+# la sesion. Si algo falla, abre un issue para que no muera en silencio.
+#
+# Secrets requeridos:
+#   KEEPALIVE_EMAIL / KEEPALIVE_PASSWORD  -> usuario dedicado al keep-alive
+# Opcionales (tienen fallback a los valores publicos del proyecto):
+#   EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
+#
+# Ojo: si Supabase ya pauso el proyecto, ningun request lo despierta; en el
+# plan free la restauracion es manual desde el dashboard. Este job PREVIENE la
+# pausa, no la cura.
+
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '0 12 */3 * *' # every 3 days at noon UTC
+    - cron: "0 11 * * *" # todos los dias a las 11:00 UTC (08:00 AR)
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
-  ping:
+  activity:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase
+      - name: Actividad real en Supabase
         env:
           SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          KEEPALIVE_EMAIL: ${{ secrets.KEEPALIVE_EMAIL }}
+          KEEPALIVE_PASSWORD: ${{ secrets.KEEPALIVE_PASSWORD }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "::error::Missing repo secret EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY (Settings > Secrets and variables > Actions)"
+          set -uo pipefail
+
+          # La URL y la anon/publishable key son publicas por diseño (viajan
+          # dentro del APK), asi que ante un secret faltante o vencido caemos a
+          # los valores del proyecto: un secret podrido no puede volver a matar
+          # el keep-alive sin que nos enteremos.
+          SUPABASE_URL="${SUPABASE_URL:-https://xvyejyjtyzysxocosfhv.supabase.co}"
+          SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-sb_publishable_a6--7mWpxfLIATjnM1W_aA_41OFMlw3}"
+
+          echo "1/3 Lectura anonima (¿el proyecto responde?)"
+          rest_status=$(curl -sS -o /tmp/rest.txt -w "%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/items?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo "REST anonimo: ${rest_status}"
+          if [ "${rest_status}" -ge 400 ]; then
+            cat /tmp/rest.txt
+            echo "::error::El proyecto no responde. Si esta pausado, restaurarlo desde el dashboard de Supabase."
             exit 1
           fi
-          status=$(curl -sS -o /tmp/body.txt -w "%{http_code}" "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
-          echo "HTTP status: $status"
-          cat /tmp/body.txt
-          if [ "$status" -ge 400 ]; then
+
+          if [ -z "${KEEPALIVE_EMAIL}" ] || [ -z "${KEEPALIVE_PASSWORD}" ]; then
+            echo "::error::Faltan los secrets KEEPALIVE_EMAIL / KEEPALIVE_PASSWORD. Sin login no hay actividad real y Supabase pausa el proyecto aunque el ping salga verde."
             exit 1
+          fi
+
+          echo "2/3 Login (escribe la sesion en la base: actividad real)"
+          login_response=$(curl -sS -w "\n%{http_code}" -X POST "${SUPABASE_URL}/auth/v1/token?grant_type=password" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" -H "Content-Type: application/json" \
+            --data "{\"email\":\"${KEEPALIVE_EMAIL}\",\"password\":\"${KEEPALIVE_PASSWORD}\"}")
+          login_status=$(echo "${login_response}" | tail -1)
+          echo "Auth: ${login_status}"
+          if [ "${login_status}" -ge 400 ]; then
+            echo "::error::Login fallo (${login_status}): revisar KEEPALIVE_EMAIL / KEEPALIVE_PASSWORD."
+            exit 1
+          fi
+          access_token=$(echo "${login_response}" | head -n -1 | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).access_token))")
+
+          echo "3/3 Consultas autenticadas y cierre de sesion"
+          for table in items quotes appointments; do
+            table_status=$(curl -sS -o /dev/null -w "%{http_code}" \
+              "${SUPABASE_URL}/rest/v1/${table}?select=id&limit=1" \
+              -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${access_token}")
+            echo "select ${table}: ${table_status}"
+            if [ "${table_status}" -ge 400 ]; then
+              echo "::error::La consulta autenticada a ${table} fallo."
+              exit 1
+            fi
+          done
+
+          # El logout borra la sesion recien creada: otra escritura, y evita
+          # acumular sesiones huerfanas del bot.
+          curl -sS -o /dev/null -w "logout: %{http_code}\n" -X POST "${SUPABASE_URL}/auth/v1/logout" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${access_token}"
+
+          echo "Listo: actividad autenticada registrada."
+
+      - name: Abrir issue si fallo
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "Keep Supabase Alive in:title" --json number --jq 'length')
+          if [ "${existing}" = "0" ]; then
+            gh issue create --repo "${GITHUB_REPOSITORY}" \
+              --title "Keep Supabase Alive esta fallando" \
+              --body "El job de actividad en Supabase fallo. Causas probables: proyecto pausado (restaurar desde el dashboard) o secrets vencidos (KEEPALIVE_EMAIL / KEEPALIVE_PASSWORD / EXPO_PUBLIC_SUPABASE_*). Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          else
+            echo "Ya hay un issue abierto; no duplico."
           fi
