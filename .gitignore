@@ -6,3 +6,6 @@ coverage
 .DS_Store
 android
 
+.yarn/
+yarn.lock
+.yarnrc.yml

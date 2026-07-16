@@ -1,13 +1,4 @@
-﻿# Precios Tecnicos (smart-chip)
-
-App mobile (Expo + React Native) para gestion de precios, servicios y presupuestos tecnicos.
-
-## Requisitos
-
-- Node.js 18+
-- npm 9+
-- Proyecto de Supabase
-# Precios Tecnicos (Nossa Clima mobile)
+﻿# Precios Tecnicos (Nossa Clima mobile)
 
 Professional mobile application for managing prices, services and technical quotes. The app is part of the Nossa Clima ecosystem and provides a compact interface for creating quotes, managing service and item catalogs, tracking prices and generating PDF exports.
 
