@@ -28,6 +28,7 @@ import brandBannerOnNavy from '../../../assets/nc-logo-dark.png';
 import { formatDateAr } from '@/lib/format';
 import type { QuoteDetail } from '@/services/quotes';
 import { getMaterialEffectiveTotalPrice } from './materialPricing';
+import { splitWorkSections } from './workSections';
 
 // ── Paleta del informe (la del rediseño) ─────────────────────────────────
 const NAVY_HEX = '#052653';
@@ -229,7 +230,7 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
         .band .eyebrow { color: ${CYAN_HEX}; font-size: 11px; font-weight: 700; letter-spacing: .14em; margin-bottom: 8px; }
         .band h1 { margin: 0; font-size: 26px; line-height: 1.15; font-weight: 800; }
         .band .meta { color: ${HEADER_SOFT_HEX}; font-size: 12px; margin-top: 10px; }
-        .band .logo { width: 190px; flex: none; align-self: flex-start; }
+        .band .logo { width: 220px; flex: none; align-self: flex-start; }
         .band .logo svg, .band .logo img { display: block; width: 100%; height: auto; }
         .content { flex: 1; padding: 22px 32px 26px; }
         .cards { display: flex; gap: 12px; }
@@ -250,8 +251,9 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
           color: ${BODY_HEX};
           font-size: 12.5px;
           line-height: 1.55;
-          white-space: pre-wrap;
         }
+        .work p { margin: 0; white-space: pre-wrap; }
+        .work .work-sub { font-weight: 700; color: ${INK_HEX}; margin-top: 10px; margin-bottom: 2px; }
         table { width: 100%; border-collapse: collapse; }
         thead th {
           background: ${CARD_BG_HEX};
@@ -320,7 +322,12 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
 
         ${workDone
           ? `<div class="eyebrow-section">TRABAJO REALIZADO</div>
-             <div class="work">${escapeHtml(workDone)}</div>`
+             <div class="work">${splitWorkSections(workDone)
+               .map(
+                 (section) =>
+                   `${section.title ? `<div class="work-sub">${escapeHtml(section.title)}</div>` : ''}<p>${escapeHtml(section.body)}</p>`,
+               )
+               .join('')}</div>`
           : ''}
 
         <div class="eyebrow-section">DETALLE DE COSTOS</div>
@@ -440,7 +447,7 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
   const workDone = quote.notes?.trim() ?? '';
 
   // ── Banda navy del encabezado ──────────────────────────────────────────
-  const logoWidth = 165;
+  const logoWidth = 190;
   const titleMaxWidth = contentWidth - logoWidth - 20;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
@@ -538,32 +545,52 @@ const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Pro
     cursorY = ensureVerticalSpace(doc, cursorY, 60, bottomReserve);
     drawSectionEyebrow('TRABAJO REALIZADO');
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10.5);
-    const workLines = doc.splitTextToSize(workDone, contentWidth - 18) as string[];
+    // El relato se divide en subsecciones (diagnóstico / Solución / Notas) y
+    // se aplana a líneas tipadas para poder dibujarlo por tramos con su barra
+    // cian, saltando de página cuando no queda lugar.
     const workLineHeight = 15;
+    type WorkLine = { text: string; bold: boolean; gapBefore: number };
+    const workRenderLines: WorkLine[] = [];
 
-    // El relato puede ser largo: se dibuja por tramos con su barra cian,
-    // saltando de página cuando no queda lugar.
-    let segmentStart = 0;
-    while (segmentStart < workLines.length) {
-      const available = pageHeight - bottomReserve - cursorY;
-      const linesThatFit = Math.max(1, Math.floor(available / workLineHeight));
-      const segment = workLines.slice(segmentStart, segmentStart + linesThatFit);
-      const segmentHeight = segment.length * workLineHeight;
+    splitWorkSections(workDone).forEach((section, index) => {
+      if (section.title) {
+        workRenderLines.push({ text: section.title, bold: true, gapBefore: index > 0 ? 8 : 0 });
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      (doc.splitTextToSize(section.body, contentWidth - 18) as string[]).forEach((line) => {
+        workRenderLines.push({ text: line, bold: false, gapBefore: 0 });
+      });
+    });
 
+    let segmentStartY = cursorY - 10;
+    const flushBar = (endY: number) => {
       doc.setFillColor(...CYAN_RGB);
-      doc.rect(marginX, cursorY - 10, 3, segmentHeight + 4, 'F');
-      doc.setTextColor(...BODY_RGB);
-      doc.text(segment, marginX + 16, cursorY);
+      doc.rect(marginX, segmentStartY, 3, Math.max(endY - segmentStartY, workLineHeight), 'F');
+    };
 
-      segmentStart += segment.length;
-      cursorY += segmentHeight;
-      if (segmentStart < workLines.length) {
+    workRenderLines.forEach((line) => {
+      const needed = workLineHeight + line.gapBefore;
+      if (cursorY + needed > pageHeight - bottomReserve) {
+        flushBar(cursorY - 10);
         doc.addPage();
         cursorY = 46;
+        segmentStartY = cursorY - 10;
+      } else {
+        cursorY += line.gapBefore;
       }
-    }
+
+      doc.setFont('helvetica', line.bold ? 'bold' : 'normal');
+      doc.setFontSize(10.5);
+      if (line.bold) {
+        doc.setTextColor(...INK_RGB);
+      } else {
+        doc.setTextColor(...BODY_RGB);
+      }
+      doc.text(line.text, marginX + 16, cursorY);
+      cursorY += workLineHeight;
+    });
+    flushBar(cursorY - 10);
     cursorY += 16;
   }
 
