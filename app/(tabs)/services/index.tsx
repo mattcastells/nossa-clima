@@ -5,6 +5,7 @@ import { Button, Icon, IconButton, Menu, Text, TouchableRipple } from 'react-nat
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
+import { CatalogSwitcher } from '@/components/CatalogSwitcher';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useServiceCategories, useServices } from '@/features/services/hooks';
 import { formatCurrencyArs } from '@/lib/format';
@@ -105,6 +106,8 @@ export default function ServicesScreen() {
         </View>
       }
       headerContent={
+      <>
+      <CatalogSwitcher active="services" />
       <View style={styles.toolsRow}>
         <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Icon source="magnify" size={20} color={theme.colors.textMuted} />
@@ -169,6 +172,7 @@ export default function ServicesScreen() {
           </View>
         </Menu>
       </View>
+      </>
       }
     >
       <LoadingOrError isLoading={isLoading || categoriesLoading} error={error ?? categoriesError} />

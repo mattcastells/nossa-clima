@@ -5,6 +5,7 @@ import { Icon, IconButton, Text } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
+import { CatalogSwitcher } from '@/components/CatalogSwitcher';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { useStores } from '@/features/stores/hooks';
 import { FONT_SANS_EXTRABOLD, useAppTheme } from '@/theme';
@@ -43,6 +44,8 @@ export default function StoresScreen() {
         />
       }
       headerContent={
+      <>
+      <CatalogSwitcher active="stores" />
       <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
         <Icon source="magnify" size={20} color={theme.colors.textMuted} />
         <NativeTextInput
@@ -60,6 +63,7 @@ export default function StoresScreen() {
           </Pressable>
         ) : null}
       </View>
+      </>
       }
     >
       <LoadingOrError isLoading={isLoading} error={error} />

@@ -5,6 +5,7 @@ import { Icon, IconButton, Menu, Text, TouchableRipple } from 'react-native-pape
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
+import { CatalogSwitcher } from '@/components/CatalogSwitcher';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { getCategoryAccent } from '@/features/items/categoryAccent';
 import { useItemsWithStats } from '@/features/items/hooks';
@@ -75,6 +76,8 @@ export default function ItemsScreen() {
         />
       }
       headerContent={
+      <>
+      <CatalogSwitcher active="items" />
       <View style={styles.toolsRow}>
         <View style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Icon source="magnify" size={20} color={theme.colors.textMuted} />
@@ -142,6 +145,7 @@ export default function ItemsScreen() {
           </View>
         </Menu>
       </View>
+      </>
       }
     >
       <LoadingOrError isLoading={isLoading} error={error} />

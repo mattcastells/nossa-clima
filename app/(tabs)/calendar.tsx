@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { IconButton } from 'react-native-paper';
 
@@ -13,6 +14,12 @@ export default function CalendarScreen() {
   const theme = useAppTheme();
   const agenda = useWorkAgenda();
   const [showQuickForm, setShowQuickForm] = useState(false);
+  const { nuevo } = useLocalSearchParams<{ nuevo?: string }>();
+
+  // El acceso "Nuevo turno" de la Home llega con ?nuevo=1: abre el alta directo.
+  useEffect(() => {
+    if (nuevo) setShowQuickForm(true);
+  }, [nuevo]);
 
   return (
     <AppScreen

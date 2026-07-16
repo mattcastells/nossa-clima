@@ -23,7 +23,7 @@ export default function HomeScreen() {
     { title: 'Materiales', href: '/items', icon: 'cube-outline', tint: theme.colors.accentStrong, soft: theme.colors.accentSoft },
     { title: 'Tiendas', href: '/stores', icon: 'store-outline', tint: theme.colors.primary, soft: theme.colors.softBlue },
     { title: 'Servicios', href: '/services', icon: 'wrench-outline', tint: theme.colors.onSoftYellow, soft: theme.colors.softYellow },
-    { title: 'Precios', href: '/prices/comparison', icon: 'scale-balance', tint: theme.colors.toastSuccessText, soft: theme.colors.softGreen },
+    { title: 'Nuevo turno', href: '/calendar?nuevo=1', icon: 'calendar-plus', tint: theme.colors.toastSuccessText, soft: theme.colors.softGreen },
     { title: 'Manuales', href: '/documents', icon: 'file-pdf-box', tint: theme.colors.primary, soft: theme.colors.softBlue },
     { title: 'Opciones', href: '/settings', icon: 'cog-outline', tint: theme.colors.textMuted, soft: theme.colors.surfaceVariant },
   ];

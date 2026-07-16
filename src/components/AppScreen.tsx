@@ -22,13 +22,14 @@ interface Props extends PropsWithChildren {
   headerLeading?: ReactNode;
 }
 
-type TabDef = { key: string; icon: string; label: string; href: Href };
+type TabDef = { key: string; icon: string; label: string; href: Href; matches?: string[] };
 
 const TABS: TabDef[] = [
   { key: 'index', icon: 'home-variant-outline', label: 'Inicio', href: '/(tabs)' },
   { key: 'quotes', icon: 'briefcase-outline', label: 'Trabajos', href: '/(tabs)/quotes' },
   { key: 'calendar', icon: 'calendar-month-outline', label: 'Agenda', href: '/(tabs)/calendar' },
-  { key: 'items', icon: 'cube-outline', label: 'Materiales', href: '/(tabs)/items' },
+  // El catálogo agrupa las tres listas hermanas; ver CatalogSwitcher.
+  { key: 'items', icon: 'cube-outline', label: 'Catálogo', href: '/(tabs)/items', matches: ['items', 'services', 'stores'] },
   { key: 'assistant', icon: 'robot-outline', label: 'Asistente', href: '/(tabs)/assistant' },
 ];
 
@@ -121,7 +122,7 @@ export const AppScreen = ({
                 key={tab.key}
                 icon={tab.icon}
                 label={tab.label}
-                active={activeSection === tab.key}
+                active={activeSection != null && (tab.matches ?? [tab.key]).includes(activeSection)}
                 onPress={() => router.replace(tab.href)}
               />
             ))}
