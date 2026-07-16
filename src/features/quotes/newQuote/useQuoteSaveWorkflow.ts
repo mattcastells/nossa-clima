@@ -77,6 +77,7 @@ export function useQuoteSaveWorkflow({
         title: values.title,
         client_name: values.client_name,
         client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
+        description: values.description?.trim() ? values.description.trim() : null,
         notes: values.notes?.trim() ? values.notes.trim() : null,
         status: 'pending',
       });

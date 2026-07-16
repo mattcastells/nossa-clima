@@ -6,6 +6,9 @@ export const quoteSchema = z.object({
   client_name: z.string().trim().min(1, 'El cliente es obligatorio'),
   client_phone: optionalTrimmedText,
   title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  // Domicilio del cliente. Persiste en quotes.description (columna existente
+  // sin uso previo): el informe PDF lo muestra como DOMICILIO.
+  description: optionalTrimmedText,
   notes: optionalTrimmedText,
 });
 

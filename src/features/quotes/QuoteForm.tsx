@@ -28,6 +28,7 @@ export const QuoteForm = forwardRef<QuoteFormHandle, Props>(function QuoteForm(
   const clientName = defaultValues?.client_name ?? '';
   const clientPhone = defaultValues?.client_phone ?? '';
   const title = defaultValues?.title ?? '';
+  const description = defaultValues?.description ?? '';
   const notes = defaultValues?.notes ?? '';
   const {
     control,
@@ -40,6 +41,7 @@ export const QuoteForm = forwardRef<QuoteFormHandle, Props>(function QuoteForm(
       client_name: clientName,
       client_phone: clientPhone,
       title,
+      description,
       notes,
     },
   });
@@ -49,9 +51,10 @@ export const QuoteForm = forwardRef<QuoteFormHandle, Props>(function QuoteForm(
       client_name: clientName,
       client_phone: clientPhone,
       title,
+      description,
       notes,
     });
-  }, [clientName, clientPhone, notes, reset, title]);
+  }, [clientName, clientPhone, description, notes, reset, title]);
 
   useImperativeHandle(ref, () => ({ submit: () => handleSubmit(onSubmit)() }), [handleSubmit, onSubmit]);
 
@@ -104,12 +107,27 @@ export const QuoteForm = forwardRef<QuoteFormHandle, Props>(function QuoteForm(
       />
       <Controller
         control={control}
+        name="description"
+        render={({ field }) => (
+          <TextInput
+            mode="outlined"
+            label="Domicilio"
+            placeholder="Ej. Av. San Martín 1200, Piso 2"
+            value={field.value ?? ''}
+            onChangeText={field.onChange}
+            outlineStyle={styles.inputOutline}
+            disabled={disabled}
+          />
+        )}
+      />
+      <Controller
+        control={control}
         name="notes"
         render={({ field }) => (
           <TextInput
             mode="outlined"
-            label="Notas"
-            placeholder="Detalles, observaciones o aclaraciones"
+            label="Trabajo realizado / notas"
+            placeholder="Qué se detectó, qué se hizo y recomendaciones"
             value={field.value ?? ''}
             onChangeText={field.onChange}
             multiline

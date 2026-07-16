@@ -399,6 +399,7 @@ export default function QuoteDetailPage() {
                   client_name: data.quote.client_name,
                   client_phone: data.quote.client_phone ?? '',
                   title: data.quote.title,
+                  description: data.quote.description ?? '',
                   notes: data.quote.notes ?? '',
                 }}
                 buttonLabel="Guardar cliente"
@@ -411,6 +412,7 @@ export default function QuoteDetailPage() {
                       title: values.title,
                       client_name: values.client_name,
                       client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
+                      description: values.description?.trim() ? values.description.trim() : null,
                       notes: values.notes?.trim() ? values.notes.trim() : null,
                     });
 
