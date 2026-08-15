@@ -78,7 +78,10 @@ export function useQuoteSaveWorkflow({
         client_name: values.client_name,
         client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
         description: values.description?.trim() ? values.description.trim() : null,
+        technician_name: values.technician_name?.trim() ? values.technician_name.trim() : null,
+        client_notes: values.client_notes?.trim() ? values.client_notes.trim() : null,
         notes: values.notes?.trim() ? values.notes.trim() : null,
+        technician_notes: values.technician_notes?.trim() ? values.technician_notes.trim() : null,
         status: 'pending',
       });
       quoteId = quote.id;
@@ -119,7 +122,8 @@ export function useQuoteSaveWorkflow({
             appointmentId,
             quoteId: quote.id,
             title: values.title.trim(),
-            notes: values.notes?.trim() ? values.notes.trim() : null,
+            // El turno lleva las notas del técnico, no el resumen del informe.
+            notes: values.technician_notes?.trim() ? values.technician_notes.trim() : null,
           });
           toast.success('Trabajo creado y vinculado.');
           safeNavigateToQuote(quote.id);
@@ -142,7 +146,7 @@ export function useQuoteSaveWorkflow({
           await scheduleQuote.mutateAsync({
             quote_id: quote.id,
             title: `${values.client_name.trim()} - ${values.title.trim()}`,
-            notes: values.notes?.trim() ? values.notes.trim() : null,
+            notes: values.technician_notes?.trim() ? values.technician_notes.trim() : null,
             scheduled_for: normalizedDate,
             starts_at: normalizedTime,
             ends_at: null,

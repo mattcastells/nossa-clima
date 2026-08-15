@@ -13,7 +13,12 @@ import type {
 } from '@/types/db';
 import { normalizeQuoteStatus } from '@/features/quotes/status';
 
-import { isInvalidQuoteStatusEnumError, isMissingAppointmentQuoteLinkError, isMissingSupabaseColumnError } from './supabaseCompatibility';
+import {
+  isInvalidQuoteStatusEnumError,
+  isMissingAppointmentQuoteLinkError,
+  isMissingSupabaseColumnError,
+  type SupabaseErrorLike,
+} from './supabaseCompatibility';
 
 // Helper: return current authenticated user's id, or null if no session.
 const getCurrentUserId = async (): Promise<string | null> => {
@@ -37,6 +42,21 @@ export interface QuoteDetail {
 
 export interface QuoteListItem extends Quote {
   appointment: Pick<Appointment, 'scheduled_for' | 'starts_at'> | null;
+}
+
+/**
+ * Cliente "derivado": no hay tabla de clientes, se reconstruye el directorio a
+ * partir de los trabajos ya cargados. La firma se mantiene estable a proposito,
+ * asi migrar a una tabla real algun dia no obliga a tocar la interfaz.
+ */
+export interface ClientDirectoryEntry {
+  /** Nombre normalizado. Sirve de key y de criterio de agrupado. */
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  /** Cuantos trabajos hay cargados con ese cliente. */
+  jobCount: number;
 }
 
 export interface DeleteOldQuotesResult {
@@ -80,6 +100,31 @@ export type QuoteMaterialItemUpdate = Partial<
 >;
 
 export type QuoteServiceItemUpdate = Partial<Pick<QuoteServiceItem, 'quantity' | 'unit_price' | 'margin_percent' | 'notes'>>;
+
+/**
+ * Columnas agregadas por 202608150001. Las migraciones se aplican a mano en
+ * Supabase, asi que la app tiene que seguir andando contra un esquema viejo:
+ * al leer se rellenan con null, y al escribir se reintenta sin ellas.
+ */
+const QUOTE_NOTE_COLUMNS = ['technician_notes', 'client_notes', 'technician_name'] as const;
+
+const normalizeQuoteRow = (row: Quote): Quote => ({
+  ...row,
+  technician_notes: row.technician_notes ?? null,
+  client_notes: row.client_notes ?? null,
+  technician_name: row.technician_name ?? null,
+});
+
+const isMissingQuoteNoteColumnError = (error: SupabaseErrorLike | null | undefined): boolean =>
+  QUOTE_NOTE_COLUMNS.some((column) => isMissingSupabaseColumnError(error, column));
+
+const withoutQuoteNoteColumns = (payload: Partial<Quote>): Partial<Quote> => {
+  const next = { ...payload };
+  QUOTE_NOTE_COLUMNS.forEach((column) => {
+    delete next[column];
+  });
+  return next;
+};
 
 const getCancelledQuoteCutoffIso = (): string => {
   const cutoffDate = new Date();
@@ -159,9 +204,56 @@ export const listQuotes = async (status?: JobQuoteStatus | 'all'): Promise<Quote
   });
 
   return data.map((quote) => ({
-    ...quote,
+    ...normalizeQuoteRow(quote),
     appointment: appointmentsByQuoteId.get(quote.id) ?? null,
   }));
+};
+
+/** trim + minusculas + espacios colapsados. "  Juan   PEREZ " -> "juan perez". */
+export const normalizeClientName = (value: string): string =>
+  value.trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Directorio de clientes derivado de los trabajos. Agrupa por nombre
+ * normalizado y se queda con el dato mas reciente de cada uno: si el telefono
+ * cambio, gana el ultimo trabajo cargado.
+ */
+export const listClientDirectory = async (): Promise<ClientDirectoryEntry[]> => {
+  const { data, error } = await supabase
+    .from('quotes')
+    .select('client_name, client_phone, description, created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  const byNormalizedName = new Map<string, ClientDirectoryEntry>();
+
+  (data ?? []).forEach((row) => {
+    const name = (row.client_name ?? '').trim();
+    if (!name) return;
+
+    const id = normalizeClientName(name);
+    const existing = byNormalizedName.get(id);
+
+    if (!existing) {
+      // Las filas vienen de la mas nueva a la mas vieja: la primera que
+      // aparece de cada cliente es la que manda.
+      byNormalizedName.set(id, {
+        id,
+        name,
+        phone: row.client_phone?.trim() ? row.client_phone.trim() : null,
+        address: row.description?.trim() ? row.description.trim() : null,
+        jobCount: 1,
+      });
+      return;
+    }
+
+    existing.jobCount += 1;
+    // Un trabajo mas viejo puede tener un dato que el mas nuevo dejo vacio.
+    existing.phone = existing.phone ?? (row.client_phone?.trim() ? row.client_phone.trim() : null);
+    existing.address = existing.address ?? (row.description?.trim() ? row.description.trim() : null);
+  });
+
+  return Array.from(byNormalizedName.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
@@ -192,7 +284,7 @@ export const getQuoteDetail = async (quoteId: string): Promise<QuoteDetail> => {
   if (servicesError) throw servicesError;
   if (appointmentError && !isMissingAppointmentQuoteLinkError(appointmentError)) throw appointmentError;
 
-  return { quote, materials, services, appointment: appointment ?? null };
+  return { quote: normalizeQuoteRow(quote), materials, services, appointment: appointment ?? null };
 };
 
 export const upsertQuote = async (payload: Partial<Quote> & Pick<Quote, 'client_name' | 'title'>): Promise<Quote> => {
@@ -209,6 +301,14 @@ export const upsertQuote = async (payload: Partial<Quote> & Pick<Quote, 'client_
 
   const { data, error } = await supabase.from('quotes').upsert(nextPayload).select().single();
   if (error) {
+    // Falta la migracion de las notas separadas: se reintenta sin esas
+    // columnas para no bloquear el guardado del resto del trabajo.
+    if (isMissingQuoteNoteColumnError(error)) {
+      const retry = await supabase.from('quotes').upsert(withoutQuoteNoteColumns(nextPayload)).select().single();
+      if (retry.error) throw retry.error;
+      return normalizeQuoteRow(retry.data);
+    }
+
     if (!isInvalidQuoteStatusEnumError(error) && !isMissingSupabaseColumnError(error, 'cancelled_at')) {
       throw error;
     }
@@ -223,9 +323,9 @@ export const upsertQuote = async (payload: Partial<Quote> & Pick<Quote, 'client_
 
     const fallback = await supabase.from('quotes').upsert(fallbackPayload).select().single();
     if (fallback.error) throw fallback.error;
-    return fallback.data;
+    return normalizeQuoteRow(fallback.data);
   }
-  return data;
+  return normalizeQuoteRow(data);
 };
 
 export const updateQuoteStatus = async (quoteId: string, status: JobQuoteStatus): Promise<Quote> => {

@@ -292,7 +292,12 @@ Reglas:
 - Para "create_service", payload permitido: name, description, category, base_price, unit_type.
 - Para "create_appointment", payload permitido: title, notes, scheduled_for, starts_at, ends_at.
 - Para "create_job", payload permitido:
-  - client_name, client_phone, title, description, notes
+  - client_name, client_phone, title
+  - description: es el DOMICILIO del cliente, no una descripcion del trabajo
+  - notes: resumen del trabajo. SE IMPRIME en el informe PDF bajo el titulo RESUMEN
+  - technician_notes: notas privadas del tecnico. NUNCA se imprimen en el informe
+  - client_notes: datos de acceso del cliente (timbre, piso, quien recibe). Se imprimen
+  - technician_name: tecnico encargado. Se imprime
   - scheduled_for, starts_at, ends_at
   - default_material_margin_percent
   - source_store: null o { name, description, address, phone, notes }
@@ -307,6 +312,10 @@ Reglas:
 - Si el usuario pide asociar materiales a una tienda con sus precios, usa "create_store_price_batch".
 - En "create_job", si hay materiales, incluye siempre "source_store" si el usuario la menciono. No inventes tiendas.
 - En "create_job", no inventes precios de servicios ni materiales.
+- En "create_job", elegi bien donde va cada nota: lo que describe QUE SE HIZO va en
+  "notes"; un recordatorio para el tecnico ("llevar escalera", "cobrar antes") va en
+  "technician_notes"; como entrar al domicilio ("timbre 3B", "recibe la encargada")
+  va en "client_notes". Ante la duda, usa "notes".
 - En "create_job", si un servicio no tiene precio claro, dejalo sin precio y pedi la aclaracion.
 - En "create_job", si un material no tiene precio claro, dejalo sin "unit_price" y pedi la aclaracion o la tienda correspondiente.
 - Si el usuario no indica la tienda de los materiales, pedi esa aclaracion antes de confirmar el trabajo.

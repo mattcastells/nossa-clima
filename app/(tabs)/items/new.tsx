@@ -80,17 +80,17 @@ export default function NewItemPage() {
     const parsedPrice = parsePriceInput(initialPriceInput);
 
     if (selectedStoreId && parsedPrice == null) {
-      setMessage('Si elegis una tienda, completa el precio inicial.');
+      setMessage('Si elegis una tienda, completa el costo.');
       return;
     }
 
     if (!selectedStoreId && parsedPrice != null) {
-      setMessage('Si cargas un precio inicial, primero elegi la tienda.');
+      setMessage('Si cargas un costo, primero elegi la tienda.');
       return;
     }
 
     if (parsedPrice != null && (!Number.isFinite(parsedPrice) || parsedPrice <= 0)) {
-      setMessage('El precio inicial debe ser un numero mayor a 0.');
+      setMessage('El costo debe ser un numero mayor a 0.');
       return;
     }
 
@@ -115,7 +115,7 @@ export default function NewItemPage() {
           observed_at: new Date().toISOString(),
           source_type: 'manual_update',
           quantity_reference: null,
-          notes: 'Precio inicial del material',
+          notes: 'Costo inicial del material',
         });
       }
 
@@ -247,7 +247,7 @@ export default function NewItemPage() {
 
       <Card mode="outlined" style={styles.pricingCard}>
         <Card.Content style={styles.pricingCardContent}>
-          <Text variant="titleSmall">Precio inicial (opcional)</Text>
+          <Text variant="titleSmall">Costo (opcional)</Text>
           <Text style={styles.helperText}>Asocia el material a una tienda y registra su primer precio.</Text>
 
           <View style={styles.fieldGroup}>
@@ -266,7 +266,7 @@ export default function NewItemPage() {
 
           <TextInput
             mode="outlined"
-            label="Precio inicial"
+            label="Costo"
             keyboardType="decimal-pad"
             value={initialPriceInput}
             onChangeText={setInitialPriceInput}

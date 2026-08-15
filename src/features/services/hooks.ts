@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  archiveServices,
   createServiceCategory,
   deleteService,
   deleteServiceCategory,
@@ -33,6 +34,15 @@ export const useDeleteService = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (serviceId: string) => deleteService(serviceId),
+    onSuccess: () => invalidateServiceQueries(queryClient),
+  });
+};
+
+/** Archiva varios servicios de una, para limpiar repetidos desde la lista. */
+export const useArchiveServices = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (serviceIds: string[]) => archiveServices(serviceIds),
     onSuccess: () => invalidateServiceQueries(queryClient),
   });
 };

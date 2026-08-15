@@ -9,8 +9,10 @@ import {
   deleteQuoteMaterialItem,
   deleteQuoteServiceItem,
   getQuoteDetail,
+  listClientDirectory,
   listQuotes,
   refreshQuoteMaterialPricing,
+  type ClientDirectoryEntry,
   type QuoteDetail,
   type QuoteListItem,
   type QuoteMaterialItemInput,
@@ -33,6 +35,8 @@ const roundCurrency = (value: number): number => Number(value.toFixed(2));
 const invalidateQuoteCaches = (queryClient: ReturnType<typeof useQueryClient>, quoteId: string) => {
   void queryClient.invalidateQueries({ queryKey: ['quote-detail', quoteId], exact: true, refetchType: 'inactive' });
   void queryClient.invalidateQueries({ queryKey: ['quotes'], refetchType: 'inactive' });
+  // El directorio de clientes se deriva de los trabajos: cambia con ellos.
+  void queryClient.invalidateQueries({ queryKey: ['client-directory'], refetchType: 'inactive' });
 };
 
 const getQuoteListFilter = (queryKey: readonly unknown[]): QuoteListFilter => {
@@ -136,6 +140,17 @@ export const useQuoteDetail = (quoteId: string) =>
     queryKey: ['quote-detail', quoteId],
     queryFn: () => getQuoteDetail(quoteId),
     enabled: Boolean(quoteId),
+  });
+
+/**
+ * Directorio de clientes para autocompletar el alta de un trabajo. Sale de los
+ * trabajos ya cargados, asi que se invalida junto con ['quotes'].
+ */
+export const useClientDirectory = () =>
+  useQuery<ClientDirectoryEntry[]>({
+    queryKey: ['client-directory'],
+    queryFn: listClientDirectory,
+    staleTime: 5 * 60 * 1000,
   });
 
 export const useSaveQuote = () => {

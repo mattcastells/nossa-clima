@@ -67,6 +67,26 @@ export const deleteService = async (serviceId: string): Promise<void> => {
   }
 };
 
+/** Archiva servicios en lote. Mismo criterio que deleteService, pero de a varios. */
+export const archiveServices = async (serviceIds: string[]): Promise<number> => {
+  const ids = Array.from(new Set(serviceIds.filter(Boolean)));
+  if (ids.length === 0) return 0;
+
+  const { error } = await supabase
+    .from('services')
+    .update({ archived_at: new Date().toISOString() })
+    .in('id', ids);
+
+  if (error) {
+    if (isMissingSupabaseColumnError(error, 'archived_at')) {
+      throw new Error('Falta aplicar la migracion de archivado de catalogos en Supabase.');
+    }
+    throw error;
+  }
+
+  return ids.length;
+};
+
 export const listServiceCategoryNames = async (): Promise<string[]> => {
   const [{ data: managedCategories, error: managedError }, { data: serviceCategories, error: serviceError }] = await Promise.all([
     supabase.from('service_categories').select('name').order('name'),

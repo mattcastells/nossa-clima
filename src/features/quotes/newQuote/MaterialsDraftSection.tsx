@@ -1,11 +1,12 @@
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Card, Searchbar, Text, TextInput } from 'react-native-paper';
 
+import { SelectionPanel, SelectionRow } from '@/components/SelectionPanel';
 import { QuoteItemsSummary, type SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
 import { formatCurrencyArs } from '@/lib/format';
 import { formatItemDisplayName, formatMeasuredItemDisplayName, formatMeasurementDisplayLabel } from '@/lib/itemDisplay';
-import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
+import { useAppTheme } from '@/theme';
 import type { Item, ItemMeasurement, Store } from '@/types/db';
 
 interface Props {
@@ -121,8 +122,8 @@ export function MaterialsDraftSection({
         />
 
         {selectedStore ? (
-          <View style={[styles.selectedBanner, { backgroundColor: BRAND_BLUE_SOFT }]}>
-            <Text style={[styles.selectedBannerText, { color: BRAND_BLUE }]} numberOfLines={1}>
+          <View style={[styles.selectedBanner, { backgroundColor: theme.colors.softBlue }]}>
+            <Text style={[styles.selectedBannerText, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
               Tienda: {selectedStore.name}
             </Text>
             <Button compact mode="text" onPress={() => setSelectedStoreId(null)} disabled={disabled}>
@@ -131,36 +132,22 @@ export function MaterialsDraftSection({
           </View>
         ) : null}
 
-        <View style={styles.storeGrid}>
-          {filteredStores.length > 0 ? (
-            filteredStores.map((store) => {
-              const selected = store.id === selectedStoreId;
-              return (
-                <Pressable
-                  key={store.id}
-                  onPress={() => setSelectedStoreId(store.id)}
-                  style={[styles.storeGridCell, selected && styles.storeGridCellSelected]}
-                >
-                  <Text
-                    style={selected ? styles.storeGridCellNameSelected : styles.storeGridCellName}
-                    numberOfLines={1}
-                  >
-                    {store.name}
-                  </Text>
-                  {store.address ? (
-                    <Text style={styles.storeGridCellMeta} numberOfLines={1}>
-                      {store.address}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })
-          ) : (
-            <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-              No hay tiendas para mostrar.
-            </Text>
+        <SelectionPanel
+          data={filteredStores}
+          keyExtractor={(store) => store.id}
+          emptyText="No hay tiendas para mostrar."
+          maxHeight={230}
+          renderItem={(store) => (
+            <SelectionRow
+              title={store.name}
+              meta={store.address}
+              selected={store.id === selectedStoreId}
+              tone="blue"
+              disabled={disabled}
+              onPress={() => setSelectedStoreId(store.id)}
+            />
           )}
-        </View>
+        />
 
         <Searchbar
           placeholder={selectedStoreId ? 'Buscar material' : 'Selecciona una tienda primero'}
@@ -178,8 +165,8 @@ export function MaterialsDraftSection({
         />
 
         {selectedItem ? (
-          <View style={[styles.selectedBanner, { backgroundColor: BRAND_GREEN_SOFT }]}>
-            <Text style={[styles.selectedBannerText, { color: BRAND_GREEN }]} numberOfLines={1}>
+          <View style={[styles.selectedBanner, { backgroundColor: theme.colors.softGreen }]}>
+            <Text style={[styles.selectedBannerText, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
               Material:{' '}
               {selectedMeasurement
                 ? formatMeasuredItemDisplayName(selectedItem, selectedMeasurement)
@@ -191,73 +178,60 @@ export function MaterialsDraftSection({
           </View>
         ) : null}
 
-        <View style={styles.resultsList}>
-          {selectedStoreId ? (
-            filteredItems.length > 0 ? (
-              filteredItems.map((item) => {
-                const selected = item.id === selectedItemId;
-                const directPrice = directPriceByItemId.get(item.id);
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => selectItem(item.id)}
-                    style={[styles.resultRow, selected && styles.materialResultRowSelected]}
-                  >
-                    <View style={styles.resultInfo}>
-                      <Text style={styles.resultTitle}>{item.name}</Text>
-                      <Text style={styles.resultMeta}>
-                        {[
-                          item.category ?? 'Sin categoria',
-                          measuredItemIds.has(item.id) ? 'Con medidas' : 'Precio directo',
-                        ].join(' - ')}
-                      </Text>
-                    </View>
-                    <Text style={styles.resultPrice}>
-                      {directPrice != null ? formatCurrencyArs(directPrice) : 'Ver medidas'}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            ) : (
-              <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-                No hay materiales con precio cargado en esa tienda.
-              </Text>
-            )
-          ) : (
-            <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-              Primero selecciona una tienda para ver materiales.
-            </Text>
-          )}
-        </View>
+        {selectedStoreId ? (
+          <SelectionPanel
+            data={filteredItems}
+            keyExtractor={(item) => item.id}
+            emptyText="No hay materiales con precio cargado en esa tienda."
+            renderItem={(item) => {
+              const directPrice = directPriceByItemId.get(item.id);
+              return (
+                <SelectionRow
+                  title={item.name}
+                  meta={[
+                    item.category ?? 'Sin categoria',
+                    measuredItemIds.has(item.id) ? 'Con medidas' : 'Precio directo',
+                  ].join(' - ')}
+                  trailing={directPrice != null ? formatCurrencyArs(directPrice) : 'Ver medidas'}
+                  selected={item.id === selectedItemId}
+                  tone="green"
+                  disabled={disabled}
+                  onPress={() => selectItem(item.id)}
+                />
+              );
+            }}
+          />
+        ) : (
+          <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
+            Primero selecciona una tienda para ver materiales.
+          </Text>
+        )}
 
         {selectedItem && hasMeasurements ? (
-          <View style={styles.measurementsList}>
-            {itemMeasurements.map((measurement) => {
-              const selected = measurement.id === selectedMeasurementId;
+          <SelectionPanel
+            data={itemMeasurements}
+            keyExtractor={(measurement) => measurement.id}
+            emptyText="Este material no tiene medidas cargadas."
+            maxHeight={230}
+            renderItem={(measurement) => {
               const measurementPrice = measurePriceByMeasurementId.get(measurement.id);
               return (
-                <Pressable
-                  key={measurement.id}
+                <SelectionRow
+                  title={formatMeasurementDisplayLabel(measurement) ?? measurement.label}
+                  meta={
+                    measurement.pricing_mode === 'calculated'
+                      ? `${measurement.grams_per_meter ?? 0} gr/mt`
+                      : 'Carga manual por mt'
+                  }
+                  trailing={measurementPrice != null ? `${formatCurrencyArs(measurementPrice)} / mt` : 'Sin precio'}
+                  selected={measurement.id === selectedMeasurementId}
+                  tone="green"
+                  disabled={disabled}
                   onPress={() => selectMeasurement(measurement.id)}
-                  style={[styles.measurementRow, selected && styles.materialResultRowSelected]}
-                >
-                  <View style={styles.resultInfo}>
-                    <Text style={styles.resultTitle}>
-                      {formatMeasurementDisplayLabel(measurement) ?? measurement.label}
-                    </Text>
-                    <Text style={styles.resultMeta}>
-                      {measurement.pricing_mode === 'calculated'
-                        ? `${measurement.grams_per_meter ?? 0} gr/mt`
-                        : 'Carga manual por mt'}
-                    </Text>
-                  </View>
-                  <Text style={styles.resultPrice}>
-                    {measurementPrice != null ? `${formatCurrencyArs(measurementPrice)} / mt` : 'Sin precio'}
-                  </Text>
-                </Pressable>
+                />
               );
-            })}
-          </View>
+            }}
+          />
         ) : null}
 
         <View style={styles.inlineFields}>
@@ -323,7 +297,6 @@ const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D7E1ED',
   },
   searchbarInput: {
     paddingLeft: 4,
@@ -342,93 +315,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-  },
-  storeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  storeGridCell: {
-    width: '48%',
-    flexGrow: 1,
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 2,
-  },
-  storeGridCellSelected: {
-    borderColor: BRAND_BLUE,
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
-  storeGridCellName: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  storeGridCellNameSelected: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-    color: BRAND_BLUE,
-  },
-  storeGridCellMeta: {
-    fontSize: 11,
-    lineHeight: 15,
-    color: '#5F6A76',
-  },
-  resultsList: {
-    gap: 8,
-  },
-  resultRow: {
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  materialResultRowSelected: {
-    borderColor: BRAND_GREEN,
-    backgroundColor: BRAND_GREEN_SOFT,
-  },
-  resultInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  resultTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-  },
-  resultMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#5F6A76',
-  },
-  resultPrice: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
-  measurementsList: {
-    gap: 8,
-  },
-  measurementRow: {
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
   },
   inlineFields: {
     flexDirection: 'row',

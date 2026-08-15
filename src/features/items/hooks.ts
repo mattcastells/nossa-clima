@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { listItems, listItemsWithStats, upsertItem } from '@/services/items';
+import { archiveItems, listItems, listItemsWithStats, upsertItem } from '@/services/items';
 import { listItemMeasurements, upsertItemMeasurement } from '@/services/itemMeasurements';
 import type { Item, ItemMeasurement } from '@/types/db';
 
@@ -22,6 +22,20 @@ export const useSaveItem = () => {
   return useMutation({
     mutationFn: (payload: Partial<Item> & { name: string }) => upsertItem(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
+  });
+};
+
+/** Archiva uno o varios materiales. Ver archiveItems: es borrado logico. */
+export const useArchiveItems = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemIds: string[]) => archiveItems(itemIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['items'] });
+      void queryClient.invalidateQueries({ queryKey: ['items-with-stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['latest-prices'] });
+      void queryClient.invalidateQueries({ queryKey: ['latest-measure-prices'] });
+    },
   });
 };
 

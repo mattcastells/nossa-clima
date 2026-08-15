@@ -7,23 +7,22 @@ interface Props {
   visible: boolean;
   title: string;
   message: string;
+  /** Texto del botón destructivo. Por defecto "Eliminar". */
+  confirmLabel?: string;
   loading?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-export const ConfirmDeleteDialog = ({ visible, title, message, loading = false, onCancel, onConfirm }: Props) => (
-  <ConfirmDeleteDialogContent
-    visible={visible}
-    title={title}
-    message={message}
-    loading={loading}
-    onCancel={onCancel}
-    onConfirm={onConfirm}
-  />
-);
-
-const ConfirmDeleteDialogContent = ({ visible, title, message, loading = false, onCancel, onConfirm }: Props) => {
+export const ConfirmDeleteDialog = ({
+  visible,
+  title,
+  message,
+  confirmLabel = 'Eliminar',
+  loading = false,
+  onCancel,
+  onConfirm,
+}: Props) => {
   const theme = useAppTheme();
 
   return (
@@ -34,14 +33,11 @@ const ConfirmDeleteDialogContent = ({ visible, title, message, loading = false, 
           <Text>{message}</Text>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onCancel}>Cancelar</Button>
-          <Button
-            mode="text"
-            onPress={onConfirm}
-            loading={loading}
-            textColor={theme.colors.error}
-          >
-            Eliminar
+          <Button onPress={onCancel} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button mode="text" onPress={onConfirm} loading={loading} disabled={loading} textColor={theme.colors.error}>
+            {confirmLabel}
           </Button>
         </Dialog.Actions>
       </AppDialog>

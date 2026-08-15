@@ -9,7 +9,14 @@ export const quoteSchema = z.object({
   // Domicilio del cliente. Persiste en quotes.description (columna existente
   // sin uso previo): el informe PDF lo muestra como DOMICILIO.
   description: optionalTrimmedText,
+  // Tecnico encargado. Se imprime en el bloque de cliente del informe.
+  technician_name: optionalTrimmedText,
+  // Datos de acceso del cliente (timbre, piso, quien recibe). Se imprimen.
+  client_notes: optionalTrimmedText,
+  // Resumen del trabajo. Se imprime en el informe bajo el titulo RESUMEN.
   notes: optionalTrimmedText,
+  // Notas privadas del tecnico. NUNCA se imprimen en el informe.
+  technician_notes: optionalTrimmedText,
 });
 
 export const quoteServiceItemSchema = z.object({

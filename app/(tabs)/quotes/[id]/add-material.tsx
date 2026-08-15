@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView as RNScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView as RNScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, IconButton, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { AppDialog } from '@/components/AppDialog';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
+import { SelectionPanel, SelectionRow } from '@/components/SelectionPanel';
 import { useItemMeasurements, useItems, useSaveItem } from '@/features/items/hooks';
 import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
 import { useAddQuoteMaterialItem, useQuoteDetail, useUpdateQuoteMaterialItem, useDeleteQuoteMaterialItem } from '@/features/quotes/hooks';
@@ -17,7 +18,7 @@ import { formatCurrencyArs } from '@/lib/format';
 import { formatMeasurementDisplayLabel, formatMeasuredItemDisplayName } from '@/lib/itemDisplay';
 import { getSingleRouteParam } from '@/lib/routeParams';
 import { QuoteItemsSummary, SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
-import { BRAND_BLUE, BRAND_BLUE_SOFT, BRAND_GREEN, BRAND_GREEN_SOFT, useAppTheme } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 type MaterialEntryMode = 'catalog' | 'manual';
 
@@ -63,7 +64,6 @@ export default function AddMaterialToQuotePage() {
 
   const [entryMode, setEntryMode] = useState<MaterialEntryMode>('catalog');
   const [storeSearch, setStoreSearch] = useState('');
-  const [storePage, setStorePage] = useState(0);
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -143,17 +143,6 @@ export default function AddMaterialToQuotePage() {
         (store.address ?? '').toLowerCase().includes(query),
     );
   }, [availableStores, storeSearch]);
-
-  const STORES_PER_PAGE = 10;
-  const totalStorePages = Math.max(1, Math.ceil(filteredStores.length / STORES_PER_PAGE));
-  const paginatedStores = useMemo(
-    () => filteredStores.slice(storePage * STORES_PER_PAGE, (storePage + 1) * STORES_PER_PAGE),
-    [filteredStores, storePage],
-  );
-
-  useEffect(() => {
-    setStorePage(0);
-  }, [storeSearch]);
 
   const catalogItems = useMemo(() => {
     if (!selectedStoreId) return [];
@@ -380,7 +369,7 @@ export default function AddMaterialToQuotePage() {
               <Card.Content style={styles.sectionContent}>
                 <View style={styles.sectionHeader}>
                   <Text variant="titleSmall">Tienda</Text>
-                  <Text style={styles.helperText}>Se usa para traer el precio actual del material o de cada medida.</Text>
+                  <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Se usa para traer el precio actual del material o de cada medida.</Text>
                 </View>
 
                 <Searchbar
@@ -398,66 +387,27 @@ export default function AddMaterialToQuotePage() {
                 />
 
                 {selectedStore ? (
-                  <View style={styles.storeSelectedBanner}>
-                    <Text style={styles.storeSelectedText}>✓ {selectedStore.name}</Text>
+                  <View style={[styles.storeSelectedBanner, { backgroundColor: theme.colors.softBlue }]}>
+                    <Text style={[styles.storeSelectedText, { color: theme.colors.titleOnSoft }]}>✓ {selectedStore.name}</Text>
                     <IconButton icon="close" size={18} onPress={() => setSelectedStoreId(null)} style={styles.storeClearBtn} />
                   </View>
                 ) : null}
 
-                {filteredStores.length > 0 ? (
-                  <>
-                    <View style={styles.storeGrid}>
-                      {paginatedStores.map((store) => {
-                        const selected = store.id === selectedStoreId;
-                        return (
-                          <Pressable
-                            key={store.id}
-                            onPress={() => setSelectedStoreId(store.id)}
-                            style={[styles.storeGridCell, selected ? styles.storeGridCellSelected : null]}
-                          >
-                            <Text style={selected ? styles.storeGridCellNameSelected : styles.storeGridCellName} numberOfLines={1}>
-                              {store.name}
-                            </Text>
-                            {store.address ? (
-                              <Text style={styles.storeGridCellMeta} numberOfLines={1}>
-                                {store.address}
-                              </Text>
-                            ) : null}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-
-                    {totalStorePages > 1 ? (
-                      <View style={styles.storePagination}>
-                        <Button
-                          mode="text"
-                          compact
-                          disabled={storePage === 0}
-                          onPress={() => setStorePage((p) => Math.max(0, p - 1))}
-                          icon="chevron-left"
-                        >
-                          Anterior
-                        </Button>
-                        <Text style={styles.storePaginationLabel}>
-                          {storePage + 1} / {totalStorePages}
-                        </Text>
-                        <Button
-                          mode="text"
-                          compact
-                          disabled={storePage >= totalStorePages - 1}
-                          onPress={() => setStorePage((p) => Math.min(totalStorePages - 1, p + 1))}
-                          icon="chevron-right"
-                          contentStyle={styles.storePaginationNextContent}
-                        >
-                          Siguiente
-                        </Button>
-                      </View>
-                    ) : null}
-                  </>
-                ) : (
-                  <Text style={styles.helperText}>No se encontraron tiendas.</Text>
-                )}
+                <SelectionPanel
+                  data={filteredStores}
+                  keyExtractor={(store) => store.id}
+                  emptyText="No se encontraron tiendas."
+                  maxHeight={230}
+                  renderItem={(store) => (
+                    <SelectionRow
+                      title={store.name}
+                      meta={store.address}
+                      selected={store.id === selectedStoreId}
+                      tone="blue"
+                      onPress={() => setSelectedStoreId(store.id)}
+                    />
+                  )}
+                />
               </Card.Content>
             </Card>
 
@@ -465,7 +415,7 @@ export default function AddMaterialToQuotePage() {
               <Card.Content style={styles.sectionContent}>
                 <View style={styles.sectionHeader}>
                   <Text variant="titleSmall">Material</Text>
-                  <Text style={styles.helperText}>
+                  <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
                     {selectedStoreId ? 'Se muestran solo materiales con precio disponible en la tienda.' : 'Primero selecciona una tienda.'}
                   </Text>
                 </View>
@@ -486,32 +436,28 @@ export default function AddMaterialToQuotePage() {
                 />
 
                 {selectedStoreId ? (
-                  filteredItems.length > 0 ? (
-                    <View style={styles.resultsList}>
-                      {filteredItems.map((item) => {
-                        const selected = item.id === selectedItemId;
-                        return (
-                          <Pressable
-                            key={item.id}
-                            onPress={() => setSelectedItemId(item.id)}
-                            style={[styles.resultRow, selected ? styles.resultRowSelected : null]}
-                          >
-                            <View style={styles.resultInfo}>
-                              <Text style={styles.resultTitle}>{item.name}</Text>
-                              <Text style={styles.resultMeta}>
-                                {[item.category ?? 'Sin categoria', measuredItemIds.has(item.id) ? 'Con medidas' : 'Precio directo por mt'].join(' · ')}
-                              </Text>
-                            </View>
-                            {!measuredItemIds.has(item.id) && directPriceByItemId.has(item.id) ? (
-                              <Text style={styles.resultPrice}>{formatCurrencyArs(directPriceByItemId.get(item.id) ?? 0)}</Text>
-                            ) : null}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <Text style={styles.helperText}>No hay materiales con precio para esa tienda.</Text>
-                  )
+                  <SelectionPanel
+                    data={filteredItems}
+                    keyExtractor={(item) => item.id}
+                    emptyText="No hay materiales con precio para esa tienda."
+                    renderItem={(item) => (
+                      <SelectionRow
+                        title={item.name}
+                        meta={[
+                          item.category ?? 'Sin categoria',
+                          measuredItemIds.has(item.id) ? 'Con medidas' : 'Precio directo por mt',
+                        ].join(' · ')}
+                        trailing={
+                          !measuredItemIds.has(item.id) && directPriceByItemId.has(item.id)
+                            ? formatCurrencyArs(directPriceByItemId.get(item.id) ?? 0)
+                            : null
+                        }
+                        selected={item.id === selectedItemId}
+                        tone="green"
+                        onPress={() => setSelectedItemId(item.id)}
+                      />
+                    )}
+                  />
                 ) : null}
               </Card.Content>
             </Card>
@@ -521,33 +467,32 @@ export default function AddMaterialToQuotePage() {
                 <Card.Content style={styles.sectionContent}>
                   <View style={styles.sectionHeader}>
                     <Text variant="titleSmall">Medida</Text>
-                    <Text style={styles.helperText}>Cada medida usa su precio final por metro.</Text>
+                    <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Cada medida usa su precio final por metro.</Text>
                   </View>
 
-                  <View style={styles.measurementsList}>
-                    {itemMeasurements.map((measurement) => {
-                      const selected = measurement.id === selectedMeasurementId;
+                  <SelectionPanel
+                    data={itemMeasurements}
+                    keyExtractor={(measurement) => measurement.id}
+                    emptyText="Este material no tiene medidas cargadas."
+                    maxHeight={230}
+                    renderItem={(measurement) => {
                       const price = measurePriceByMeasurementId.get(measurement.id);
-
                       return (
-                        <Pressable
-                          key={measurement.id}
+                        <SelectionRow
+                          title={formatMeasurementDisplayLabel(measurement) ?? measurement.label}
+                          meta={
+                            measurement.pricing_mode === 'calculated'
+                              ? `${measurement.grams_per_meter ?? 0} gr/mt`
+                              : 'Carga manual por mt'
+                          }
+                          trailing={price != null ? `${formatCurrencyArs(price)} / mt` : 'Sin precio'}
+                          selected={measurement.id === selectedMeasurementId}
+                          tone="green"
                           onPress={() => setSelectedMeasurementId(measurement.id)}
-                          style={[styles.measurementRow, selected ? styles.measurementRowSelected : null]}
-                        >
-                          <View style={styles.measurementInfo}>
-                            <Text style={styles.measurementTitle}>{formatMeasurementDisplayLabel(measurement) ?? measurement.label}</Text>
-                            <Text style={styles.measurementMeta}>
-                              {measurement.pricing_mode === 'calculated'
-                                ? `${measurement.grams_per_meter ?? 0} gr/mt`
-                                : 'Carga manual por mt'}
-                            </Text>
-                          </View>
-                          <Text style={styles.measurementPrice}>{price != null ? `${formatCurrencyArs(price)} / mt` : 'Sin precio'}</Text>
-                        </Pressable>
+                        />
                       );
-                    })}
-                  </View>
+                    }}
+                  />
                 </Card.Content>
               </Card>
             ) : null}
@@ -557,7 +502,7 @@ export default function AddMaterialToQuotePage() {
             <Card.Content style={styles.sectionContent}>
               <View style={styles.sectionHeader}>
                 <Text variant="titleSmall">Material manual</Text>
-                <Text style={styles.helperText}>Para una carga rapida. Si el material necesita medidas, conviene crearlo desde Materiales.</Text>
+                <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Para una carga rapida. Si el material necesita medidas, conviene crearlo desde Materiales.</Text>
               </View>
 
               <TextInput
@@ -586,15 +531,15 @@ export default function AddMaterialToQuotePage() {
           <Card.Content style={styles.sectionContent}>
             <View style={styles.sectionHeader}>
               <Text variant="titleSmall">Resumen</Text>
-              <Text style={styles.helperText}>
+              <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
                 {defaultMarginPercent != null ? `El trabajo aplica un margen global de ${defaultMarginPercent}%.` : 'Sin margen global configurado.'}
               </Text>
             </View>
 
-            <View style={styles.summaryCard}>
+            <View style={[styles.summaryCard, { borderColor: theme.colors.borderSoft }]}>
               <Text style={styles.summaryTitle}>{selectedMaterialTitle}</Text>
-              {entryMode === 'catalog' && selectedStore ? <Text style={styles.summaryMeta}>Origen: {selectedStore.name}</Text> : null}
-              {measurementPriceMissing ? <Text style={styles.summaryWarning}>La medida seleccionada todavia no tiene precio cargado en esa tienda.</Text> : null}
+              {entryMode === 'catalog' && selectedStore ? <Text style={[styles.summaryMeta, { color: theme.colors.textMuted }]}>Origen: {selectedStore.name}</Text> : null}
+              {measurementPriceMissing ? <Text style={[styles.summaryWarning, { color: theme.colors.error }]}>La medida seleccionada todavia no tiene precio cargado en esa tienda.</Text> : null}
             </View>
 
             <View style={styles.inlineFields}>
@@ -642,13 +587,13 @@ export default function AddMaterialToQuotePage() {
               contentStyle={styles.inputContentMultiline}
             />
 
-            <View style={styles.previewBlock}>
+            <View style={[styles.previewBlock, { backgroundColor: theme.colors.surfaceMuted }]}>
               <View style={styles.previewRow}>
-                <Text style={styles.previewLabel}>Venta unitaria</Text>
+                <Text style={[styles.previewLabel, { color: theme.colors.textMuted }]}>Venta unitaria</Text>
                 <Text style={styles.previewValue}>{formatCurrencyArs(effectiveUnitPrice)}</Text>
               </View>
               <View style={styles.previewRow}>
-                <Text style={styles.previewLabel}>Total</Text>
+                <Text style={[styles.previewLabel, { color: theme.colors.textMuted }]}>Total</Text>
                 <Text style={styles.previewValue}>{formatCurrencyArs(effectiveTotal)}</Text>
               </View>
             </View>
@@ -724,7 +669,6 @@ const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D7E1ED',
   },
   searchbarInput: {
     paddingLeft: 4,
@@ -733,7 +677,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: BRAND_BLUE_SOFT,
     borderRadius: 10,
     paddingLeft: 12,
     paddingRight: 4,
@@ -742,139 +685,13 @@ const styles = StyleSheet.create({
   storeSelectedText: {
     fontSize: 14,
     fontWeight: '700',
-    color: BRAND_BLUE,
   },
   storeClearBtn: {
     margin: 0,
   },
-  storeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  storeGridCell: {
-    width: '48%',
-    flexGrow: 1,
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 2,
-  },
-  storeGridCellSelected: {
-    borderColor: BRAND_BLUE,
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
-  storeGridCellName: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  storeGridCellNameSelected: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-    color: BRAND_BLUE,
-  },
-  storeGridCellMeta: {
-    fontSize: 11,
-    lineHeight: 15,
-    color: '#5F6A76',
-  },
-  storePagination: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  storePaginationLabel: {
-    fontSize: 13,
-    color: '#5F6A76',
-  },
-  storePaginationNextContent: {
-    flexDirection: 'row-reverse',
-  },
-  resultsList: {
-    gap: 8,
-  },
-  resultRow: {
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  resultRowSelected: {
-    borderColor: BRAND_GREEN,
-    backgroundColor: BRAND_GREEN_SOFT,
-  },
-  resultInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  resultTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-  },
-  resultMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#5F6A76',
-  },
-  resultPrice: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-    color: BRAND_GREEN,
-  },
-  measurementsList: {
-    gap: 8,
-  },
-  measurementRow: {
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  measurementRowSelected: {
-    borderColor: BRAND_GREEN,
-    backgroundColor: BRAND_GREEN_SOFT,
-  },
-  measurementInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  measurementTitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '600',
-  },
-  measurementMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#5F6A76',
-  },
-  measurementPrice: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-    color: BRAND_GREEN,
-  },
   summaryCard: {
     gap: 4,
     borderWidth: 1,
-    borderColor: '#D9E3EE',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -887,12 +704,10 @@ const styles = StyleSheet.create({
   summaryMeta: {
     fontSize: 12,
     lineHeight: 16,
-    color: '#5F6A76',
   },
   summaryWarning: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#9A3412',
   },
   inlineFields: {
     flexDirection: 'row',
@@ -906,7 +721,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#F7FAFD',
   },
   previewRow: {
     flexDirection: 'row',
@@ -916,7 +730,6 @@ const styles = StyleSheet.create({
   previewLabel: {
     fontSize: 13,
     lineHeight: 18,
-    color: '#5F6A76',
   },
   previewValue: {
     fontSize: 14,

@@ -35,6 +35,7 @@ export const useNotificationSync = () => {
               starts_at: appointment.starts_at,
               title: appointment.title,
               quote_id: appointment.quote_id ?? null,
+              notes: appointment.notes ?? null,
             }),
           ),
         );

@@ -89,8 +89,16 @@ export interface AssistantJobActionPayload {
   client_name: string;
   client_phone?: string;
   title: string;
+  /** Domicilio del cliente (se guarda en quotes.description). */
   description?: string;
+  /** Resumen del trabajo. Se imprime en el informe. */
   notes?: string;
+  /** Notas privadas del tecnico. Nunca se imprimen. */
+  technician_notes?: string;
+  /** Datos de acceso del cliente (timbre, quien recibe). Se imprimen. */
+  client_notes?: string;
+  /** Tecnico encargado. Se imprime. */
+  technician_name?: string;
   scheduled_for: string | null;
   starts_at: string | null;
   ends_at: string | null;
@@ -627,6 +635,9 @@ const buildJobAction = (proposal: AssistantActionProposal): AssistantActionDraft
   const clientPhone = toTrimmedString(payload.client_phone);
   const description = toTrimmedString(payload.description);
   const notes = toTrimmedString(payload.notes);
+  const technicianNotes = toTrimmedString(payload.technician_notes);
+  const clientNotes = toTrimmedString(payload.client_notes);
+  const technicianName = toTrimmedString(payload.technician_name);
 
   const rawTitle = toTrimmedString(payload.title);
   const title = rawTitle ?? deriveJobTitle(services, materials);
@@ -706,6 +717,9 @@ const buildJobAction = (proposal: AssistantActionProposal): AssistantActionDraft
     title,
     ...(description ? { description } : {}),
     ...(notes ? { notes } : {}),
+    ...(technicianNotes ? { technician_notes: technicianNotes } : {}),
+    ...(clientNotes ? { client_notes: clientNotes } : {}),
+    ...(technicianName ? { technician_name: technicianName } : {}),
     scheduled_for: scheduledFor,
     starts_at: startsAt,
     ends_at: endsAt,
