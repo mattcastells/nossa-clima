@@ -10,6 +10,7 @@ import { CALENDAR_WEEKDAY_LABELS, getAppointmentClientLabel, getAppointmentDescr
 import { useAppointmentsInMonth, useDeleteAppointment, useUpsertQuoteAppointment } from '@/features/appointments/hooks';
 import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
 import { QuoteItemsTable } from '@/features/quotes/components/QuoteItemsTable';
+import { QuoteStatusSelector } from '@/features/quotes/components/QuoteStatusSelector';
 import { QuoteTotalsSummary } from '@/features/quotes/components/QuoteTotalsSummary';
 import { saveQuotePdf, shareQuotePdf } from '@/features/quotes/exportPdf';
 import { QuoteForm, type QuoteFormHandle } from '@/features/quotes/QuoteForm';
@@ -44,12 +45,6 @@ import { formatDateAr, formatTimeShort } from '@/lib/format';
 import { getSingleRouteParam } from '@/lib/routeParams';
 import { useAppTheme } from '@/theme';
 import type { JobQuoteStatus } from '@/types/db';
-
-const STATUS_OPTIONS: Array<{ value: JobQuoteStatus; label: string }> = [
-  { value: 'pending', label: 'Pendiente' },
-  { value: 'completed', label: 'Terminado' },
-  { value: 'cancelled', label: 'Cancelado' },
-];
 
 const normalizeOptionalPercentInput = (value: string): number | null => {
   const trimmed = value.trim().replace(',', '.');
@@ -254,7 +249,13 @@ export default function QuoteDetailPage() {
     try {
       setIsSavingPdf(true);
       await saveQuotePdf(data);
-      setSnack(Platform.OS === 'android' ? 'PDF guardado en la carpeta seleccionada.' : 'PDF guardado.');
+      setSnack(
+        Platform.OS === 'android'
+          ? 'PDF guardado en la carpeta seleccionada.'
+          : Platform.OS === 'web'
+            ? 'Elegí "Guardar como PDF" en el diálogo de impresión.'
+            : 'PDF guardado.',
+      );
     } catch (exportError) {
       setSnack(toUserErrorMessage(exportError, 'No se pudo guardar el PDF.'));
     } finally {
@@ -284,7 +285,7 @@ export default function QuoteDetailPage() {
       await scheduleQuote.mutateAsync({
         quote_id: data.quote.id,
         title: `${data.quote.client_name} - ${data.quote.title}`,
-        notes: data.quote.notes?.trim() ? data.quote.notes.trim() : null,
+        notes: data.quote.technician_notes?.trim() ? data.quote.technician_notes.trim() : null,
         scheduled_for: normalizedDate,
         starts_at: normalizedTime,
         ends_at: null,
@@ -370,6 +371,15 @@ export default function QuoteDetailPage() {
       <LoadingOrError isLoading={Boolean(quoteId) && isLoading} error={screenError} />
       {data && (
         <View style={styles.page}>
+          {/* El estado va arriba de todo: es lo primero que se toca al abrir un
+              trabajo y además es lo que desbloquea la edición del resto. */}
+          <QuoteStatusSelector current={currentStatus} onChange={changeQuoteStatus} disabled={isBusy} />
+          {cancelledAutoDeleteDate ? (
+            <Text style={[styles.statusDescription, { color: theme.colors.error }]}>
+              Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.
+            </Text>
+          ) : null}
+
           <View style={styles.editingDivider}>
             <Divider />
           </View>
@@ -384,11 +394,11 @@ export default function QuoteDetailPage() {
             <Icon source={clienteSectionOpen ? 'chevron-up' : 'chevron-down'} size={22} />
           </Pressable>
           {clienteSectionOpen ? (
-            <Card mode="contained" style={styles.sectionCard}>
+            <Card mode="contained" style={[styles.sectionCard, { borderColor: theme.colors.borderSoft }]}>
               <Card.Content style={styles.sectionContent}>
               {isCompleted && (
-                <View style={styles.lockedBanner}>
-                  <Text style={styles.lockedBannerText}>
+                <View style={[styles.lockedBanner, { backgroundColor: theme.colors.softYellow, borderColor: theme.colors.softYellowStrong }]}>
+                  <Text style={[styles.lockedBannerText, { color: theme.colors.onSoftYellow }]}>
                     Este trabajo está terminado. Cambiá el estado a Pendiente para editar.
                   </Text>
                 </View>
@@ -400,7 +410,10 @@ export default function QuoteDetailPage() {
                   client_phone: data.quote.client_phone ?? '',
                   title: data.quote.title,
                   description: data.quote.description ?? '',
+                  technician_name: data.quote.technician_name ?? '',
+                  client_notes: data.quote.client_notes ?? '',
                   notes: data.quote.notes ?? '',
+                  technician_notes: data.quote.technician_notes ?? '',
                 }}
                 buttonLabel="Guardar cliente"
                 hideSubmitButton
@@ -413,7 +426,10 @@ export default function QuoteDetailPage() {
                       client_name: values.client_name,
                       client_phone: values.client_phone?.trim() ? values.client_phone.trim() : null,
                       description: values.description?.trim() ? values.description.trim() : null,
+                      technician_name: values.technician_name?.trim() ? values.technician_name.trim() : null,
+                      client_notes: values.client_notes?.trim() ? values.client_notes.trim() : null,
                       notes: values.notes?.trim() ? values.notes.trim() : null,
+                      technician_notes: values.technician_notes?.trim() ? values.technician_notes.trim() : null,
                     });
 
                     if (data.appointment) {
@@ -421,7 +437,9 @@ export default function QuoteDetailPage() {
                         await scheduleQuote.mutateAsync({
                           quote_id: data.quote.id,
                           title: `${values.client_name} - ${values.title}`,
-                          notes: values.notes?.trim() ? values.notes.trim() : null,
+                          // La agenda muestra las notas del técnico, no el
+                          // resumen del informe.
+                          notes: values.technician_notes?.trim() ? values.technician_notes.trim() : null,
                           scheduled_for: data.appointment.scheduled_for,
                           starts_at: data.appointment.starts_at,
                           ends_at: data.appointment.ends_at,
@@ -454,11 +472,11 @@ export default function QuoteDetailPage() {
             <Icon source={fechaSectionOpen ? 'chevron-up' : 'chevron-down'} size={22} />
           </Pressable>
           {fechaSectionOpen ? (
-            <Card mode="contained" style={styles.sectionCard}>
+            <Card mode="contained" style={[styles.sectionCard, { borderColor: theme.colors.borderSoft }]}>
               <Card.Content style={styles.sectionContent}>
               {isCompleted && (
-                <View style={styles.lockedBanner}>
-                  <Text style={styles.lockedBannerText}>
+                <View style={[styles.lockedBanner, { backgroundColor: theme.colors.softYellow, borderColor: theme.colors.softYellowStrong }]}>
+                  <Text style={[styles.lockedBannerText, { color: theme.colors.onSoftYellow }]}>
                     Este trabajo está terminado. Cambiá el estado a Pendiente para editar.
                   </Text>
                 </View>
@@ -682,8 +700,8 @@ export default function QuoteDetailPage() {
                 {data.appointment && (
                   <Button
                     mode="contained"
-                    buttonColor="#B3261E"
-                    textColor="#FFFFFF"
+                    buttonColor={theme.colors.error}
+                    textColor={theme.colors.onError}
                     disabled={isCompleted || isBusy}
                     onPress={unscheduleCurrentJob}
                     style={styles.actionButton}
@@ -746,51 +764,13 @@ export default function QuoteDetailPage() {
             total={data.quote.total}
           />
 
-          <Card mode="contained" style={styles.sectionCard}>
+          <Card mode="contained" style={[styles.sectionCard, { borderColor: theme.colors.borderSoft }]}>
             <Card.Content style={styles.statusCardContent}>
-              {cancelledAutoDeleteDate ? (
-                <Text style={[styles.statusDescription, { color: theme.colors.error }]}>
-                  Se elimina automaticamente el {cancelledAutoDeleteDate} si sigue cancelado.
-                </Text>
-              ) : null}
-
-              <View style={styles.statusOptionsRow}>
-                {STATUS_OPTIONS.map((option) => {
-                  const optionAccent = quoteStatusAccent(option.value);
-                  const selected = currentStatus === option.value;
-
-                  return (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => changeQuoteStatus(option.value)}
-                      disabled={isBusy}
-                      style={({ pressed }) => [
-                        styles.statusOption,
-                        selected && {
-                          backgroundColor: optionAccent.backgroundColor,
-                          borderColor: optionAccent.borderColor,
-                        },
-                        pressed && styles.statusOptionPressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.statusOptionText,
-                          selected && {
-                            color: optionAccent.textColor,
-                          },
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <QuoteStatusSelector current={currentStatus} onChange={changeQuoteStatus} disabled={isBusy} />
             </Card.Content>
           </Card>
 
-          <Card mode="contained" style={styles.sectionCard}>
+          <Card mode="contained" style={[styles.sectionCard, { borderColor: theme.colors.borderSoft }]}>
             <Card.Content style={styles.sectionContent}>
               <View style={styles.actionsRow}>
                 <Button
@@ -804,31 +784,31 @@ export default function QuoteDetailPage() {
                   Guardar trabajo
                 </Button>
                 <View style={styles.pdfActionsGroup}>
-                  <View style={[styles.pdfSplitButton, isBusy && styles.pdfSplitButtonDisabled]}>
+                  <View style={[styles.pdfSplitButton, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderSoft }, isBusy && styles.pdfSplitButtonDisabled]}>
                     <Pressable
                       onPress={saveCurrentJobPdf}
                       disabled={isBusy}
                       style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
                     >
                       {isSavingPdf ? (
-                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
+                        <ActivityIndicator size={16} color={theme.colors.primary} />
                       ) : (
-                        <IconButton icon="file-pdf-box" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
+                        <IconButton icon="file-pdf-box" size={16} iconColor={theme.colors.primary} style={styles.pdfSplitIcon} />
                       )}
-                      <Text style={styles.pdfSplitActionText}>Descargar</Text>
+                      <Text style={[styles.pdfSplitActionText, { color: theme.colors.primary }]}>Descargar</Text>
                     </Pressable>
-                    <View style={styles.pdfSplitDivider} />
+                    <View style={[styles.pdfSplitDivider, { backgroundColor: theme.colors.borderSoft }]} />
                     <Pressable
                       onPress={shareCurrentJobPdf}
                       disabled={isBusy}
                       style={({ pressed }) => [styles.pdfSplitAction, pressed && styles.pdfSplitActionPressed]}
                     >
                       {isSharingPdf ? (
-                        <ActivityIndicator size={16} color={styles.pdfSplitActionText.color} />
+                        <ActivityIndicator size={16} color={theme.colors.primary} />
                       ) : (
-                        <IconButton icon="share-variant-outline" size={16} iconColor={styles.pdfSplitActionText.color} style={styles.pdfSplitIcon} />
+                        <IconButton icon="share-variant-outline" size={16} iconColor={theme.colors.primary} style={styles.pdfSplitIcon} />
                       )}
-                      <Text style={styles.pdfSplitActionText}>Compartir</Text>
+                      <Text style={[styles.pdfSplitActionText, { color: theme.colors.primary }]}>Compartir</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -841,9 +821,13 @@ export default function QuoteDetailPage() {
               <Pressable
                 onPress={() => setDeleteQuoteConfirm(true)}
                 disabled={isBusy}
-                style={({ pressed }) => [styles.deleteQuoteButton, pressed && styles.deleteQuoteButtonPressed]}
+                style={({ pressed }) => [
+                  styles.deleteQuoteButton,
+                  { backgroundColor: theme.colors.toastErrorSurface, borderColor: theme.colors.error },
+                  pressed && styles.deleteQuoteButtonPressed,
+                ]}
               >
-                <Icon source="trash-can-outline" size={20} color="#B91C1C" />
+                <Icon source="trash-can-outline" size={20} color={theme.colors.error} />
               </Pressable>
             </View>
           )}
@@ -900,7 +884,6 @@ const styles = StyleSheet.create({
   sectionCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DCE4EC',
   },
   sectionHeading: {
     flex: 1,
@@ -920,15 +903,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lockedBanner: {
-    backgroundColor: '#FFF8E1',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#FFE082',
   },
   lockedBannerText: {
-    color: '#5F4200',
     fontSize: 13,
     lineHeight: 18,
   },
@@ -965,9 +945,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     borderWidth: 1,
-    borderColor: '#BCC6D1',
     borderRadius: 10,
-    backgroundColor: '#F7FAFD',
     overflow: 'hidden',
   },
   pdfSplitButtonDisabled: {
@@ -984,11 +962,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   pdfSplitActionPressed: {
-    backgroundColor: '#EEF3F8',
+    opacity: 0.7,
   },
   pdfSplitDivider: {
     width: 1,
-    backgroundColor: '#D7DFE8',
   },
   pdfSplitIcon: {
     margin: 0,
@@ -996,7 +973,6 @@ const styles = StyleSheet.create({
     height: 18,
   },
   pdfSplitActionText: {
-    color: '#052653',
     fontWeight: '500',
   },
   actionButtonContent: {
@@ -1014,7 +990,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusDescription: {
-    color: '#5F6A76',
     fontSize: 13,
     lineHeight: 18,
   },
@@ -1028,29 +1003,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '700',
-  },
-  statusOptionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'center',
-  },
-  statusOption: {
-    minWidth: 118,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D7E0EA',
-    backgroundColor: '#FFFFFF',
-  },
-  statusOptionPressed: {
-    opacity: 0.78,
-  },
-  statusOptionText: {
-    color: '#213243',
-    fontWeight: '600',
-    textAlign: 'center',
   },
   inlineCalendarCard: {
     borderRadius: 20,
@@ -1186,9 +1138,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
     borderWidth: 1,
-    borderColor: '#FECACA',
   },
   deleteQuoteButtonPressed: {
     opacity: 0.7,

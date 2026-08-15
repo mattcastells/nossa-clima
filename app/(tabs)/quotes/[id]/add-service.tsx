@@ -2,13 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { FlatList, ScrollView as RNScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Searchbar, Text, TextInput } from 'react-native-paper';
+import { ScrollView as RNScrollView, StyleSheet, View } from 'react-native';
+import { Button, Dialog, Searchbar, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { AppDialog } from '@/components/AppDialog';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
+import { SelectionPanel, SelectionRow } from '@/components/SelectionPanel';
 import { useAddQuoteServiceItem, useQuoteDetail, useUpdateQuoteServiceItem, useDeleteQuoteServiceItem } from '@/features/quotes/hooks';
 import { QuoteItemsSummary, SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
 import { QuoteServiceItemForm } from '@/features/quotes/components/QuoteServiceItemForm';
@@ -17,7 +18,7 @@ import { useServices } from '@/features/services/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
 import { getSingleRouteParam } from '@/lib/routeParams';
-import { BRAND_BLUE, useAppTheme } from '@/theme';
+import { useAppTheme } from '@/theme';
 
 export default function AddServiceToQuotePage() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -133,61 +134,26 @@ export default function AddServiceToQuotePage() {
           ]}
         />
 
-        <View
-          style={[
-            styles.servicesPanel,
-            {
-              backgroundColor: theme.dark ? '#1E2530' : '#F7FAFC',
-              borderColor: theme.dark ? theme.colors.borderSoft : '#D6DEE8',
-            },
-          ]}
-        >
-          <FlatList
-            data={filteredServices}
-            keyExtractor={(item) => item.id}
-            nestedScrollEnabled
-            style={styles.servicesList}
-            contentContainerStyle={styles.servicesListContent}
-            renderItem={({ item }) => (
-              <Card
-                mode="outlined"
-                onPress={() => {
-                  setValue('service_id', item.id, { shouldValidate: true });
-                  setValue('unit_price', item.base_price, { shouldValidate: true });
-                }}
-                style={[
-                  styles.serviceCard,
-                  { borderColor: theme.dark ? theme.colors.borderSoft : '#D6DEE8' },
-                  selectedServiceId === item.id && styles.serviceCardSelected,
-                ]}
-              >
-                <Card.Content style={styles.serviceCardContent}>
-                  <View style={styles.serviceCardHeader}>
-                    <Text variant="titleMedium" style={styles.serviceName}>
-                      {item.name}
-                    </Text>
-                    <View
-                      style={[
-                        styles.categoryTag,
-                        {
-                          backgroundColor: theme.dark ? theme.colors.softBlue : '#EAF0F7',
-                          borderColor: theme.dark ? theme.colors.softBlueStrong : '#D5E0EE',
-                        },
-                      ]}
-                    >
-                      <Text variant="labelSmall" style={[styles.categoryTagText, { color: theme.dark ? theme.colors.titleOnSoft : BRAND_BLUE }]}>
-                        {item.category ?? 'Sin categoria'}
-                      </Text>
-                    </View>
-                  </View>
-                </Card.Content>
-              </Card>
-            )}
-            ListEmptyComponent={<Text style={styles.emptyText}>No hay servicios que coincidan con la busqueda.</Text>}
-          />
-        </View>
+        <SelectionPanel
+          data={filteredServices}
+          keyExtractor={(item) => item.id}
+          emptyText="No hay servicios que coincidan con la busqueda."
+          renderItem={(item) => (
+            <SelectionRow
+              title={item.name}
+              meta={item.category ?? 'Sin categoria'}
+              trailing={formatCurrencyArs(item.base_price)}
+              selected={selectedServiceId === item.id}
+              tone="blue"
+              onPress={() => {
+                setValue('service_id', item.id, { shouldValidate: true });
+                setValue('unit_price', item.base_price, { shouldValidate: true });
+              }}
+            />
+          )}
+        />
 
-        <Text variant="titleSmall" style={styles.detailsHeading}>
+        <Text variant="titleSmall" style={[styles.detailsHeading, { color: theme.colors.textMuted }]}>
           Detalles
         </Text>
 
@@ -326,34 +292,6 @@ const styles = StyleSheet.create({
   searchbarInput: {
     paddingLeft: 4,
   },
-  servicesPanel: {
-    maxHeight: 300,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#D6DEE8',
-    backgroundColor: '#F7FAFC',
-    padding: 8,
-    overflow: 'hidden',
-  },
-  servicesList: {
-  },
-  servicesListContent: {
-    paddingTop: 2,
-    paddingBottom: 10,
-    gap: 10,
-  },
-  serviceCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D6DEE8',
-  },
-  serviceCardSelected: {
-    borderWidth: 2,
-    borderColor: BRAND_BLUE,
-  },
-  serviceCardContent: {
-    gap: 4,
-  },
   inputOutline: {
     borderRadius: 10,
   },
@@ -364,33 +302,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 8,
   },
-  serviceCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  serviceName: {
-    flex: 1,
-  },
-  categoryTag: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#EAF0F7',
-    borderWidth: 1,
-    borderColor: '#D5E0EE',
-  },
-  categoryTagText: {
-    color: BRAND_BLUE,
-  },
-  emptyText: {
-    color: '#5f6368',
-    paddingVertical: 18,
-    textAlign: 'center',
-  },
   detailsHeading: {
-    color: '#5f6368',
     marginTop: -2,
   },
   totalText: {

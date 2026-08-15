@@ -1,19 +1,26 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, useWindowDimensions, View } from 'react-native';
 import { Icon, IconButton, Menu, Text, TouchableRipple } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast } from '@/components/AppToastProvider';
 import { CatalogSwitcher } from '@/components/CatalogSwitcher';
 import { LoadingOrError } from '@/components/LoadingOrError';
+import { SelectionCheck, SelectionModeBar } from '@/components/SelectionModeBar';
 import { getCategoryAccent } from '@/features/items/categoryAccent';
-import { useItemsWithStats } from '@/features/items/hooks';
+import { useArchiveItems, useItemsWithStats } from '@/features/items/hooks';
+import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
+import { toUserErrorMessage } from '@/lib/errors';
 import { formatItemDisplayName } from '@/lib/itemDisplay';
 import type { ItemListStats } from '@/services/items';
 import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_MEDIUM, useAppTheme } from '@/theme';
 
 const ALL_CATEGORIES = '__all__';
+
+/** trim + minúsculas + espacios colapsados, para detectar repetidos. */
+const normalizeName = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const pluralize = (count: number, singular: string, plural: string) => `${count} ${count === 1 ? singular : plural}`;
 
@@ -27,13 +34,46 @@ const buildItemSummary = ({ measurementCount, storeCount }: ItemListStats): stri
 export default function ItemsScreen() {
   const { data, isLoading, error } = useItemsWithStats();
   const theme = useAppTheme();
+  const toast = useAppToast();
+  const archiveItems = useArchiveItems();
   const { width: screenWidth } = useWindowDimensions();
   const menuWidth = screenWidth - 32;
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const selectionMode = selectedIds.length > 0;
 
   const materials = useMemo(() => (data ?? []).filter((item) => item.item_type === 'material'), [data]);
+
+  /** Nombres que aparecen más de una vez: son los que hay que limpiar. */
+  const duplicatedNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    materials.forEach((item) => {
+      const key = normalizeName(item.name);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
+  }, [materials]);
+
+  const toggleSelected = useCallback((itemId: string) => {
+    setSelectedIds((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId],
+    );
+  }, []);
+
+  const archiveSelected = async () => {
+    try {
+      const count = await archiveItems.mutateAsync(selectedIds);
+      toast.success(count === 1 ? 'Material archivado.' : `${count} materiales archivados.`);
+      setSelectedIds([]);
+      setConfirmArchive(false);
+    } catch (archiveError) {
+      toast.error(toUserErrorMessage(archiveError, 'No se pudieron archivar los materiales.'));
+      setConfirmArchive(false);
+    }
+  };
 
   const categories = useMemo(
     () =>
@@ -150,27 +190,52 @@ export default function ItemsScreen() {
     >
       <LoadingOrError isLoading={isLoading} error={error} />
 
+      {selectionMode ? (
+        <SelectionModeBar
+          count={selectedIds.length}
+          itemLabel="material"
+          onCancel={() => setSelectedIds([])}
+          onArchive={() => setConfirmArchive(true)}
+          loading={archiveItems.isPending}
+        />
+      ) : null}
+
       <FlatList
         data={filteredMaterials}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => {
           const secondary = buildItemSummary(item);
+          const selected = selectedIds.includes(item.id);
+          const isDuplicated = duplicatedNames.has(normalizeName(item.name));
+
           return (
             <AnimatedEntrance delay={60 + index * 35} distance={12}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.push(`/items/${item.id}`)}
+                accessibilityState={{ selected }}
+                // Con el modo selección activo, tocar suma/saca de la selección
+                // en vez de navegar: es lo que se espera al estar limpiando.
+                onPress={() => (selectionMode ? toggleSelected(item.id) : router.push(`/items/${item.id}`))}
+                onLongPress={() => toggleSelected(item.id)}
+                delayLongPress={280}
                 style={({ pressed }) => [
                   styles.materialCard,
                   { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
+                  selected && { borderColor: theme.colors.accentStrong, borderWidth: 2 },
                   pressed && styles.cardPressed,
                 ]}
               >
                 <View style={styles.materialHeader}>
+                  {selectionMode ? <SelectionCheck selected={selected} /> : null}
                   <Text style={[styles.materialTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
                     {formatItemDisplayName(item)}
                   </Text>
+                  {isDuplicated ? (
+                    <View style={[styles.duplicateChip, { backgroundColor: theme.colors.softYellow }]}>
+                      <Text style={[styles.duplicateChipText, { color: theme.colors.onSoftYellow }]}>Repetido</Text>
+                    </View>
+                  ) : null}
                   {(() => {
                     const accent = getCategoryAccent(theme, item.category);
                     return (
@@ -199,6 +264,16 @@ export default function ItemsScreen() {
             </Text>
           </View>
         }
+      />
+
+      <ConfirmDeleteDialog
+        visible={confirmArchive}
+        title={selectedIds.length === 1 ? 'Archivar material' : `Archivar ${selectedIds.length} materiales`}
+        message="Dejan de aparecer al cargar un trabajo. Los trabajos y los informes ya emitidos no se tocan."
+        confirmLabel="Archivar"
+        loading={archiveItems.isPending}
+        onCancel={() => setConfirmArchive(false)}
+        onConfirm={archiveSelected}
       />
     </AppScreen>
   );
@@ -301,6 +376,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
+  },
+  duplicateChip: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  duplicateChipText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontFamily: FONT_SANS_BOLD,
   },
   categoryChipText: {
     fontSize: 11,

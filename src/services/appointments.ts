@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Appointment, Quote } from '@/types/db';
-import { isMissingAppointmentQuoteLinkError } from './supabaseCompatibility';
+import { isMissingAppointmentQuoteLinkError, isMissingSupabaseColumnError } from './supabaseCompatibility';
 
 export type AppointmentInput = Omit<Appointment, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 export type LinkAppointmentToQuoteInput = {
@@ -10,10 +10,36 @@ export type LinkAppointmentToQuoteInput = {
   notes?: string | null;
 };
 export type AppointmentListItem = Appointment & {
-  quote: Pick<Quote, 'id' | 'client_name' | 'title' | 'notes' | 'status'> | null;
+  quote: Pick<Quote, 'id' | 'client_name' | 'title' | 'notes' | 'status'> & {
+    // Puede faltar si todavia no se aplico la migracion 202608150001.
+    technician_notes?: string | null;
+  } | null;
 };
 
 const missingQuoteIdColumnMessage = 'Falta aplicar la migracion 202603100004 para poder programar trabajos.';
+
+/**
+ * Trae los trabajos de un lote de turnos. Pide technician_notes (para mostrarlo
+ * en la agenda) pero reintenta sin esa columna si todavia no se aplico la
+ * migracion 202608150001: un select con columna inexistente falla entero.
+ */
+const fetchQuotesForAppointments = async (
+  quoteIds: string[],
+): Promise<NonNullable<AppointmentListItem['quote']>[]> => {
+  const withTechnicianNotes = await supabase
+    .from('quotes')
+    .select('id, client_name, title, notes, technician_notes, status')
+    .in('id', quoteIds);
+
+  if (!withTechnicianNotes.error) return withTechnicianNotes.data ?? [];
+  if (!isMissingSupabaseColumnError(withTechnicianNotes.error, 'technician_notes')) {
+    throw withTechnicianNotes.error;
+  }
+
+  const fallback = await supabase.from('quotes').select('id, client_name, title, notes, status').in('id', quoteIds);
+  if (fallback.error) throw fallback.error;
+  return fallback.data ?? [];
+};
 
 export const listAppointmentsInRange = async (dateFrom: string, dateTo: string): Promise<AppointmentListItem[]> => {
   const { data, error } = await supabase
@@ -32,14 +58,8 @@ export const listAppointmentsInRange = async (dateFrom: string, dateTo: string):
     return data.map((appointment) => ({ ...appointment, quote: null }));
   }
 
-  const { data: quotes, error: quotesError } = await supabase
-    .from('quotes')
-    .select('id, client_name, title, notes, status')
-    .in('id', quoteIds);
-
-  if (quotesError) throw quotesError;
-
-  const quotesById = new Map((quotes ?? []).map((quote) => [quote.id, quote]));
+  const quotes = await fetchQuotesForAppointments(quoteIds);
+  const quotesById = new Map(quotes.map((quote) => [quote.id, quote]));
 
   return data.map((appointment) => ({
     ...appointment,

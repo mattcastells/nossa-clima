@@ -93,7 +93,14 @@ export interface Quote {
   title: string;
   description: string | null;
   status: QuoteStatus;
+  /** Resumen del trabajo. Se imprime en el informe bajo el titulo RESUMEN. */
   notes: string | null;
+  /** Notas privadas del tecnico. Nunca se imprimen en el informe. */
+  technician_notes: string | null;
+  /** Datos de acceso del cliente (timbre, quien recibe). Se imprimen. */
+  client_notes: string | null;
+  /** Tecnico encargado. Se imprime en el bloque de cliente. */
+  technician_name: string | null;
   default_material_margin_percent: number | null;
   cancelled_at: string | null;
   subtotal_materials: number;

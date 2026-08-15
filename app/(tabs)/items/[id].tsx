@@ -10,8 +10,9 @@ import { useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { ItemForm } from '@/features/items/ItemForm';
 import { getCategoryAccent } from '@/features/items/categoryAccent';
-import { useItemMeasurements, useItems, useSaveItem, useSaveItemMeasurement } from '@/features/items/hooks';
+import { useArchiveItems, useItemMeasurements, useItems, useSaveItem, useSaveItemMeasurement } from '@/features/items/hooks';
 import { useProfileDirectory } from '@/features/profiles/hooks';
+import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
 import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
 import { useStores } from '@/features/stores/hooks';
 import { toUserErrorMessage } from '@/lib/errors';
@@ -102,6 +103,8 @@ export default function ItemDetailPage() {
   const { data: latestBasePrices, isLoading: basePricesLoading, error: basePricesError } = useLatestPrices();
   const { data: latestMeasurePrices, isLoading: measurePricesLoading, error: measurePricesError } = useLatestMeasurePrices({ itemId: id ?? '' });
   const save = useSaveItem();
+  const archiveItems = useArchiveItems();
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const saveMeasurement = useSaveItemMeasurement();
   const [message, setMessage] = useState<string | null>(null);
   const [measurementDialogVisible, setMeasurementDialogVisible] = useState(false);
@@ -450,6 +453,40 @@ export default function ItemDetailPage() {
         />
       ) : null}
 
+      {material && activeTab === 'data' ? (
+        <Button
+          mode="contained"
+          icon="archive-arrow-down-outline"
+          buttonColor={theme.colors.error}
+          textColor="#FFFFFF"
+          onPress={() => setConfirmArchive(true)}
+          disabled={archiveItems.isPending}
+          style={styles.archiveButton}
+        >
+          Archivar material
+        </Button>
+      ) : null}
+
+      <ConfirmDeleteDialog
+        visible={confirmArchive}
+        title="Archivar material"
+        message="Deja de aparecer al cargar un trabajo. Los trabajos y los informes ya emitidos no se tocan."
+        confirmLabel="Archivar"
+        loading={archiveItems.isPending}
+        onCancel={() => setConfirmArchive(false)}
+        onConfirm={async () => {
+          if (!material) return;
+          try {
+            await archiveItems.mutateAsync([material.id]);
+            setConfirmArchive(false);
+            router.replace('/(tabs)/items');
+          } catch (archiveError) {
+            setMessage(toUserErrorMessage(archiveError, 'No se pudo archivar el material.'));
+            setConfirmArchive(false);
+          }
+        }}
+      />
+
       <Portal>
         <AppDialog visible={measurementDialogVisible} onDismiss={closeMeasurementDialog}>
           <Dialog.Title>{editingMeasurement ? 'Editar medida' : 'Nueva medida'}</Dialog.Title>
@@ -608,5 +645,8 @@ const styles = StyleSheet.create({
   },
   measurementDialogContent: {
     gap: 12,
+  },
+  archiveButton: {
+    borderRadius: 12,
   },
 });

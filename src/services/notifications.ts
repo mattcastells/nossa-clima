@@ -80,6 +80,8 @@ export type AppointmentReminderPayload = {
   title: string;
   /** Linked job ID (used to navigate to the quote when the notification is tapped) */
   quote_id: string | null;
+  /** Notas del tecnico del trabajo. Se suman al aviso para leerlas sin abrir la app. */
+  notes?: string | null;
 };
 
 /**
@@ -88,6 +90,23 @@ export type AppointmentReminderPayload = {
  * If the calculated reminder time has already passed, no notification is scheduled.
  * No-op on web.
  */
+/** Largo maximo de la nota en el aviso: mas que eso el sistema lo trunca igual. */
+const REMINDER_NOTES_MAX_LENGTH = 120;
+
+const buildReminderBody = (timeLabel: string, notes: string | null | undefined): string => {
+  const base = `Hoy a las ${timeLabel} tenes un turno agendado.`;
+  const trimmed = notes?.trim();
+  if (!trimmed) return base;
+
+  const singleLine = trimmed.replace(/\s+/g, ' ');
+  const preview =
+    singleLine.length > REMINDER_NOTES_MAX_LENGTH
+      ? `${singleLine.slice(0, REMINDER_NOTES_MAX_LENGTH - 1).trimEnd()}…`
+      : singleLine;
+
+  return `${base}\n${preview}`;
+};
+
 export const scheduleAppointmentReminder = async (
   appointment: AppointmentReminderPayload,
 ): Promise<void> => {
@@ -124,7 +143,7 @@ export const scheduleAppointmentReminder = async (
     const scheduledId = await Notifications.scheduleNotificationAsync({
       content: {
         title: appointment.title,
-        body: `Hoy a las ${timeLabel} tenes un turno agendado.`,
+        body: buildReminderBody(timeLabel, appointment.notes),
         data: {
           appointmentId: appointment.id,
           quoteId: appointment.quote_id,

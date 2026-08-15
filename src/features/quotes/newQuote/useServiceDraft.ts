@@ -34,8 +34,7 @@ export function useServiceDraft({ services, onError }: UseServiceDraftOptions) {
           !query ||
           s.name.toLowerCase().includes(query) ||
           (s.category ?? '').toLowerCase().includes(query),
-      )
-      .slice(0, 8);
+      );
   }, [serviceSearch, services]);
 
   const previewTotal = useMemo(() => {

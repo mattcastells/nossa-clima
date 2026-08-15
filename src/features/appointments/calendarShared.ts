@@ -28,11 +28,24 @@ export const getAppointmentClientLabel = (appointment: {
   quote_id: string | null;
 }): string => appointment.quote?.client_name ?? (appointment.quote_id ? '-' : 'Sin cliente');
 
+/**
+ * Qué se muestra como descripción de un turno en la agenda.
+ *
+ * Prioriza las notas del técnico: son las que sirven en la calle ("timbre 3B",
+ * "llevar escalera"). El resumen del informe (quote.notes) queda al final
+ * porque se escribe DESPUÉS de hacer el trabajo, así que casi siempre está
+ * vacío cuando mirás la agenda.
+ */
 export const getAppointmentDescription = (appointment: {
   title: string;
   notes: string | null;
-  quote: { title: string; notes: string | null } | null;
+  quote: { title: string; notes: string | null; technician_notes?: string | null } | null;
 }): string => {
-  const description = appointment.notes?.trim() || appointment.quote?.notes?.trim() || appointment.quote?.title?.trim() || appointment.title.trim();
+  const description =
+    appointment.notes?.trim() ||
+    appointment.quote?.technician_notes?.trim() ||
+    appointment.quote?.notes?.trim() ||
+    appointment.quote?.title?.trim() ||
+    appointment.title.trim();
   return description || 'Sin descripcion';
 };

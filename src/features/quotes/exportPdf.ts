@@ -4,25 +4,6 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
-// jsPDF and jspdf-autotable use browser-only APIs (document, canvas, window.Image)
-// that crash Hermes / React Native when evaluated at module load time.
-// They are imported lazily inside the functions that need them (web PDF export only).
-type JsPDFModule = typeof import('jspdf');
-type AutoTableModule = typeof import('jspdf-autotable');
-
-let _jsPDFModule: JsPDFModule | null = null;
-let _autoTableModule: AutoTableModule | null = null;
-
-const loadJsPDF = async () => {
-  if (!_jsPDFModule) {
-    _jsPDFModule = await import('jspdf');
-  }
-  if (!_autoTableModule) {
-    _autoTableModule = await import('jspdf-autotable');
-  }
-  return { jsPDF: _jsPDFModule.jsPDF, autoTable: _autoTableModule.default };
-};
-
 // Logo blanco (el del login): va sobre la banda navy del encabezado.
 import brandBannerOnNavy from '../../../assets/nc-logo-dark.png';
 import { formatDateAr } from '@/lib/format';
@@ -30,58 +11,78 @@ import type { QuoteDetail } from '@/services/quotes';
 import { getMaterialEffectiveTotalPrice } from './materialPricing';
 import { splitWorkSections } from './workSections';
 
-// ── Paleta del informe (la del rediseño) ─────────────────────────────────
-const NAVY_HEX = '#052653';
-const NAVY_RGB: [number, number, number] = [5, 38, 83];
-const CYAN_HEX = '#22C3E6';
-const CYAN_RGB: [number, number, number] = [34, 195, 230];
-const CYAN_DARK_HEX = '#0891B2';
-const CYAN_DARK_RGB: [number, number, number] = [8, 145, 178];
-const HEADER_SOFT_HEX = '#9FC4E0';
-const HEADER_SOFT_RGB: [number, number, number] = [159, 196, 224];
-const CARD_BG_HEX = '#F4F6F9';
-const CARD_BG_RGB: [number, number, number] = [244, 246, 249];
-const CARD_BORDER_HEX = '#E4E9F0';
-const CARD_BORDER_RGB: [number, number, number] = [228, 233, 240];
-const INK_HEX = '#0F1B2D';
-const INK_RGB: [number, number, number] = [15, 27, 45];
-const MUTED_HEX = '#64748B';
-const MUTED_RGB: [number, number, number] = [100, 116, 139];
-const BODY_HEX = '#334155';
-const BODY_RGB: [number, number, number] = [51, 65, 85];
-const GREEN_HEX = '#15803D';
-const GREEN_RGB: [number, number, number] = [21, 128, 61];
-const AMBER_HEX = '#8A5A00';
-const AMBER_RGB: [number, number, number] = [138, 90, 0];
-const TABLE_HEAD_RGB: [number, number, number] = [234, 239, 245];
+// ── Paleta del informe ───────────────────────────────────────────────────
+// El informe es siempre claro: no sigue el modo oscuro de la app. Por eso son
+// constantes de marca y no tokens del tema.
+const NAVY = '#052653';
+const CYAN = '#22C3E6';
+const CYAN_DARK = '#0891B2';
+const HEADER_SOFT = '#9FC4E0';
+const CARD_BG = '#F4F6F9';
+const CARD_BORDER = '#E4E9F0';
+const INK = '#0F1B2D';
+const MUTED = '#64748B';
+const GREEN = '#15803D';
+const AMBER = '#8A5A00';
+const TABLE_HEAD_BG = '#EAEFF5';
 
 const COMPANY_EMAIL = 'nossaclima@gmail.com';
 const COMPANY_PHONE = '11 3001 9957';
 const WARRANTY_TEXT =
   '*Todo servicio técnico posee una garantía de 3 (tres) meses desde el día de la visita, siempre y cuando se trate de un servicio relacionado al trabajo realizado. La garantía del servicio técnico no contempla nuevos problemas que pueda presentar el equipo.';
 
-type PdfDocument = InstanceType<Awaited<ReturnType<typeof loadJsPDF>>['jsPDF']>;
+// ── Logo ─────────────────────────────────────────────────────────────────
 
-type WebLogoImage = {
-  dataUrl: string;
-  width: number;
-  height: number;
-  format: 'PNG' | 'JPEG';
-};
+/**
+ * El PNG del logo, embebido como data URI.
+ *
+ * Va embebido porque el HTML se imprime tanto con expo-print (nativo) como con
+ * el diálogo del navegador (web), y en ninguno de los dos casos hay un origen
+ * desde donde resolver una ruta relativa.
+ */
+let cachedLogoDataUri: string | null = null;
 
-const resolveBrandLogoUri = async (): Promise<string> => {
+const resolveBrandLogoDataUri = async (): Promise<string> => {
+  if (cachedLogoDataUri != null) return cachedLogoDataUri;
+
   try {
     const asset = Asset.fromModule(brandBannerOnNavy);
-
-    if (Platform.OS !== 'web' && !asset.localUri) {
+    if (!asset.localUri && !asset.downloaded) {
       await asset.downloadAsync();
     }
 
-    return asset.localUri ?? asset.uri ?? '';
+    const uri = asset.localUri ?? asset.uri ?? '';
+    if (!uri) return '';
+
+    // En web el bundler ya sirve el asset como URL (o como data URI directo).
+    if (uri.startsWith('data:')) {
+      cachedLogoDataUri = uri;
+      return uri;
+    }
+    if (Platform.OS === 'web') {
+      cachedLogoDataUri = uri;
+      return uri;
+    }
+
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    cachedLogoDataUri = `data:image/png;base64,${base64}`;
+    return cachedLogoDataUri;
   } catch {
     return '';
   }
 };
+
+/** Fallback dibujado, por si el asset no carga. Nunca debería usarse. */
+const buildLogoFallbackSvg = (): string => `
+  <svg viewBox="0 0 440 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nossa Clima">
+    <polygon points="12,78 82,18 82,78" fill="#ffffff" />
+    <line x1="90" y1="78" x2="182" y2="78" stroke="#ffffff" stroke-width="4" />
+    <line x1="182" y1="18" x2="412" y2="18" stroke="#ffffff" stroke-width="4" />
+    <text x="94" y="60" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">NOSSA CLIMA</text>
+    <text x="186" y="82" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="11">SERVICIOS INTEGRALES DE REFRIGERACION</text>
+  </svg>`;
+
+// ── Formateo ─────────────────────────────────────────────────────────────
 
 const escapeHtml = (value: string): string =>
   value
@@ -102,13 +103,20 @@ const formatQuantityWithUnit = (quantity: number, unit: string | null | undefine
   return normalizedUnit && normalizedUnit !== '-' ? `${formatQuantity(quantity)} ${normalizedUnit}` : formatQuantity(quantity);
 };
 
-// El informe muestra importes sin centavos ($ 44.000), como el diseño.
+/**
+ * El informe muestra importes sin centavos. Se redondea CADA LINEA y los
+ * totales se suman a partir de las lineas ya redondeadas: si se mostraran las
+ * lineas redondeadas junto al total de la base, el cliente suma la columna y no
+ * le cierra por unos pesos.
+ */
+const roundToPeso = (value: number): number => Math.round(Number(value ?? 0));
+
 const formatMoney = (value: number): string =>
   new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'ARS',
     maximumFractionDigits: 0,
-  }).format(Number(value ?? 0));
+  }).format(roundToPeso(value));
 
 /** N° de informe estable por trabajo, derivado del id (no hay numeración en la base). */
 const getReportNumber = (quoteId: string): string => {
@@ -124,7 +132,7 @@ const sanitizeFileName = (value: string): string => {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return normalized || 'presupuesto';
+  return normalized || 'informe';
 };
 
 const getQuoteDisplayDate = (detail: QuoteDetail): string =>
@@ -150,57 +158,93 @@ const splitFileName = (value: string): { base: string; extension: string } => {
 const getMaterialTotal = (detail: QuoteDetail, material: QuoteDetail['materials'][number]): number =>
   getMaterialEffectiveTotalPrice(material.quantity, material.unit_price, material.margin_percent, detail.quote.default_material_margin_percent);
 
-// ── HTML (nativo, via expo-print) ────────────────────────────────────────
+// ── Filas de costos ──────────────────────────────────────────────────────
 
-const buildLogoOnNavySvg = (): string => `
-  <svg viewBox="0 0 440 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nossa Clima">
-    <polygon points="12,78 82,18 82,78" fill="#ffffff" />
-    <line x1="90" y1="78" x2="182" y2="78" stroke="#ffffff" stroke-width="4" />
-    <line x1="182" y1="18" x2="412" y2="18" stroke="#ffffff" stroke-width="4" />
-    <text x="94" y="60" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">NOSSA CLIMA</text>
-    <text x="186" y="82" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="11">SERVICIOS INTEGRALES DE REFRIGERACION</text>
-  </svg>`;
+interface CostTotals {
+  materials: number;
+  services: number;
+  total: number;
+}
 
-const renderCostRowsHtml = (detail: QuoteDetail): string => {
+/**
+ * Arma las filas del detalle y los totales a la vez, para que lo impreso y lo
+ * sumado salgan del mismo redondeo.
+ */
+const buildCostSection = (detail: QuoteDetail): { rowsHtml: string; totals: CostTotals } => {
   const rows: string[] = [];
+  let materialsTotal = 0;
+  let servicesTotal = 0;
 
   if (detail.materials.length > 0) {
-    rows.push(`<tr class="group"><td colspan="3" style="color:${GREEN_HEX};">Materiales</td></tr>`);
+    rows.push(`<tr class="group"><td colspan="3" style="color:${GREEN};">Materiales</td></tr>`);
     detail.materials.forEach((material) => {
+      const lineTotal = roundToPeso(getMaterialTotal(detail, material));
+      materialsTotal += lineTotal;
       rows.push(`
         <tr>
           <td>${escapeHtml(material.item_name_snapshot)}</td>
           <td class="num muted">${escapeHtml(formatQuantityWithUnit(material.quantity, material.unit))}</td>
-          <td class="num strong">${escapeHtml(formatMoney(getMaterialTotal(detail, material)))}</td>
+          <td class="num strong">${escapeHtml(formatMoney(lineTotal))}</td>
         </tr>`);
     });
   }
 
   if (detail.services.length > 0) {
-    rows.push(`<tr class="group"><td colspan="3" style="color:${AMBER_HEX};">Mano de obra</td></tr>`);
+    rows.push(`<tr class="group"><td colspan="3" style="color:${AMBER};">Mano de obra</td></tr>`);
     detail.services.forEach((service) => {
+      const lineTotal = roundToPeso(service.total_price);
+      servicesTotal += lineTotal;
       rows.push(`
         <tr>
           <td>${escapeHtml(service.service_name_snapshot)}</td>
           <td class="num muted">${escapeHtml(formatQuantity(service.quantity))}</td>
-          <td class="num strong">${escapeHtml(formatMoney(service.total_price))}</td>
+          <td class="num strong">${escapeHtml(formatMoney(lineTotal))}</td>
         </tr>`);
     });
   }
 
   if (rows.length === 0) {
-    rows.push('<tr><td colspan="3">Sin conceptos cargados</td></tr>');
+    rows.push(`<tr><td colspan="3" style="color:${MUTED};">Sin conceptos cargados</td></tr>`);
   }
 
-  return rows.join('');
+  return {
+    rowsHtml: rows.join(''),
+    totals: {
+      materials: materialsTotal,
+      services: servicesTotal,
+      total: materialsTotal + servicesTotal,
+    },
+  };
 };
 
-const buildQuotePdfHtml = (detail: QuoteDetail): string => {
+/** Una fila del bloque de cliente. Se omite si no hay valor. */
+const renderClientField = (label: string, value: string | null | undefined): string => {
+  const trimmed = value?.trim();
+  if (!trimmed) return '';
+  return `
+    <div class="field">
+      <div class="field-label">${escapeHtml(label)}</div>
+      <div class="field-value">${escapeHtml(trimmed)}</div>
+    </div>`;
+};
+
+// ── Plantilla ────────────────────────────────────────────────────────────
+
+/**
+ * La ÚNICA plantilla del informe. Nativo la imprime con expo-print y web con el
+ * diálogo del navegador. No duplicar este documento en otro renderer.
+ */
+const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => {
   const { quote } = detail;
   const quoteDate = getQuoteDisplayDate(detail);
   const reportNumber = getReportNumber(quote.id);
   const address = quote.description?.trim() ?? '';
-  const workDone = quote.notes?.trim() ?? '';
+  const summary = quote.notes?.trim() ?? '';
+  const { rowsHtml, totals } = buildCostSection(detail);
+
+  const logoMarkup = logoDataUri
+    ? `<img src="${escapeHtml(logoDataUri)}" alt="Nossa Clima" />`
+    : buildLogoFallbackSvg();
 
   return `
   <!doctype html>
@@ -210,70 +254,174 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>Informe técnico ${escapeHtml(quote.title)}</title>
       <style>
+        /* El pie va fijo al pie de CADA página impresa: en medio paginado un
+           flex con 100vh no garantiza que caiga al final de la última. */
+        @page { margin: 0 0 96px; }
+
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         body {
-          font-family: Arial, sans-serif;
-          color: ${INK_HEX};
-          display: flex;
-          flex-direction: column;
-          min-height: 100vh;
+          font-family: Arial, Helvetica, sans-serif;
+          color: ${INK};
+          font-size: 12.5px;
+          line-height: 1.5;
         }
+
+        /* ── Banda del encabezado ─────────────────────────────────── */
         .band {
-          background: ${NAVY_HEX};
+          background: ${NAVY};
           color: #ffffff;
           padding: 26px 32px 24px;
           display: flex;
           justify-content: space-between;
+          align-items: flex-start;
           gap: 24px;
         }
-        .band .eyebrow { color: ${CYAN_HEX}; font-size: 11px; font-weight: 700; letter-spacing: .14em; margin-bottom: 8px; }
+        .band .eyebrow {
+          color: ${CYAN};
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .14em;
+          margin-bottom: 8px;
+        }
         .band h1 { margin: 0; font-size: 26px; line-height: 1.15; font-weight: 800; }
-        .band .meta { color: ${HEADER_SOFT_HEX}; font-size: 12px; margin-top: 10px; }
-        .band .logo { width: 220px; flex: none; align-self: flex-start; }
-        .band .logo svg, .band .logo img { display: block; width: 100%; height: auto; }
-        .content { flex: 1; padding: 22px 32px 26px; }
-        .cards { display: flex; gap: 12px; }
-        .card {
-          flex: 1;
-          background: ${CARD_BG_HEX};
-          border: 1px solid ${CARD_BORDER_HEX};
+        .band .meta { color: ${HEADER_SOFT}; font-size: 12px; margin-top: 10px; }
+        .band .logo { width: 230px; flex: none; }
+        .band .logo img, .band .logo svg { display: block; width: 100%; height: auto; }
+
+        .content { padding: 22px 32px 8px; }
+
+        /* ── Títulos de sección: con fondo, como el informe anterior ── */
+        .section-title {
+          background: ${NAVY};
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: .12em;
+          padding: 7px 12px;
+          border-radius: 5px;
+          margin: 22px 0 12px;
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        /* ── Bloque de datos del cliente ──────────────────────────── */
+        .client-card {
+          background: ${CARD_BG};
+          border: 1px solid ${CARD_BORDER};
           border-radius: 12px;
-          padding: 13px 15px;
+          padding: 6px 18px 12px;
         }
-        .card .label { color: ${MUTED_HEX}; font-size: 10px; font-weight: 700; letter-spacing: .08em; margin-bottom: 6px; }
-        .card .value { font-size: 14px; font-weight: 700; line-height: 1.3; }
-        .card .sub { color: ${MUTED_HEX}; font-size: 12px; margin-top: 4px; }
-        .eyebrow-section { color: ${CYAN_DARK_HEX}; font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 24px 0 10px; }
-        .work {
-          border-left: 3px solid ${CYAN_HEX};
+        .field {
+          display: flex;
+          align-items: baseline;
+          gap: 14px;
+          padding: 7px 0;
+          border-bottom: 1px solid ${CARD_BORDER};
+        }
+        .field:last-child { border-bottom: none; }
+        .field-label {
+          width: 116px;
+          flex: none;
+          color: ${MUTED};
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        .field-value {
+          flex: 1;
+          font-size: 13.5px;
+          font-weight: 700;
+          color: ${INK};
+          line-height: 1.45;
+        }
+
+        /* ── Resumen ──────────────────────────────────────────────── */
+        .summary {
+          border-left: 3px solid ${CYAN};
           padding: 2px 0 2px 14px;
-          color: ${BODY_HEX};
-          font-size: 12.5px;
-          line-height: 1.55;
+          color: ${INK};
         }
-        .work p { margin: 0; white-space: pre-wrap; }
-        .work .work-sub { font-weight: 700; color: ${INK_HEX}; margin-top: 10px; margin-bottom: 2px; }
+        .summary p { margin: 0; white-space: pre-wrap; }
+        .summary .sub {
+          font-weight: 700;
+          color: ${CYAN_DARK};
+          margin-top: 11px;
+          margin-bottom: 2px;
+          letter-spacing: .02em;
+        }
+
+        /* ── Detalle de costos ────────────────────────────────────── */
         table { width: 100%; border-collapse: collapse; }
         thead th {
-          background: ${CARD_BG_HEX};
-          color: ${MUTED_HEX};
+          background: ${TABLE_HEAD_BG};
+          color: ${INK};
           font-size: 10px;
+          font-weight: 700;
           letter-spacing: .06em;
           text-align: left;
           padding: 8px 12px;
         }
         thead th.num, td.num { text-align: right; }
-        tbody td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid ${CARD_BORDER_HEX}; }
-        tbody tr.group td { font-weight: 700; font-size: 11.5px; border-bottom: none; padding-top: 12px; }
-        td.muted { color: ${MUTED_HEX}; }
+        tbody td {
+          padding: 8px 12px;
+          font-size: 12px;
+          border-bottom: 1px solid ${CARD_BORDER};
+        }
+        tbody tr.group td {
+          font-weight: 700;
+          font-size: 11.5px;
+          border-bottom: none;
+          padding-top: 12px;
+        }
+        td.muted { color: ${MUTED}; }
         td.strong { font-weight: 700; }
-        .totals { margin-top: 14px; margin-left: auto; width: 260px; }
-        .totals .line { display: flex; justify-content: space-between; font-size: 12px; color: ${MUTED_HEX}; padding: 4px 14px; }
-        .totals .line .val { color: ${INK_HEX}; }
+
+        /* ── Cierre: contacto a la izquierda, totales a la derecha ─── */
+        .closing {
+          margin-top: 18px;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 24px;
+        }
+        .contact-card {
+          flex: none;
+          width: 250px;
+          border: 1.5px solid ${NAVY};
+          border-radius: 12px;
+          padding: 12px 16px 14px;
+        }
+        .contact-card .title {
+          color: ${NAVY};
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          margin-bottom: 10px;
+        }
+        .contact-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 14px;
+        }
+        .contact-line + .contact-line { margin-top: 7px; }
+        .contact-line .k { color: ${MUTED}; font-size: 11px; }
+        .contact-line .v { color: ${INK}; font-size: 12px; font-weight: 700; text-align: right; }
+
+        .totals { flex: none; width: 250px; }
+        .totals .line {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          color: ${MUTED};
+          padding: 4px 14px;
+        }
+        .totals .line .val { color: ${INK}; font-weight: 700; }
         .totals .grand {
           margin-top: 8px;
-          background: ${NAVY_HEX};
+          background: ${NAVY};
           color: #ffffff;
           border-radius: 10px;
           padding: 12px 14px;
@@ -282,19 +430,24 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
           font-weight: 700;
           font-size: 14px;
         }
+
+        /* ── Pie ──────────────────────────────────────────────────── */
         .footer {
-          background: ${TABLE_HEAD_RGB ? '#EAEFF5' : '#EAEFF5'};
-          padding: 16px 32px;
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 96px;
+          background: ${TABLE_HEAD_BG};
+          padding: 14px 32px;
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 24px;
+          align-items: center;
         }
-        .footer .warranty { flex: 1; max-width: 380px; color: ${MUTED_HEX}; font-size: 9.5px; line-height: 1.45; }
-        .footer .contact { text-align: right; }
-        .footer .contact .label { color: ${MUTED_HEX}; font-size: 10px; letter-spacing: .08em; }
-        .footer .contact .phone { font-weight: 700; font-size: 13px; margin-top: 3px; }
-        .footer .contact .email { color: ${MUTED_HEX}; font-size: 11px; margin-top: 2px; }
+        .footer .warranty {
+          color: ${MUTED};
+          font-size: 9px;
+          line-height: 1.45;
+        }
       </style>
     </head>
     <body>
@@ -304,33 +457,30 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
           <h1>${escapeHtml(quote.title)}</h1>
           <div class="meta">N° ${escapeHtml(reportNumber)} · ${escapeHtml(quoteDate)}</div>
         </div>
-        <div class="logo">${buildLogoOnNavySvg()}</div>
+        <div class="logo">${logoMarkup}</div>
       </div>
 
       <div class="content">
-        <div class="cards">
-          <div class="card">
-            <div class="label">CLIENTE</div>
-            <div class="value">${escapeHtml(quote.client_name)}</div>
-            ${quote.client_phone ? `<div class="sub">${escapeHtml(quote.client_phone)}</div>` : ''}
-          </div>
-          <div class="card">
-            <div class="label">DOMICILIO</div>
-            <div class="value">${escapeHtml(address || '-')}</div>
-          </div>
+        <div class="section-title">DATOS DEL CLIENTE</div>
+        <div class="client-card">
+          ${renderClientField('Cliente', quote.client_name)}
+          ${renderClientField('Teléfono', quote.client_phone)}
+          ${renderClientField('Domicilio', address)}
+          ${renderClientField('Técnico', quote.technician_name)}
+          ${renderClientField('Notas', quote.client_notes)}
         </div>
 
-        ${workDone
-          ? `<div class="eyebrow-section">TRABAJO REALIZADO</div>
-             <div class="work">${splitWorkSections(workDone)
+        ${summary
+          ? `<div class="section-title">RESUMEN</div>
+             <div class="summary">${splitWorkSections(summary)
                .map(
                  (section) =>
-                   `${section.title ? `<div class="work-sub">${escapeHtml(section.title)}</div>` : ''}<p>${escapeHtml(section.body)}</p>`,
+                   `${section.title ? `<div class="sub">${escapeHtml(section.title)}</div>` : ''}<p>${escapeHtml(section.body)}</p>`,
                )
                .join('')}</div>`
           : ''}
 
-        <div class="eyebrow-section">DETALLE DE COSTOS</div>
+        <div class="section-title">DETALLE DE COSTOS</div>
         <table>
           <thead>
             <tr>
@@ -340,387 +490,97 @@ const buildQuotePdfHtml = (detail: QuoteDetail): string => {
             </tr>
           </thead>
           <tbody>
-            ${renderCostRowsHtml(detail)}
+            ${rowsHtml}
           </tbody>
         </table>
 
-        <div class="totals">
-          <div class="line"><span>Subtotal materiales</span><span class="val">${escapeHtml(formatMoney(quote.subtotal_materials))}</span></div>
-          <div class="line"><span>Subtotal mano de obra</span><span class="val">${escapeHtml(formatMoney(quote.subtotal_services))}</span></div>
-          <div class="grand"><span>Total</span><span>${escapeHtml(formatMoney(quote.total))}</span></div>
+        <div class="closing">
+          <div class="contact-card">
+            <div class="title">Contacto</div>
+            <div class="contact-line"><span class="k">Teléfono</span><span class="v">${escapeHtml(COMPANY_PHONE)}</span></div>
+            <div class="contact-line"><span class="k">Email</span><span class="v">${escapeHtml(COMPANY_EMAIL)}</span></div>
+          </div>
+          <div class="totals">
+            <div class="line"><span>Subtotal materiales</span><span class="val">${escapeHtml(formatMoney(totals.materials))}</span></div>
+            <div class="line"><span>Subtotal mano de obra</span><span class="val">${escapeHtml(formatMoney(totals.services))}</span></div>
+            <div class="grand"><span>Total</span><span>${escapeHtml(formatMoney(totals.total))}</span></div>
+          </div>
         </div>
       </div>
 
       <div class="footer">
         <div class="warranty">${escapeHtml(WARRANTY_TEXT)}</div>
-        <div class="contact">
-          <div class="label">CONTACTO</div>
-          <div class="phone">${escapeHtml(COMPANY_PHONE)}</div>
-          <div class="email">${escapeHtml(COMPANY_EMAIL)}</div>
-        </div>
       </div>
     </body>
   </html>`;
 };
 
-// ── jsPDF (web) ──────────────────────────────────────────────────────────
-
-const loadWebLogoImage = (uri: string): Promise<WebLogoImage> => {
-  if (typeof window === 'undefined' || !uri) {
-    return Promise.reject(new Error('Logo no disponible en entorno web'));
-  }
-
-  return new Promise((resolve, reject) => {
-    const image = new window.Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => {
-      const canvas = window.document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        reject(new Error('No se pudo obtener contexto 2D para el banner'));
-        return;
-      }
-
-      context.drawImage(image, 0, 0);
-      resolve({
-        dataUrl: canvas.toDataURL('image/png'),
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-        format: 'PNG',
-      });
-    };
-    image.onerror = () => reject(new Error('No se pudo cargar el banner para PDF web'));
-    image.src = uri;
-  });
-};
-
-/** Logo dibujado en blanco, para cuando la imagen no carga. */
-const drawLogoOnNavy = (doc: PdfDocument, x: number, y: number, width: number): number => {
-  const baseWidth = 440;
-  const scale = width / baseWidth;
-  const logoHeight = 96 * scale;
-
-  doc.setFillColor(255, 255, 255);
-  doc.triangle(x + 12 * scale, y + 78 * scale, x + 82 * scale, y + 18 * scale, x + 82 * scale, y + 78 * scale, 'F');
-
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(Math.max(1, 3 * scale));
-  doc.line(x + 90 * scale, y + 78 * scale, x + 182 * scale, y + 78 * scale);
-  doc.line(x + 182 * scale, y + 18 * scale, x + 412 * scale, y + 18 * scale);
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(38 * scale);
-  doc.text('NOSSA CLIMA', x + 94 * scale, y + 60 * scale);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11 * scale);
-  doc.text('SERVICIOS INTEGRALES DE REFRIGERACION', x + 186 * scale, y + 80 * scale);
-
-  return logoHeight;
-};
-
-const ensureVerticalSpace = (doc: PdfDocument, currentY: number, neededSpace: number, bottomReserve: number): number => {
-  const pageHeight = doc.internal.pageSize.getHeight();
-  if (currentY + neededSpace <= pageHeight - bottomReserve) {
-    return currentY;
-  }
-
-  doc.addPage();
-  return 46;
-};
-
-const exportQuotePdfWeb = async (detail: QuoteDetail, brandLogoUri: string): Promise<void> => {
-  const { jsPDF: JsPDFClass, autoTable: autoTableFn } = await loadJsPDF();
-  const doc = new JsPDFClass({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const marginX = 44;
-  const contentWidth = pageWidth - marginX * 2;
-  const footerHeight = 74;
-  const bottomReserve = footerHeight + 22;
-
-  const { quote } = detail;
-  const address = quote.description?.trim() ?? '';
-  const workDone = quote.notes?.trim() ?? '';
-
-  // ── Banda navy del encabezado ──────────────────────────────────────────
-  const logoWidth = 190;
-  const titleMaxWidth = contentWidth - logoWidth - 20;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  const titleLines = doc.splitTextToSize(quote.title, titleMaxWidth) as string[];
-  const titleLineHeight = 26;
-  const titleTopY = 76;
-  const metaY = titleTopY + (titleLines.length - 1) * titleLineHeight + 24;
-  const bandHeight = Math.max(132, metaY + 24);
-
-  doc.setFillColor(...NAVY_RGB);
-  doc.rect(0, 0, pageWidth, bandHeight, 'F');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...CYAN_RGB);
-  doc.text('INFORME TÉCNICO', marginX, 48, { charSpace: 1.4 });
-
-  doc.setFontSize(22);
-  doc.setTextColor(255, 255, 255);
-  doc.text(titleLines, marginX, titleTopY);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10.5);
-  doc.setTextColor(...HEADER_SOFT_RGB);
-  doc.text(`N° ${getReportNumber(quote.id)} · ${getQuoteDisplayDate(detail)}`, marginX, metaY);
-
-  const logoX = pageWidth - marginX - logoWidth;
-  let logoDrawn = false;
-  if (brandLogoUri) {
-    try {
-      const logoImage = await loadWebLogoImage(brandLogoUri);
-      const logoHeight = (logoWidth * logoImage.height) / logoImage.width;
-      doc.addImage(logoImage.dataUrl, logoImage.format, logoX, 44, logoWidth, logoHeight, undefined, 'FAST');
-      logoDrawn = true;
-    } catch {
-      logoDrawn = false;
-    }
-  }
-  if (!logoDrawn) {
-    drawLogoOnNavy(doc, logoX, 34, logoWidth);
-  }
-
-  let cursorY = bandHeight + 24;
-
-  // ── Tarjetas Cliente / Domicilio ───────────────────────────────────────
-  const cardGap = 12;
-  const cardWidth = (contentWidth - cardGap) / 2;
-  const cardPad = 14;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11.5);
-  const addressLines = doc.splitTextToSize(address || '-', cardWidth - cardPad * 2) as string[];
-  const clientCardHeight = 30 + 16 + (quote.client_phone ? 16 : 0);
-  const addressCardHeight = 30 + addressLines.length * 15;
-  const cardHeight = Math.max(64, clientCardHeight, addressCardHeight);
-
-  [0, 1].forEach((index) => {
-    const x = marginX + index * (cardWidth + cardGap);
-    doc.setFillColor(...CARD_BG_RGB);
-    doc.setDrawColor(...CARD_BORDER_RGB);
-    doc.setLineWidth(0.8);
-    doc.roundedRect(x, cursorY, cardWidth, cardHeight, 9, 9, 'FD');
-  });
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED_RGB);
-  doc.text('CLIENTE', marginX + cardPad, cursorY + 18, { charSpace: 0.8 });
-  doc.text('DOMICILIO', marginX + cardWidth + cardGap + cardPad, cursorY + 18, { charSpace: 0.8 });
-
-  doc.setFontSize(11.5);
-  doc.setTextColor(...INK_RGB);
-  doc.text(quote.client_name, marginX + cardPad, cursorY + 35);
-  doc.text(addressLines, marginX + cardWidth + cardGap + cardPad, cursorY + 35);
-
-  if (quote.client_phone) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...MUTED_RGB);
-    doc.text(quote.client_phone, marginX + cardPad, cursorY + 51);
-  }
-
-  cursorY += cardHeight + 26;
-
-  const drawSectionEyebrow = (label: string) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...CYAN_DARK_RGB);
-    doc.text(label, marginX, cursorY, { charSpace: 1.1 });
-    cursorY += 14;
-  };
-
-  // ── Trabajo realizado ──────────────────────────────────────────────────
-  if (workDone) {
-    cursorY = ensureVerticalSpace(doc, cursorY, 60, bottomReserve);
-    drawSectionEyebrow('TRABAJO REALIZADO');
-
-    // El relato se divide en subsecciones (diagnóstico / Solución / Notas) y
-    // se aplana a líneas tipadas para poder dibujarlo por tramos con su barra
-    // cian, saltando de página cuando no queda lugar.
-    const workLineHeight = 15;
-    type WorkLine = { text: string; bold: boolean; gapBefore: number };
-    const workRenderLines: WorkLine[] = [];
-
-    splitWorkSections(workDone).forEach((section, index) => {
-      if (section.title) {
-        workRenderLines.push({ text: section.title, bold: true, gapBefore: index > 0 ? 8 : 0 });
-      }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10.5);
-      (doc.splitTextToSize(section.body, contentWidth - 18) as string[]).forEach((line) => {
-        workRenderLines.push({ text: line, bold: false, gapBefore: 0 });
-      });
-    });
-
-    let segmentStartY = cursorY - 10;
-    const flushBar = (endY: number) => {
-      doc.setFillColor(...CYAN_RGB);
-      doc.rect(marginX, segmentStartY, 3, Math.max(endY - segmentStartY, workLineHeight), 'F');
-    };
-
-    workRenderLines.forEach((line) => {
-      const needed = workLineHeight + line.gapBefore;
-      if (cursorY + needed > pageHeight - bottomReserve) {
-        flushBar(cursorY - 10);
-        doc.addPage();
-        cursorY = 46;
-        segmentStartY = cursorY - 10;
-      } else {
-        cursorY += line.gapBefore;
-      }
-
-      doc.setFont('helvetica', line.bold ? 'bold' : 'normal');
-      doc.setFontSize(10.5);
-      if (line.bold) {
-        doc.setTextColor(...INK_RGB);
-      } else {
-        doc.setTextColor(...BODY_RGB);
-      }
-      doc.text(line.text, marginX + 16, cursorY);
-      cursorY += workLineHeight;
-    });
-    flushBar(cursorY - 10);
-    cursorY += 16;
-  }
-
-  // ── Detalle de costos ──────────────────────────────────────────────────
-  cursorY = ensureVerticalSpace(doc, cursorY, 120, bottomReserve);
-  drawSectionEyebrow('DETALLE DE COSTOS');
-
-  type CostCell = string | { content: string; colSpan?: number; styles?: Record<string, unknown> };
-  const costRows: CostCell[][] = [];
-  const groupRow = (label: string, color: [number, number, number]): CostCell[] => [
-    {
-      content: label,
-      colSpan: 3,
-      styles: { textColor: color, fontStyle: 'bold', fontSize: 9.5, fillColor: [255, 255, 255], cellPadding: { top: 10, bottom: 4, left: 10, right: 10 } },
-    },
-  ];
-
-  if (detail.materials.length > 0) {
-    costRows.push(groupRow('Materiales', GREEN_RGB));
-    detail.materials.forEach((material) => {
-      costRows.push([
-        material.item_name_snapshot,
-        formatQuantityWithUnit(material.quantity, material.unit),
-        formatMoney(getMaterialTotal(detail, material)),
-      ]);
-    });
-  }
-  if (detail.services.length > 0) {
-    costRows.push(groupRow('Mano de obra', AMBER_RGB));
-    detail.services.forEach((service) => {
-      costRows.push([service.service_name_snapshot, formatQuantity(service.quantity), formatMoney(service.total_price)]);
-    });
-  }
-  if (costRows.length === 0) {
-    costRows.push([{ content: 'Sin conceptos cargados', colSpan: 3, styles: { textColor: MUTED_RGB } }]);
-  }
-
-  autoTableFn(doc, {
-    startY: cursorY,
-    margin: { left: marginX, right: marginX, bottom: bottomReserve },
-    head: [['CONCEPTO', 'CANT.', 'TOTAL']],
-    body: costRows as never,
-    theme: 'plain',
-    styles: {
-      fontSize: 10,
-      cellPadding: { top: 7, bottom: 7, left: 10, right: 10 },
-      textColor: INK_RGB,
-      lineColor: CARD_BORDER_RGB,
-      lineWidth: { bottom: 0.6 },
-      overflow: 'linebreak',
-    },
-    headStyles: {
-      fillColor: TABLE_HEAD_RGB,
-      textColor: MUTED_RGB,
-      fontStyle: 'bold',
-      fontSize: 8.5,
-      lineWidth: 0,
-    },
-    columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { halign: 'right', cellWidth: 84, textColor: MUTED_RGB },
-      2: { halign: 'right', cellWidth: 100, fontStyle: 'bold' },
-    },
-  });
-
-  cursorY = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? cursorY) + 18;
-
-  // ── Subtotales y total ─────────────────────────────────────────────────
-  const totalsWidth = 250;
-  const totalsX = pageWidth - marginX - totalsWidth;
-  cursorY = ensureVerticalSpace(doc, cursorY, 96, bottomReserve);
-
-  const subtotalLine = (label: string, value: number) => {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...MUTED_RGB);
-    doc.text(label, totalsX + 12, cursorY);
-    doc.setTextColor(...INK_RGB);
-    doc.text(formatMoney(value), totalsX + totalsWidth - 12, cursorY, { align: 'right' });
-    cursorY += 17;
-  };
-
-  subtotalLine('Subtotal materiales', quote.subtotal_materials);
-  subtotalLine('Subtotal mano de obra', quote.subtotal_services);
-
-  cursorY += 3;
-  doc.setFillColor(...NAVY_RGB);
-  doc.roundedRect(totalsX, cursorY - 12, totalsWidth, 38, 9, 9, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
-  doc.text('Total', totalsX + 14, cursorY + 12);
-  doc.setFontSize(14);
-  doc.text(formatMoney(quote.total), totalsX + totalsWidth - 14, cursorY + 12, { align: 'right' });
-
-  // ── Pie: garantía + contacto (última página) ───────────────────────────
-  const footerY = pageHeight - footerHeight;
-  doc.setFillColor(...TABLE_HEAD_RGB);
-  doc.rect(0, footerY, pageWidth, footerHeight, 'F');
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...MUTED_RGB);
-  const warrantyLines = doc.splitTextToSize(WARRANTY_TEXT, 320) as string[];
-  doc.text(warrantyLines, marginX, footerY + 20);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('CONTACTO', pageWidth - marginX, footerY + 20, { align: 'right', charSpace: 0.8 });
-  doc.setFontSize(11);
-  doc.setTextColor(...INK_RGB);
-  doc.text(COMPANY_PHONE, pageWidth - marginX, footerY + 36, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(...MUTED_RGB);
-  doc.text(COMPANY_EMAIL, pageWidth - marginX, footerY + 50, { align: 'right' });
-
-  doc.save(buildPdfName(detail));
-};
-
-// ── Plumbing de guardado / compartido (sin cambios) ──────────────────────
+// ── Salidas ──────────────────────────────────────────────────────────────
 
 const createNativeQuotePdfFile = async (detail: QuoteDetail): Promise<{ uri: string; fileName: string }> => {
-  const html = buildQuotePdfHtml(detail);
+  const logoDataUri = await resolveBrandLogoDataUri();
+  const html = buildQuotePdfHtml(detail, logoDataUri);
   const file = await Print.printToFileAsync({ html });
 
   return {
     uri: file.uri,
     fileName: buildPdfName(detail),
   };
+};
+
+/**
+ * En web se imprime la misma plantilla con el diálogo del navegador (donde el
+ * usuario elige "Guardar como PDF"). Antes había un segundo renderer con jsPDF
+ * que dibujaba el informe a mano; se eliminó porque obligaba a mantener el
+ * diseño en dos lugares y ya había divergido.
+ */
+const printQuotePdfWeb = async (detail: QuoteDetail): Promise<void> => {
+  const logoDataUri = await resolveBrandLogoDataUri();
+  const html = buildQuotePdfHtml(detail, logoDataUri);
+
+  if (typeof window === 'undefined' || typeof window.document === 'undefined') {
+    throw new Error('No se pudo abrir el informe para imprimir.');
+  }
+
+  const frame = window.document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.position = 'fixed';
+  frame.style.right = '0';
+  frame.style.bottom = '0';
+  frame.style.width = '0';
+  frame.style.height = '0';
+  frame.style.border = '0';
+  window.document.body.appendChild(frame);
+
+  const frameWindow = frame.contentWindow;
+  const frameDocument = frame.contentDocument ?? frameWindow?.document;
+  if (!frameWindow || !frameDocument) {
+    frame.remove();
+    throw new Error('No se pudo preparar el informe para imprimir.');
+  }
+
+  frameDocument.open();
+  frameDocument.write(html);
+  frameDocument.close();
+
+  await new Promise<void>((resolve) => {
+    // Sin esperar la carga, el diálogo puede abrirse antes de que el logo esté
+    // pintado y el PDF sale sin él.
+    if (frameDocument.readyState === 'complete') {
+      resolve();
+      return;
+    }
+    frameWindow.addEventListener('load', () => resolve(), { once: true });
+    // Red de seguridad: si el evento no llega, no dejamos el flujo colgado.
+    window.setTimeout(resolve, 1500);
+  });
+
+  frameWindow.focus();
+  frameWindow.print();
+
+  // El diálogo de impresión es sincrónico en la práctica, pero el iframe no se
+  // puede sacar de inmediato en todos los navegadores.
+  window.setTimeout(() => frame.remove(), 1000);
 };
 
 const createUniqueSafFileUri = async (
@@ -757,8 +617,7 @@ const requestAndroidPdfDirectoryUri = async (
 
 export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
   if (Platform.OS === 'web') {
-    const brandLogoUri = await resolveBrandLogoUri();
-    await exportQuotePdfWeb(detail, brandLogoUri);
+    await printQuotePdfWeb(detail);
     return;
   }
 
@@ -770,13 +629,14 @@ export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
     if (canShare) {
       await Sharing.shareAsync(file.uri, {
         mimeType: 'application/pdf',
-        dialogTitle: 'Exportar presupuesto',
+        dialogTitle: 'Compartir informe',
         UTI: '.pdf',
       });
       return;
     }
 
-    await Print.printAsync({ html: buildQuotePdfHtml(detail) });
+    const logoDataUri = await resolveBrandLogoDataUri();
+    await Print.printAsync({ html: buildQuotePdfHtml(detail, logoDataUri) });
   } finally {
     try {
       // The share sheet already received the file by this point.
@@ -790,8 +650,7 @@ export const shareQuotePdf = async (detail: QuoteDetail): Promise<void> => {
 
 export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
   if (Platform.OS === 'web') {
-    const brandLogoUri = await resolveBrandLogoUri();
-    await exportQuotePdfWeb(detail, brandLogoUri);
+    await printQuotePdfWeb(detail);
     return buildPdfName(detail);
   }
   const { StorageAccessFramework } = FileSystem;
@@ -826,3 +685,6 @@ export const saveQuotePdf = async (detail: QuoteDetail): Promise<string> => {
     }
   }
 };
+
+/** Export para tests: la plantilla es la única fuente del informe. */
+export const __buildQuotePdfHtmlForTests = buildQuotePdfHtml;

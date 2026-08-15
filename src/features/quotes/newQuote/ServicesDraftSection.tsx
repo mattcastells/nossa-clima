@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Card, Searchbar, Text, TextInput } from 'react-native-paper';
 
+import { SelectionPanel, SelectionRow } from '@/components/SelectionPanel';
 import { QuoteItemsSummary, type SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
 import { formatCurrencyArs } from '@/lib/format';
 import { useAppTheme } from '@/theme';
-import { BRAND_BLUE, BRAND_BLUE_SOFT } from '@/theme';
 import type { Service } from '@/types/db';
 
 interface Props {
@@ -92,8 +92,8 @@ export function ServicesDraftSection({
         />
 
         {selectedService ? (
-          <View style={[styles.selectedBanner, { backgroundColor: BRAND_BLUE_SOFT }]}>
-            <Text style={[styles.selectedBannerText, { color: BRAND_BLUE }]} numberOfLines={1}>
+          <View style={[styles.selectedBanner, { backgroundColor: theme.colors.softBlue }]}>
+            <Text style={[styles.selectedBannerText, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
               Servicio: {selectedService.name}
             </Text>
             <Button compact mode="text" onPress={clearSelectedService} disabled={disabled}>
@@ -102,30 +102,22 @@ export function ServicesDraftSection({
           </View>
         ) : null}
 
-        <View style={styles.resultsList}>
-          {filteredServices.length > 0 ? (
-            filteredServices.map((service) => {
-              const selected = service.id === selectedService?.id;
-              return (
-                <Pressable
-                  key={service.id}
-                  onPress={() => selectService(service)}
-                  style={[styles.resultRow, selected && styles.serviceResultRowSelected]}
-                >
-                  <View style={styles.resultInfo}>
-                    <Text style={styles.resultTitle}>{service.name}</Text>
-                    <Text style={styles.resultMeta}>{service.category ?? 'Sin categoria'}</Text>
-                  </View>
-                  <Text style={styles.resultPrice}>{formatCurrencyArs(service.base_price)}</Text>
-                </Pressable>
-              );
-            })
-          ) : (
-            <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-              No hay servicios que coincidan con la busqueda.
-            </Text>
+        <SelectionPanel
+          data={filteredServices}
+          keyExtractor={(service) => service.id}
+          emptyText="No hay servicios que coincidan con la busqueda."
+          renderItem={(service) => (
+            <SelectionRow
+              title={service.name}
+              meta={service.category ?? 'Sin categoria'}
+              trailing={formatCurrencyArs(service.base_price)}
+              selected={service.id === selectedService?.id}
+              tone="blue"
+              disabled={disabled}
+              onPress={() => selectService(service)}
+            />
           )}
-        </View>
+        />
 
         <View style={styles.inlineFields}>
           <TextInput
@@ -190,7 +182,6 @@ const styles = StyleSheet.create({
   searchbar: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D7E1ED',
   },
   searchbarInput: {
     paddingLeft: 4,
@@ -208,43 +199,6 @@ const styles = StyleSheet.create({
   selectedBannerText: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '700',
-  },
-  resultsList: {
-    gap: 8,
-  },
-  resultRow: {
-    borderWidth: 1,
-    borderColor: '#D9E3EE',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  serviceResultRowSelected: {
-    borderColor: BRAND_BLUE,
-    backgroundColor: BRAND_BLUE_SOFT,
-  },
-  resultInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  resultTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-  },
-  resultMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#5F6A76',
-  },
-  resultPrice: {
-    fontSize: 13,
-    lineHeight: 18,
     fontWeight: '700',
   },
   inlineFields: {

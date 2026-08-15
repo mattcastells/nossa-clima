@@ -1,13 +1,17 @@
 import { Link, router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, TextInput as NativeTextInput, useWindowDimensions, View } from 'react-native';
 import { Button, Icon, IconButton, Menu, Text, TouchableRipple } from 'react-native-paper';
 
 import { AnimatedEntrance } from '@/components/AnimatedEntrance';
 import { AppScreen } from '@/components/AppScreen';
+import { useAppToast } from '@/components/AppToastProvider';
 import { CatalogSwitcher } from '@/components/CatalogSwitcher';
 import { LoadingOrError } from '@/components/LoadingOrError';
-import { useServiceCategories, useServices } from '@/features/services/hooks';
+import { SelectionCheck, SelectionModeBar } from '@/components/SelectionModeBar';
+import { ConfirmDeleteDialog } from '@/features/quotes/components/ConfirmDeleteDialog';
+import { useArchiveServices, useServiceCategories, useServices } from '@/features/services/hooks';
+import { toUserErrorMessage } from '@/lib/errors';
 import { formatCurrencyArs } from '@/lib/format';
 import { FONT_SANS_BOLD, FONT_SANS_EXTRABOLD, FONT_SANS_MEDIUM, useAppTheme } from '@/theme';
 
@@ -15,11 +19,16 @@ const ALL_CATEGORIES = '__all__';
 const UNCATEGORIZED_CATEGORY = '__uncategorized__';
 const PAGE_SIZE = 10;
 
+/** trim + minúsculas + espacios colapsados, para detectar repetidos. */
+const normalizeName = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, ' ');
+
 type ServiceCategoryOption = { key: string; label: string };
 
 export default function ServicesScreen() {
   const { data, isLoading, error } = useServices();
   const theme = useAppTheme();
+  const toast = useAppToast();
+  const archiveServices = useArchiveServices();
   const { width: screenWidth } = useWindowDimensions();
   const menuWidth = screenWidth - 32;
   const { data: categoryNames, isLoading: categoriesLoading, error: categoriesError } = useServiceCategories();
@@ -27,6 +36,37 @@ export default function ServicesScreen() {
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const selectionMode = selectedIds.length > 0;
+
+  /** Nombres que aparecen más de una vez: son los que hay que limpiar. */
+  const duplicatedNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    (data ?? []).forEach((service) => {
+      const key = normalizeName(service.name);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key));
+  }, [data]);
+
+  const toggleSelected = useCallback((serviceId: string) => {
+    setSelectedIds((current) =>
+      current.includes(serviceId) ? current.filter((id) => id !== serviceId) : [...current, serviceId],
+    );
+  }, []);
+
+  const archiveSelected = async () => {
+    try {
+      const count = await archiveServices.mutateAsync(selectedIds);
+      toast.success(count === 1 ? 'Servicio archivado.' : `${count} servicios archivados.`);
+      setSelectedIds([]);
+      setConfirmArchive(false);
+    } catch (archiveError) {
+      toast.error(toUserErrorMessage(archiveError, 'No se pudieron archivar los servicios.'));
+      setConfirmArchive(false);
+    }
+  };
 
   const uncategorizedCount = useMemo(
     () => (data ?? []).filter((service) => (service.category?.trim() ?? '').length === 0).length,
@@ -177,26 +217,50 @@ export default function ServicesScreen() {
     >
       <LoadingOrError isLoading={isLoading || categoriesLoading} error={error ?? categoriesError} />
 
+      {selectionMode ? (
+        <SelectionModeBar
+          count={selectedIds.length}
+          itemLabel="servicio"
+          onCancel={() => setSelectedIds([])}
+          onArchive={() => setConfirmArchive(true)}
+          loading={archiveServices.isPending}
+        />
+      ) : null}
+
       <FlatList
         data={paginated}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         scrollEnabled={false}
-        renderItem={({ item, index }) => (
-          <AnimatedEntrance delay={60 + index * 35} distance={12}>
+        renderItem={({ item, index }) => {
+          const selected = selectedIds.includes(item.id);
+          const isDuplicated = duplicatedNames.has(normalizeName(item.name));
+
+          return (
+            <AnimatedEntrance delay={60 + index * 35} distance={12}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.push(`/services/${item.id}`)}
+                accessibilityState={{ selected }}
+                onPress={() => (selectionMode ? toggleSelected(item.id) : router.push(`/services/${item.id}`))}
+                onLongPress={() => toggleSelected(item.id)}
+                delayLongPress={280}
                 style={({ pressed }) => [
                   styles.serviceCard,
                   { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft },
+                  selected && { borderColor: theme.colors.accentStrong, borderWidth: 2 },
                   pressed && styles.cardPressed,
                 ]}
               >
                 <View style={styles.serviceMain}>
+                  {selectionMode ? <SelectionCheck selected={selected} /> : null}
                   <Text style={[styles.serviceTitle, { color: theme.colors.titleOnSoft }]} numberOfLines={2}>
                     {item.name}
                   </Text>
+                  {isDuplicated ? (
+                    <View style={[styles.categoryChip, { backgroundColor: theme.colors.softYellow }]}>
+                      <Text style={[styles.categoryChipText, { color: theme.colors.onSoftYellow }]}>Repetido</Text>
+                    </View>
+                  ) : null}
                   <View style={[styles.categoryChip, { backgroundColor: theme.colors.softYellow }]}>
                     <Text style={[styles.categoryChipText, { color: theme.colors.onSoftYellow }]} numberOfLines={1}>
                       {item.category ?? 'Sin categoría'}
@@ -205,8 +269,9 @@ export default function ServicesScreen() {
                 </View>
                 <Text style={[styles.servicePrice, { color: theme.colors.primary }]}>{formatCurrencyArs(item.base_price)}</Text>
               </Pressable>
-          </AnimatedEntrance>
-        )}
+            </AnimatedEntrance>
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Icon source="wrench-outline" size={40} color={theme.colors.borderSoft} />
@@ -228,6 +293,16 @@ export default function ServicesScreen() {
           </Button>
         </View>
       )}
+
+      <ConfirmDeleteDialog
+        visible={confirmArchive}
+        title={selectedIds.length === 1 ? 'Archivar servicio' : `Archivar ${selectedIds.length} servicios`}
+        message="Dejan de aparecer al cargar un trabajo. Los trabajos y los informes ya emitidos no se tocan."
+        confirmLabel="Archivar"
+        loading={archiveServices.isPending}
+        onCancel={() => setConfirmArchive(false)}
+        onConfirm={archiveSelected}
+      />
     </AppScreen>
   );
 }

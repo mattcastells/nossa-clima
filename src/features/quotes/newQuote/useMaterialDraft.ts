@@ -94,8 +94,7 @@ export function useMaterialDraft({ items, stores, latestPricesData, onError }: U
           s.name.toLowerCase().includes(query) ||
           (s.address ?? '').toLowerCase().includes(query) ||
           (s.description ?? '').toLowerCase().includes(query),
-      )
-      .slice(0, 8);
+      );
   }, [storeSearch, stores]);
 
   const filteredItems = useMemo(() => {
@@ -109,8 +108,7 @@ export function useMaterialDraft({ items, stores, latestPricesData, onError }: U
           item.name.toLowerCase().includes(query) ||
           (item.category ?? '').toLowerCase().includes(query) ||
           (item.base_price_label ?? '').toLowerCase().includes(query),
-      )
-      .slice(0, 8);
+      );
   }, [directItemIds, materialItems, materialSearch, measuredItemIds, selectedStoreId]);
 
   const previewTotal = useMemo(() => {

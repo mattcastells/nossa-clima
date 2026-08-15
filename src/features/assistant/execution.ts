@@ -241,6 +241,9 @@ const executeCreateJobAction = async (
       title: payload.title,
       description: payload.description ?? null,
       notes: payload.notes ?? null,
+      technician_notes: payload.technician_notes ?? null,
+      client_notes: payload.client_notes ?? null,
+      technician_name: payload.technician_name ?? null,
       default_material_margin_percent: payload.default_material_margin_percent,
       status: 'pending',
     });
@@ -297,7 +300,8 @@ const executeCreateJobAction = async (
       await deps.upsertQuoteAppointment({
         quote_id: quote.id,
         title: `${quote.client_name} - ${quote.title}`,
-        notes: payload.notes ?? quote.notes ?? null,
+        // El turno lleva las notas del tecnico, no el resumen del informe.
+        notes: payload.technician_notes ?? quote.technician_notes ?? null,
         scheduled_for: payload.scheduled_for,
         starts_at: payload.starts_at,
         ends_at: payload.ends_at,

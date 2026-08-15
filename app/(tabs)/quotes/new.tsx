@@ -18,6 +18,7 @@ import { useMaterialDraft } from '@/features/quotes/newQuote/useMaterialDraft';
 import { useQuoteSaveWorkflow } from '@/features/quotes/newQuote/useQuoteSaveWorkflow';
 import { useScheduleDate } from '@/features/quotes/newQuote/useScheduleDate';
 import { useServiceDraft } from '@/features/quotes/newQuote/useServiceDraft';
+import { useCurrentTechnicianName } from '@/features/profiles/hooks';
 import { useServices } from '@/features/services/hooks';
 import { useStores } from '@/features/stores/hooks';
 import { getSingleRouteParam } from '@/lib/routeParams';
@@ -47,6 +48,7 @@ export default function NewQuotePage() {
   const { data: items, isLoading: itemsLoading, error: itemsError } = useItems();
   const { data: stores, isLoading: storesLoading, error: storesError } = useStores();
   const latestPricesQuery = useLatestPrices();
+  const currentTechnicianName = useCurrentTechnicianName();
 
   // Feature hooks
   const schedule = useScheduleDate({ scheduledFor, startsAt, hasLinkedAppointment });
@@ -107,7 +109,10 @@ export default function NewQuotePage() {
           <QuoteForm
             defaultValues={{
               title: appointmentTitle,
-              notes: appointmentNotes,
+              // Lo que venga del turno vinculado son notas del técnico, no el
+              // resumen del informe: ese se escribe después de hacer el trabajo.
+              technician_notes: appointmentNotes,
+              technician_name: currentTechnicianName,
             }}
             disabled={busy}
             extraContent={

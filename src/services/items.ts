@@ -93,6 +93,33 @@ export const listItemsWithStats = async (options: ListItemsOptions = {}): Promis
   }
 };
 
+/**
+ * Archiva materiales (borrado logico).
+ *
+ * No se borran de verdad: quote_material_items.item_id es `on delete restrict`,
+ * asi que el borrado duro fallaria en cuanto el material se haya usado alguna
+ * vez. Archivar ademas deja intactos los trabajos e informes ya emitidos, que
+ * guardan su propio snapshot del nombre.
+ */
+export const archiveItems = async (itemIds: string[]): Promise<number> => {
+  const ids = normalizeIds(itemIds);
+  if (ids.length === 0) return 0;
+
+  const { error } = await supabase
+    .from('items')
+    .update({ archived_at: new Date().toISOString() })
+    .in('id', ids);
+
+  if (error) {
+    if (isMissingSupabaseColumnError(error, 'archived_at')) {
+      throw new Error('Falta aplicar la migracion de archivado de catalogos en Supabase.');
+    }
+    throw error;
+  }
+
+  return ids.length;
+};
+
 export const upsertItem = async (payload: Partial<Item> & { name: string }): Promise<Item> => {
   const nextPayload = { ...payload };
   delete nextPayload.user_id;
