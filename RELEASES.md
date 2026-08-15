@@ -111,28 +111,26 @@ Los pasos que tenes que hacer vos en GitHub se detallan al final de este archivo
 - Confirmar que el nuevo `BUILD` sea mayor que el ultimo publicado.
 - Confirmar que la release no sea `draft` ni `prerelease`.
 
-## Estado actual (28 Mar 2026)
+## Estado actual (15 Ago 2026)
 
-Tags detectados en el repo:
+Ultimos tags publicados:
 
-- `v0.1.0-b1`
-- `v0.2.0-b2`
-- `v0.2.0-b3`
-- `v0.2.1-b5`
-- `v0.3.0-b6`
-- `v0.3.1-b7`
-- `v0.3.2-b8`
-- `v0.3.3-b9`
-- `v0.3.4-b10`
-- `v0.3.5-b11`
-- `v0.4.0-b12`
-- `v0.4.1-b13`
-- `v0.4.2-b14`
 - `v0.5.0-b15`
+- `v0.5.1-b16`
+- `v0.5.1-b17`
+- `v0.5.1-b18`
+- `v0.5.1-b19`
+- `v0.6.0-b20`
+- `v0.7.0-b21` ← feedback de usuarios: interfaz, notas duales, informe rediseñado
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.5.1-b16` (patch) o `v0.6.0-b16` (minor)
+- `v0.7.1-b22` (patch) o `v0.8.0-b22` (minor)
+
+> **Ojo con la migracion.** `v0.7.0-b21` necesita que este aplicada
+> `supabase/migrations/202608150001_quote_notes_split_and_technician.sql`.
+> Sin ella la app anda igual (hay fallback de compatibilidad), pero las notas
+> del tecnico, los datos de acceso y el tecnico encargado no persisten.
 
 ## Pasos de setup para privacidad del repo (hacelos una sola vez)
 
