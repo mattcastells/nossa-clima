@@ -248,7 +248,7 @@ export default function AddMaterialToQuotePage() {
 
       let itemId = selectedItemId;
       let itemMeasurementId: string | null = selectedMeasurementId;
-      let unit = selectedMeasurement?.unit ?? selectedItem?.unit ?? 'mt';
+      let unit: string | null = selectedMeasurement?.unit ?? selectedItem?.unit ?? null;
       let sourceStoreId: string | null = entryMode === 'catalog' ? selectedStoreId : null;
 
       if (entryMode === 'catalog') {
@@ -273,7 +273,7 @@ export default function AddMaterialToQuotePage() {
           name: normalizedName,
           item_type: 'material',
           category: manualCategory.trim() || null,
-          unit: 'mt',
+          unit: null,
           brand: null,
           description: null,
           notes: null,
@@ -282,7 +282,7 @@ export default function AddMaterialToQuotePage() {
 
         itemId = createdItem.id;
         itemMeasurementId = null;
-        unit = createdItem.unit ?? 'mt';
+        unit = createdItem.unit ?? null;
         sourceStoreId = null;
       }
 

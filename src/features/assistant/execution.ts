@@ -287,7 +287,8 @@ const executeCreateJobAction = async (
         item_id: item.id,
         item_measurement_id: null,
         quantity: materialDraft.quantity,
-        unit: materialDraft.unit ?? item.unit ?? 'u',
+        // Mismo criterio que el alta manual: sin unidad si nadie la define.
+        unit: materialDraft.unit ?? item.unit ?? null,
         unit_price: resolvedUnitPrice,
         margin_percent: null,
         source_store_id: sourceStore?.id ?? null,

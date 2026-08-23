@@ -47,6 +47,7 @@ export default function NewItemPage() {
       description: '',
       category: '',
       base_price_label: '',
+      unit: '',
       notes: '',
       sku: '',
     },
@@ -100,7 +101,8 @@ export default function NewItemPage() {
         item_type: 'material',
         category: values.category?.trim() ? values.category.trim() : null,
         base_price_label: values.base_price_label?.trim() ? values.base_price_label.trim() : null,
-        unit: 'mt',
+        // Vacía = sin unidad (la cantidad se imprime sola). Nunca asumir 'mt'.
+        unit: values.unit?.trim() ? values.unit.trim() : null,
         notes: values.notes?.trim() ? values.notes.trim() : null,
         brand: null,
         description: values.description?.trim() ? values.description.trim() : null,
@@ -208,6 +210,24 @@ export default function NewItemPage() {
               })}
             </View>
           )}
+
+          <Controller
+            control={control}
+            name="unit"
+            render={({ field }) => (
+              <TextInput
+                mode="outlined"
+                label="Unidad (opcional)"
+                placeholder="mt, kg, un"
+                value={field.value ?? ''}
+                onChangeText={field.onChange}
+                autoCapitalize="none"
+                outlineStyle={styles.inputOutline}
+                contentStyle={styles.inputContent}
+                scrollEnabled
+              />
+            )}
+          />
 
           <Controller
             control={control}

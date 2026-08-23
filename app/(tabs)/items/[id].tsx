@@ -299,6 +299,7 @@ export default function ItemDetailPage() {
             notes: material.notes ?? '',
             sku: material.sku ?? '',
             base_price_label: material.base_price_label ?? '',
+            unit: material.unit ?? '',
           }}
           onSubmit={async (values) => {
             try {
@@ -308,7 +309,7 @@ export default function ItemDetailPage() {
                 item_type: 'material',
                 category: values.category?.trim() ? values.category.trim() : null,
                 base_price_label: values.base_price_label?.trim() ? values.base_price_label.trim() : null,
-                unit: material.unit ?? 'mt',
+                unit: values.unit?.trim() ? values.unit.trim() : null,
                 description: values.description?.trim() ? values.description.trim() : null,
                 notes: values.notes?.trim() ? values.notes.trim() : null,
                 brand: null,

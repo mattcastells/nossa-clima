@@ -542,7 +542,8 @@ export const updateQuoteMaterialItem = async (itemId: string, payload: QuoteMate
       ...payload,
       item_name_snapshot: materialContext.itemNameSnapshot,
       item_measurement_snapshot: materialContext.itemMeasurementSnapshot,
-      unit: payload.unit ?? existing.unit ?? materialContext.measurement?.unit ?? materialContext.item.unit ?? 'mt',
+      // Sin unidad si ni la medida ni el ítem la definen: no asumir 'mt'.
+      unit: payload.unit ?? existing.unit ?? materialContext.measurement?.unit ?? materialContext.item.unit ?? null,
     };
   }
 

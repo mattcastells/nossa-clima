@@ -217,7 +217,9 @@ export function useMaterialDraft({ items, stores, latestPricesData, onError }: U
     const label = selectedMeasurement
       ? formatMeasuredItemDisplayName(selectedItem, selectedMeasurement)
       : formatItemDisplayName(selectedItem);
-    const unit = selectedMeasurement?.unit ?? selectedItem.unit ?? 'mt';
+    // La unidad sale de la medida (los caños se venden por metro) o del ítem.
+    // Si ninguno la define, va sin unidad: un capacitor no se mide en metros.
+    const unit = selectedMeasurement?.unit ?? selectedItem.unit ?? null;
 
     setDraftMaterials((current) => [
       ...current,

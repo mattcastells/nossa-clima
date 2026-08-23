@@ -51,7 +51,7 @@ const buildDetail = (overrides: Partial<Detail> = {}): Detail =>
     ...overrides,
   }) as Detail;
 
-const material = (name: string, quantity: number, unitPrice: number) => ({
+const material = (name: string, quantity: number, unitPrice: number, unit: string | null = null) => ({
   id: `m-${name}`,
   quote_id: baseQuote.id,
   user_id: 'u1',
@@ -60,7 +60,7 @@ const material = (name: string, quantity: number, unitPrice: number) => ({
   item_measurement_snapshot: null,
   item_name_snapshot: name,
   quantity,
-  unit: 'u',
+  unit,
   unit_price: unitPrice,
   margin_percent: null,
   total_price: quantity * unitPrice,
@@ -172,5 +172,44 @@ describe('informe PDF', () => {
   it('cae al logo dibujado si el asset no cargo', () => {
     const html = buildHtml(buildDetail(), '');
     expect(html).toContain('<svg');
+  });
+
+  it('no inventa un numero de informe', () => {
+    // Hubo un "N° 8401" derivado del id del trabajo. Parecia un contador de
+    // informes emitidos y no lo era: confundia al cliente.
+    const html = buildHtml(buildDetail(), '');
+    expect(html).not.toMatch(/N°\s*\d/);
+    // La fecha sigue en la banda, sola.
+    expect(html).toMatch(/<div class="meta">\d{1,2}\/\d{1,2}\/\d{4}<\/div>/);
+  });
+
+  it('imprime la cantidad sin unidad cuando el material no la tiene', () => {
+    // Un capacitor no se mide en metros: si el item no define unidad, la
+    // columna CANT. muestra solo el numero. Con unidad, numero + unidad.
+    const html = buildHtml(
+      buildDetail({ materials: [material('Capacitor 35mf', 1, 50_000), material('Caño 3/8', 2.5, 10_000, 'mt')] }),
+      '',
+    );
+    expect(html).toContain('<td class="num muted">1</td>');
+    expect(html).toContain('<td class="num muted">2,5 mt</td>');
+    expect(html).not.toContain('1 mt');
+  });
+
+  it('reserva el lugar del pie en cada pagina impresa', () => {
+    // El pie es position:fixed (se repite por hoja) y un <tfoot> espaciador
+    // del mismo alto evita que pise las ultimas filas en informes largos.
+    const html = buildHtml(buildDetail(), '');
+    expect(html).toContain('<tfoot><tr><td><div class="footer-space"></div></td></tr></tfoot>');
+    expect(html).toContain('<div class="footer">');
+
+    const spacerHeight = html.match(/\.footer-space \{ height: (\d+)px; \}/)?.[1];
+    const footerHeight = html.match(/\.footer \{[^}]*?height: (\d+)px;/s)?.[1];
+    expect(spacerHeight).toBeDefined();
+    expect(footerHeight).toBe(spacerHeight);
+
+    // La tabla de costos tiene su propia clase: los estilos de filas no
+    // alcanzan al marco de pagina.
+    expect(html).toContain('<table class="costs">');
+    expect(html).not.toMatch(/\n\s+table \{/);
   });
 });

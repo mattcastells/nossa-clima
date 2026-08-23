@@ -8,6 +8,9 @@ export const itemSchema = z.object({
   notes: optionalTrimmedText,
   category: optionalTrimmedText,
   base_price_label: optionalTrimmedText,
+  // Unidad en la que se cuenta el material en un trabajo ("mt", "kg", "un").
+  // Vacía = sin unidad: la cantidad se imprime sola. Nunca se asume 'mt'.
+  unit: optionalTrimmedText,
   sku: optionalTrimmedText,
   item_type: z.enum(['product', 'tool', 'material', 'other']),
 });

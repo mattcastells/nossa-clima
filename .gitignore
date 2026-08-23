@@ -12,3 +12,6 @@ yarn.lock
 
 # Las skills de .claude/skills/ si se versionan; los permisos locales no.
 .claude/settings.local.json
+
+# Estado local de la CLI de Supabase (link, versiones). No se versiona.
+supabase/.temp/

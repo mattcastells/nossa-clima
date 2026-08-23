@@ -29,6 +29,7 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
       item_type: 'material',
       category: defaultValues?.category ?? '',
       base_price_label: defaultValues?.base_price_label ?? '',
+      unit: defaultValues?.unit ?? '',
       description: defaultValues?.description ?? '',
       notes: defaultValues?.notes ?? '',
       sku: defaultValues?.sku ?? '',
@@ -98,6 +99,23 @@ export const ItemForm = ({ defaultValues, categorySuggestions = [], onSubmit }: 
             })}
           </View>
         )}
+
+        <Controller
+          control={control}
+          name="unit"
+          render={({ field }) => (
+            <TextInput
+              mode="outlined"
+              label="Unidad (opcional)"
+              placeholder="mt, kg, un"
+              value={field.value ?? ''}
+              onChangeText={field.onChange}
+              autoCapitalize="none"
+              outlineStyle={styles.inputOutline}
+              activeOutlineColor={theme.colors.accent}
+            />
+          )}
+        />
       </View>
 
       <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft }]}>

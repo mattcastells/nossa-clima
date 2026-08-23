@@ -60,7 +60,7 @@ reutilizada; está documentado en `src/features/quotes/schemas.ts`.
 │ ██ BANDA NAVY #052653                            │
 │   INFORME TÉCNICO            [ logo real PNG ]   │
 │   <título del trabajo>                           │
-│   N° 0421 · 15/08/2026                           │
+│   15/08/2026                                     │
 ├──────────────────────────────────────────────────┤
 │  Cliente    Juan Pérez                           │
 │  Teléfono   11 1234 5678                         │
@@ -137,9 +137,36 @@ suma y el cliente lo nota. Redondeá una sola vez y derivá el total impreso de 
 líneas impresas.
 
 **Paginación.** Un resumen largo genera 2+ páginas. El pie tiene que quedar al final
-de la última, no flotando en el medio. En medio paginado un `flex` con `100vh` no
-alcanza: usar `position: fixed; bottom: 0` + `@page`. Probar siempre con un informe
-largo antes de cerrar.
+de la última, no flotando en el medio, y **no puede pisar el contenido** de las
+anteriores. Cómo está resuelto (feedback 2026-08, el pie tapaba el detalle de costos):
+
+- El pie es `position: fixed; bottom: 0` → se repite en cada página.
+- Un `fixed` no empuja el contenido, y el margen inferior de `@page` **no** sirve
+  de reserva (el WebView ubica el fixed arriba del margen, no dentro). Por eso todo
+  el documento va dentro de `<table class="page-frame">` cuyo `<tfoot>` es un
+  espaciador `.footer-space` del alto del pie: el motor repite el tfoot al pie de
+  cada hoja y el contenido nunca llega a la zona del fixed.
+- `FOOTER_HEIGHT` es la única fuente del alto: la usan el pie y el espaciador.
+- Los estilos de la tabla de costos van acotados a `.costs` para no alcanzar al
+  marco. No escribas reglas sueltas sobre `table`, `thead`, `tbody` o `td`.
+- `.section-title` lleva `break-after: avoid`, las filas `break-inside: avoid` y
+  `.closing` `break-inside: avoid`: ni títulos huérfanos ni el cierre partido.
+
+Probar siempre con un informe largo antes de cerrar. Con Chrome headless
+(`--headless=new --print-to-pdf=... --no-pdf-header-footer`) se ve lo mismo que
+en el WebView de Android.
+
+**Sin numeración.** El encabezado muestra solo la fecha. Hubo un "N° 0421" derivado
+del id del trabajo: parecía un contador de informes emitidos y no lo era. No
+volver a inventar un número; si algún día hay numeración real, va en la base.
+
+**Unidad de los materiales.** La columna CANT. imprime `cantidad + unidad` solo si
+la línea tiene unidad. La unidad sale de la medida (`item_measurements.unit`, ahí
+sí "mt" para caños) o del ítem (`items.unit`, campo **Unidad** opcional del
+formulario de material: "mt", "kg", "un"); si ninguno la define, queda `null` y se
+imprime el número solo. **Nunca asumir `'mt'`** como default en ningún lado: un
+capacitor no se mide en metros (feedback 2026-08; el alta guardaba `'mt'` fijo y
+el usuario terminó creando medidas llamadas "Unidad" para zafar).
 
 **Sin datos.** El informe tiene que salir bien sin resumen, sin materiales, sin
 servicios y sin teléfono. Cada bloque va condicionado.

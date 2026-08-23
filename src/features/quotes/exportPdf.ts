@@ -26,6 +26,12 @@ const GREEN = '#15803D';
 const AMBER = '#8A5A00';
 const TABLE_HEAD_BG = '#EAEFF5';
 
+/**
+ * Alto del pie (garantía) en px CSS. Lo usan el pie fijo y el espaciador que
+ * reserva su lugar en cada página: tienen que ser el mismo número.
+ */
+const FOOTER_HEIGHT = 96;
+
 const COMPANY_EMAIL = 'nossaclima@gmail.com';
 const COMPANY_PHONE = '11 3001 9957';
 const WARRANTY_TEXT =
@@ -117,14 +123,6 @@ const formatMoney = (value: number): string =>
     currency: 'ARS',
     maximumFractionDigits: 0,
   }).format(roundToPeso(value));
-
-/** N° de informe estable por trabajo, derivado del id (no hay numeración en la base). */
-const getReportNumber = (quoteId: string): string => {
-  const hex = quoteId.replaceAll('-', '').slice(0, 8);
-  const parsed = Number.parseInt(hex, 16);
-  const number = Number.isFinite(parsed) ? parsed % 10000 : 0;
-  return String(number).padStart(4, '0');
-};
 
 const sanitizeFileName = (value: string): string => {
   const normalized = value
@@ -237,7 +235,6 @@ const renderClientField = (label: string, value: string | null | undefined): str
 const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => {
   const { quote } = detail;
   const quoteDate = getQuoteDisplayDate(detail);
-  const reportNumber = getReportNumber(quote.id);
   const address = quote.description?.trim() ?? '';
   const summary = quote.notes?.trim() ?? '';
   const { rowsHtml, totals } = buildCostSection(detail);
@@ -254,9 +251,19 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>Informe técnico ${escapeHtml(quote.title)}</title>
       <style>
-        /* El pie va fijo al pie de CADA página impresa: en medio paginado un
-           flex con 100vh no garantiza que caiga al final de la última. */
-        @page { margin: 0 0 96px; }
+        /* ── Paginación del pie ───────────────────────────────────────
+           El pie (garantía) va position:fixed para repetirse en CADA página
+           impresa. Pero un fixed no empuja el contenido: en informes de 2+
+           páginas pisaba las últimas filas de cada hoja. Y el margen inferior
+           de @page no sirve de reserva, porque el WebView ubica el fixed
+           arriba del margen, no dentro.
+
+           Solución: todo el documento va dentro de una tabla (.page-frame)
+           cuyo <tfoot> es un espaciador del alto del pie. El motor repite el
+           tfoot al pie de cada página, así que el contenido nunca llega a la
+           zona donde se pinta el fixed. Margen de @page en 0 para que la
+           banda navy siga saliendo al ras. */
+        @page { margin: 0; }
 
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -266,6 +273,12 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           font-size: 12.5px;
           line-height: 1.5;
         }
+
+        .page-frame { width: 100%; border-collapse: collapse; }
+        .page-frame > tbody > tr > td,
+        .page-frame > tfoot > tr > td { padding: 0; border: 0; vertical-align: top; }
+        .page-frame > tfoot { display: table-footer-group; }
+        .footer-space { height: ${FOOTER_HEIGHT}px; }
 
         /* ── Banda del encabezado ─────────────────────────────────── */
         .band {
@@ -303,6 +316,9 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           margin: 22px 0 12px;
         }
         .section-title:first-child { margin-top: 0; }
+        /* Un título de sección no queda solo al final de una hoja con su
+           contenido en la siguiente. */
+        .section-title { break-after: avoid; page-break-after: avoid; }
 
         /* ── Bloque de datos del cliente ──────────────────────────── */
         .client-card {
@@ -352,8 +368,10 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
         }
 
         /* ── Detalle de costos ────────────────────────────────────── */
-        table { width: 100%; border-collapse: collapse; }
-        thead th {
+        /* Todo acotado a .costs: el documento entero vive dentro de otra
+           tabla (.page-frame) y estas reglas no deben alcanzarla. */
+        .costs { width: 100%; border-collapse: collapse; }
+        .costs thead th {
           background: ${TABLE_HEAD_BG};
           color: ${INK};
           font-size: 10px;
@@ -362,20 +380,24 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           text-align: left;
           padding: 8px 12px;
         }
-        thead th.num, td.num { text-align: right; }
-        tbody td {
+        .costs thead th.num, .costs td.num { text-align: right; }
+        .costs tbody td {
           padding: 8px 12px;
           font-size: 12px;
           border-bottom: 1px solid ${CARD_BORDER};
         }
-        tbody tr.group td {
+        .costs tbody tr.group td {
           font-weight: 700;
           font-size: 11.5px;
           border-bottom: none;
           padding-top: 12px;
         }
-        td.muted { color: ${MUTED}; }
-        td.strong { font-weight: 700; }
+        .costs td.muted { color: ${MUTED}; }
+        .costs td.strong { font-weight: 700; }
+        /* Una fila no se parte entre hojas, y el rótulo de grupo
+           (Materiales / Mano de obra) no queda solo al final de una. */
+        .costs tr { break-inside: avoid; page-break-inside: avoid; }
+        .costs tr.group { break-after: avoid; page-break-after: avoid; }
 
         /* ── Cierre: contacto a la izquierda, totales a la derecha ─── */
         .closing {
@@ -384,6 +406,8 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           justify-content: space-between;
           align-items: flex-start;
           gap: 24px;
+          break-inside: avoid;
+          page-break-inside: avoid;
         }
         .contact-card {
           flex: none;
@@ -437,7 +461,7 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           left: 0;
           right: 0;
           bottom: 0;
-          height: 96px;
+          height: ${FOOTER_HEIGHT}px;
           background: ${TABLE_HEAD_BG};
           padding: 14px 32px;
           display: flex;
@@ -451,11 +475,13 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
       </style>
     </head>
     <body>
+      <table class="page-frame">
+      <tbody><tr><td>
       <div class="band">
         <div>
           <div class="eyebrow">INFORME TÉCNICO</div>
           <h1>${escapeHtml(quote.title)}</h1>
-          <div class="meta">N° ${escapeHtml(reportNumber)} · ${escapeHtml(quoteDate)}</div>
+          <div class="meta">${escapeHtml(quoteDate)}</div>
         </div>
         <div class="logo">${logoMarkup}</div>
       </div>
@@ -481,7 +507,7 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           : ''}
 
         <div class="section-title">DETALLE DE COSTOS</div>
-        <table>
+        <table class="costs">
           <thead>
             <tr>
               <th>CONCEPTO</th>
@@ -507,6 +533,9 @@ const buildQuotePdfHtml = (detail: QuoteDetail, logoDataUri: string): string => 
           </div>
         </div>
       </div>
+      </td></tr></tbody>
+      <tfoot><tr><td><div class="footer-space"></div></td></tr></tfoot>
+      </table>
 
       <div class="footer">
         <div class="warranty">${escapeHtml(WARRANTY_TEXT)}</div>
