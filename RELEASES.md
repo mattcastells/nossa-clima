@@ -111,26 +111,27 @@ Los pasos que tenes que hacer vos en GitHub se detallan al final de este archivo
 - Confirmar que el nuevo `BUILD` sea mayor que el ultimo publicado.
 - Confirmar que la release no sea `draft` ni `prerelease`.
 
-## Estado actual (15 Ago 2026)
+## Estado actual (23 Ago 2026)
 
 Ultimos tags publicados:
 
-- `v0.5.0-b15`
-- `v0.5.1-b16`
-- `v0.5.1-b17`
 - `v0.5.1-b18`
 - `v0.5.1-b19`
 - `v0.6.0-b20`
 - `v0.7.0-b21` ← feedback de usuarios: interfaz, notas duales, informe rediseñado
+- `v0.7.1-b22` ← informe: pie sin pisar costos, sin N°, unidad real de materiales (campo Unidad)
 
 Siguiente build recomendado para continuar la linea sin conflictos:
 
-- `v0.7.1-b22` (patch) o `v0.8.0-b22` (minor)
+- `v0.7.2-b23` (patch) o `v0.8.0-b23` (minor)
 
-> **Ojo con la migracion.** `v0.7.0-b21` necesita que este aplicada
-> `supabase/migrations/202608150001_quote_notes_split_and_technician.sql`.
-> Sin ella la app anda igual (hay fallback de compatibilidad), pero las notas
-> del tecnico, los datos de acceso y el tecnico encargado no persisten.
+> **Migraciones.** `v0.7.0-b21` necesita
+> `supabase/migrations/202608150001_quote_notes_split_and_technician.sql`
+> (sin ella la app anda igual por el fallback de compatibilidad, pero las notas
+> del tecnico, los datos de acceso y el tecnico encargado no persisten).
+> `v0.7.1-b22` trae `202608230001_clear_assumed_meter_unit.sql`, un arreglo de
+> DATOS (no de esquema) **ya aplicado en produccion el 23 Ago 2026**; solo hace
+> falta volver a correrlo si se restaura un backup anterior.
 
 ## Pasos de setup para privacidad del repo (hacelos una sola vez)
 
