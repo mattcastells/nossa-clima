@@ -24,9 +24,15 @@ interface LatestMeasurePriceOptions {
 
 const getMeasurePricingMigrationError = (): Error => new Error('The material measurements migration is missing in Supabase.');
 
-export const createPriceRecord = async (
-  payload: Omit<StoreItemPrice, 'id' | 'created_at' | 'user_id'>,
-): Promise<StoreItemPrice> => {
+/**
+ * Precio cargado desde la app. `source_url` y `external_ref` quedan afuera a
+ * proposito: los escribe solo el relevamiento de proveedores
+ * (`tools/supplier-survey`), y `external_ref` es lo que evita que reinserte dos
+ * veces la misma observacion.
+ */
+export type NewStoreItemPrice = Omit<StoreItemPrice, 'id' | 'created_at' | 'user_id' | 'source_url' | 'external_ref'>;
+
+export const createPriceRecord = async (payload: NewStoreItemPrice): Promise<StoreItemPrice> => {
   const { data: store, error: storeError } = await supabase.from('stores').select('id').eq('id', payload.store_id).single();
   if (storeError) throw storeError;
   if (!store) throw new Error('La tienda no existe.');

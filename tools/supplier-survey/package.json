@@ -1,0 +1,6 @@
+{
+  "name": "@nossa-clima/supplier-survey",
+  "private": true,
+  "type": "module",
+  "description": "Relevamiento mensual de proveedores de aire acondicionado: discovery, scraping, normalizacion, deduplicacion y sincronizacion con Supabase."
+}

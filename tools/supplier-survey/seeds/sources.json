@@ -1,0 +1,15 @@
+{
+  "$comment": [
+    "Sitios conocidos que se relevan en cada corrida.",
+    "",
+    "Esta lista NO es la fuente de verdad de las tiendas: las tiendas viven en",
+    "la tabla `stores`, y el pipeline releva automaticamente la web de toda",
+    "tienda que la tenga cargada. Este archivo sirve para dos cosas:",
+    "  1. sitios de proveedores que todavia no son una tienda en la base;",
+    "  2. arrancar de cero, antes de que ninguna tienda tenga web cargada.",
+    "",
+    "Campos: url (obligatorio), label (opcional, aparece en el reporte).",
+    "El dominio se calcula solo; no hace falta escribirlo."
+  ],
+  "sources": []
+}

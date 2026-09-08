@@ -26,6 +26,8 @@ export const StoreForm = ({ defaultValues, onSubmit, submitLabel = 'Guardar tien
       description: defaultValues?.description ?? '',
       address: defaultValues?.address ?? '',
       phone: defaultValues?.phone ?? '',
+      website: defaultValues?.website ?? '',
+      email: defaultValues?.email ?? '',
       notes: defaultValues?.notes ?? '',
     },
   });
@@ -80,6 +82,48 @@ export const StoreForm = ({ defaultValues, onSubmit, submitLabel = 'Guardar tien
               outlineStyle={styles.inputOutline}
               activeOutlineColor={theme.colors.accent}
             />
+          )}
+        />
+        <Controller
+          control={control}
+          name="website"
+          render={({ field }) => (
+            <View>
+              <TextInput
+                mode="outlined"
+                label="Sitio web"
+                left={<TextInput.Icon icon="web" />}
+                value={field.value ?? ''}
+                onChangeText={field.onChange}
+                error={Boolean(errors.website)}
+                autoCapitalize="none"
+                keyboardType="url"
+                outlineStyle={styles.inputOutline}
+                activeOutlineColor={theme.colors.accent}
+              />
+              {errors.website ? <HelperText type="error">{errors.website.message}</HelperText> : null}
+            </View>
+          )}
+        />
+        <Controller
+          control={control}
+          name="email"
+          render={({ field }) => (
+            <View>
+              <TextInput
+                mode="outlined"
+                label="Email"
+                left={<TextInput.Icon icon="email-outline" />}
+                value={field.value ?? ''}
+                onChangeText={field.onChange}
+                error={Boolean(errors.email)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                outlineStyle={styles.inputOutline}
+                activeOutlineColor={theme.colors.accent}
+              />
+              {errors.email ? <HelperText type="error">{errors.email.message}</HelperText> : null}
+            </View>
           )}
         />
       </View>

@@ -1,0 +1,37 @@
+{
+  "$comment": [
+    "Catalogo de consultas del discovery.",
+    "",
+    "Cubren los seis frentes del relevamiento: insumos, componentes HVAC,",
+    "materiales de instalacion y mantenimiento, repuestos y accesorios,",
+    "equipamiento y herramientas, y distribuidores especializados.",
+    "",
+    "Acotadas geograficamente a AMBA y Argentina: las tiendas que usa el equipo",
+    "estan en CABA, y un proveedor de otro pais no sirve para comprar un cano.",
+    "Agregar o sacar consultas aca no toca una linea de codigo."
+  ],
+  "queries": [
+    "venta de insumos para aire acondicionado Buenos Aires",
+    "insumos aire acondicionado mayorista CABA",
+    "distribuidora insumos refrigeracion Buenos Aires",
+    "proveedor materiales aire acondicionado AMBA",
+
+    "componentes HVAC Argentina distribuidor",
+    "repuestos aire acondicionado split Buenos Aires",
+    "compresores para aire acondicionado venta Argentina",
+    "placas electronicas aire acondicionado repuestos Buenos Aires",
+
+    "caneria de cobre para aire acondicionado venta Buenos Aires",
+    "aislacion termica caneria refrigeracion Argentina",
+    "gas refrigerante R410A R32 venta Buenos Aires",
+    "soportes y bandejas para split venta Argentina",
+
+    "herramientas para instalacion de aire acondicionado Argentina",
+    "bomba de vacio refrigeracion venta Buenos Aires",
+    "manometros y abocardadores refrigeracion Argentina",
+
+    "materiales electricos para instalacion de aire acondicionado Buenos Aires",
+    "accesorios para instalacion de split mayorista Argentina",
+    "mantenimiento aire acondicionado insumos venta Buenos Aires"
+  ]
+}

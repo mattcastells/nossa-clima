@@ -191,8 +191,41 @@ If you add or update the audio feature locally, rebuild the native app or dev cl
 npm run android:build
 ```
 
+## Supplier survey (monthly scraping pipeline)
+
+A reusable discovery + scraping + normalization + deduplication + persistence
+pipeline for air conditioning supply companies, under `tools/supplier-survey/`.
+
+```bash
+npm run survey            # full run: known sites + discovery
+npm run survey:update     # only refresh sites we already know
+npm run survey:discover   # only look for new companies
+npm run survey:report     # reprint the last report
+
+# Load a manually researched spreadsheet through the same pipeline
+npm run survey:import -- --file Tiendas_insumos_refrigeracion_AMBA.xlsx
+```
+
+It **never writes to Supabase**. Each run produces an idempotent `.sql` file and
+a report under `artifacts/supplier-survey/`; applying the SQL is a human
+decision, like every other migration in this repo. Requires Node 22+ and the
+`supabase/migrations/202609080001_supplier_survey.sql` migration applied.
+
+Scraped companies land in a staging table (`supplier_candidates`) and only reach
+the shared `stores` catalog when someone approves them with
+`promote_supplier_candidate`. Known stores are updated through a three-way merge
+against `stores.scraped_snapshot`, so the scraper never overwrites data a person
+entered by hand.
+
+Runs monthly through `.github/workflows/supplier-survey.yml`, which uploads the
+SQL and the report as artifacts and opens an issue with the summary.
+
+Full documentation: `tools/supplier-survey/README.md`.
+For day-to-day use there is a Claude Code skill: `nossa-clima-relevamiento`.
+
 ## Where to find more documentation
 
+- Supplier survey pipeline: `tools/supplier-survey/README.md`
 - Release process and tag convention: `RELEASES.md`
 - Pre-release and setup notes: `docs/PRE_RELEASE_SETUP.md`
 - Additional operational notes: `docs/ITERACION_2_QUOTES_SERVICES.md`

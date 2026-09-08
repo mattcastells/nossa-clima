@@ -1,5 +1,13 @@
 export type ItemType = 'product' | 'tool' | 'material' | 'other';
-export type PriceSourceType = 'purchase' | 'manual_update' | 'quote' | 'other';
+export type PriceSourceType = 'purchase' | 'manual_update' | 'quote' | 'other' | 'scraper';
+
+/**
+ * Origen de una fila de catalogo.
+ * `automated` solo si la creo el relevamiento de proveedores al aprobar un
+ * candidato. Una tienda cargada a mano sigue siendo `manual` aunque el
+ * relevamiento le haya completado el mail: eso se lee en `scraped_snapshot`.
+ */
+export type CatalogSourceType = 'manual' | 'automated';
 export type MeasurePricingMode = 'manual' | 'calculated';
 export type LegacyQuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
 export type JobQuoteStatus = 'pending' | 'completed' | 'cancelled';
@@ -20,7 +28,18 @@ export interface Store {
   description: string | null;
   address: string | null;
   phone: string | null;
+  /** Sitio web. Lo completa el relevamiento si esta vacio; editable a mano. */
+  website: string | null;
+  email: string | null;
+  /** Dominio registrable, clave de deduplicacion del relevamiento. */
+  canonical_domain: string | null;
   notes: string | null;
+  source: string;
+  source_type: CatalogSourceType;
+  source_url: string | null;
+  last_scraped_at: string | null;
+  /** Ultimos valores que escribio el relevamiento. Base del merge a tres vias. */
+  scraped_snapshot: Record<string, string | null> | null;
   archived_at: string | null;
   updated_by: string | null;
   created_at: string;
@@ -42,6 +61,11 @@ export interface Item {
   sku: string | null;
   brand: string | null;
   item_type: ItemType;
+  source: string;
+  source_type: CatalogSourceType;
+  source_url: string | null;
+  last_scraped_at: string | null;
+  scraped_snapshot: Record<string, string | null> | null;
   archived_at: string | null;
   updated_by: string | null;
   created_at: string;
@@ -156,6 +180,10 @@ export interface StoreItemPrice {
   source_type: PriceSourceType;
   quantity_reference: string | null;
   notes: string | null;
+  /** URL de la que se leyo el precio, si vino del relevamiento. */
+  source_url: string | null;
+  /** Huella del hecho observado. Evita reinsertar la misma observacion. */
+  external_ref: string | null;
   created_at: string;
 }
 
@@ -236,4 +264,95 @@ export interface PdfFile {
 export interface ProfileDirectoryEntry {
   id: string;
   full_name: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Relevamiento de proveedores (tools/supplier-survey)
+// ---------------------------------------------------------------------------
+
+export type SupplierCandidateDecision =
+  | 'new'
+  | 'update'
+  | 'duplicate'
+  | 'irrelevant'
+  | 'needs_review'
+  | 'applied'
+  | 'discarded';
+
+export interface SupplierSurveyRun {
+  id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: 'running' | 'completed' | 'failed';
+  mode: string;
+  stats: Record<string, unknown>;
+  config: Record<string, unknown>;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface SupplierSource {
+  id: string;
+  store_id: string | null;
+  url: string;
+  canonical_domain: string;
+  discovery_method: 'seed' | 'search' | 'directory' | 'manual';
+  status: 'active' | 'dead' | 'irrelevant' | 'blocked' | 'paused';
+  robots_allowed: boolean | null;
+  last_fetched_at: string | null;
+  last_success_at: string | null;
+  last_http_status: number | null;
+  failure_count: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Empresa relevada, todavia fuera del catalogo. Nada de esto se ve en la app
+ * hasta que alguien lo aprueba con `promote_supplier_candidate`.
+ */
+export interface SupplierCandidate {
+  id: string;
+  run_id: string | null;
+  source_url: string;
+  canonical_domain: string;
+  fingerprint: string;
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  description: string | null;
+  categories: string[];
+  relevance_score: number | null;
+  match_store_id: string | null;
+  match_confidence: number | null;
+  match_reason: string | null;
+  decision: SupplierCandidateDecision;
+  diff: Record<string, { current: string | null; incoming: string | null }>;
+  scraped_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+}
+
+/** Fila de `supplier_review_queue`: lo unico que hay que mirar tras cada corrida. */
+export interface SupplierReviewQueueEntry {
+  id: string;
+  run_id: string | null;
+  decision: SupplierCandidateDecision;
+  canonical_domain: string;
+  source_url: string;
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  relevance_score: number | null;
+  match_store_id: string | null;
+  match_store_name: string | null;
+  match_confidence: number | null;
+  match_reason: string | null;
+  diff: Record<string, { current: string | null; incoming: string | null }>;
+  scraped_at: string;
 }

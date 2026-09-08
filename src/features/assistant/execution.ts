@@ -1,7 +1,7 @@
 import { formatCurrencyArs, formatDateAr, formatTimeShort } from '@/lib/format';
 import type { AppointmentInput } from '@/services/appointments';
 import { listItems } from '@/services/items';
-import { listLatestPrices } from '@/services/prices';
+import { listLatestPrices, type NewStoreItemPrice } from '@/services/prices';
 import {
   deleteQuote,
   type QuoteMaterialItemInput,
@@ -9,7 +9,7 @@ import {
 } from '@/services/quotes';
 import { listServices } from '@/services/services';
 import { listStores } from '@/services/stores';
-import type { Appointment, Item, LatestStoreItemPrice, Quote, Service, Store, StoreItemPrice } from '@/types/db';
+import type { Appointment, Item, LatestStoreItemPrice, Quote, Service, Store } from '@/types/db';
 
 import type {
   AssistantActionDraft,
@@ -39,7 +39,7 @@ type AssistantExecutionDependencies = {
   addQuoteServiceItem: (payload: QuoteServiceItemInput) => Promise<unknown>;
   createAppointment: (payload: AppointmentInput) => Promise<Appointment>;
   upsertQuoteAppointment: (payload: Omit<AppointmentInput, 'quote_id'> & { quote_id: string }) => Promise<Appointment>;
-  createPriceRecord: (payload: Omit<StoreItemPrice, 'id' | 'created_at' | 'user_id'>) => Promise<unknown>;
+  createPriceRecord: (payload: NewStoreItemPrice) => Promise<unknown>;
 };
 
 type CatalogMaps = {

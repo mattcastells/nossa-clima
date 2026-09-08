@@ -1,0 +1,144 @@
+name: Relevamiento de proveedores
+
+# Corrida mensual del relevamiento de proveedores de aire acondicionado.
+#
+# NO escribe en Supabase. Genera un .sql idempotente y un reporte, los sube
+# como artifacts del run, y abre/actualiza un issue con el resumen. Aplicar el
+# SQL es una decision humana, igual que el resto de las migraciones de este
+# repo.
+#
+# Secrets:
+#   EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY   publicos, con fallback
+#   SURVEY_SUPABASE_EMAIL / SURVEY_SUPABASE_PASSWORD           usuario de lectura
+#     (si no estan, cae a KEEPALIVE_EMAIL / KEEPALIVE_PASSWORD, que ya existen
+#      para el job de keep-alive)
+#   SERPER_API_KEY o BRAVE_SEARCH_API_KEY                      opcionales
+#
+# Sin credenciales el job igual corre, pero contra un estado vacio: todo
+# aparece como empresa nueva y el SQL no sirve. Por eso falla si faltan.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Que corre"
+        required: true
+        default: run
+        type: choice
+        options: [run, update, discover]
+      provider:
+        description: "Buscador del discovery"
+        required: true
+        default: file
+        type: choice
+        options: [file, serper, brave, none]
+  schedule:
+    # Dia 1 de cada mes, 12:00 UTC (09:00 AR).
+    - cron: "0 12 1 * *"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: supplier-survey
+  cancel-in-progress: false
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      SURVEY_SUPABASE_EMAIL: ${{ secrets.SURVEY_SUPABASE_EMAIL || secrets.KEEPALIVE_EMAIL }}
+      SURVEY_SUPABASE_PASSWORD: ${{ secrets.SURVEY_SUPABASE_PASSWORD || secrets.KEEPALIVE_PASSWORD }}
+      SURVEY_DB_ACTOR_EMAIL: ${{ secrets.SURVEY_SUPABASE_EMAIL || secrets.KEEPALIVE_EMAIL }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        # El pipeline son .ts que Node ejecuta borrando los tipos: necesita 22+.
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm install --legacy-peer-deps
+
+      - name: Validar credenciales
+        run: |
+          test -n "${SURVEY_SUPABASE_EMAIL}" || { echo "::error::Falta SURVEY_SUPABASE_EMAIL (o KEEPALIVE_EMAIL). Sin base, el relevamiento no puede saber que ya conocemos."; exit 1; }
+          test -n "${SURVEY_SUPABASE_PASSWORD}" || { echo "::error::Falta SURVEY_SUPABASE_PASSWORD (o KEEPALIVE_PASSWORD)."; exit 1; }
+
+      - name: Chequeos
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+
+      - name: Correr el relevamiento
+        id: survey
+        run: |
+          node tools/supplier-survey/cli.ts "${{ inputs.mode || 'run' }}" \
+            --provider "${{ inputs.provider || 'file' }}" \
+            --out artifacts/supplier-survey \
+            --log info
+
+      - name: Subir SQL y reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relevamiento-${{ github.run_id }}
+          path: artifacts/supplier-survey/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Publicar el resumen en el run
+        if: always()
+        run: |
+          if [ -f artifacts/supplier-survey/latest.report.md ]; then
+            cat artifacts/supplier-survey/latest.report.md >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "El relevamiento no llego a generar un reporte." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      # Un issue por corrida con lo que hay que revisar. Mismo patron que
+      # keep-alive.yml: si algo necesita a una persona, que no muera en un log.
+      - name: Abrir issue con el resultado
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Relevamiento de proveedores $(date -u +%Y-%m)"
+
+          if [ ! -f artifacts/supplier-survey/latest.report.md ]; then
+            body="El relevamiento fallo antes de generar el reporte. Run: ${RUN_URL}"
+          else
+            body="$(cat artifacts/supplier-survey/latest.report.md)
+
+          ---
+
+          El SQL generado esta en los artifacts del run (\`latest.sync.sql\`).
+          **No se aplico nada en Supabase.** Descargalo, revisalo y corrilo en el
+          SQL editor. Para aprobar candidatos:
+          \`select public.promote_supplier_candidate('<id>');\`
+
+          Run: ${RUN_URL}"
+          fi
+
+          existing=$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open \
+            --search "\"${title}\" in:title" --json number --jq '.[0].number // empty')
+
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
+          fi

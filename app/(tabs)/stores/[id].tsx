@@ -148,6 +148,8 @@ export default function StoreDetailPage() {
             description: store.description ?? '',
             address: store.address ?? '',
             phone: store.phone ?? '',
+            website: store.website ?? '',
+            email: store.email ?? '',
             notes: store.notes ?? '',
           }}
           onSubmit={async (values) => {
@@ -158,6 +160,8 @@ export default function StoreDetailPage() {
                 description: values.description?.trim() ? values.description.trim() : null,
                 address: values.address?.trim() ? values.address.trim() : null,
                 phone: values.phone?.trim() ? values.phone.trim() : null,
+                website: values.website?.trim() ? values.website.trim() : null,
+                email: values.email?.trim() ? values.email.trim() : null,
                 notes: values.notes?.trim() ? values.notes.trim() : null,
               });
               setMessage('Tienda guardada.');

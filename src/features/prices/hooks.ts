@@ -8,8 +8,9 @@ import {
   listLatestManualMeasurePrices,
   listLatestMeasurePrices,
   listLatestPrices,
+  type NewStoreItemPrice,
 } from '@/services/prices';
-import type { StoreItemMeasurementPrice, StoreItemPrice } from '@/types/db';
+import type { StoreItemMeasurementPrice } from '@/types/db';
 
 export const useLatestPrices = () => useQuery({ queryKey: ['latest-prices'], queryFn: listLatestPrices });
 
@@ -42,8 +43,7 @@ export const useItemMeasurePriceHistory = (itemId: string) =>
 export const useCreatePrice = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<StoreItemPrice, 'id' | 'created_at' | 'user_id'>) =>
-      createPriceRecord(payload),
+    mutationFn: (payload: NewStoreItemPrice) => createPriceRecord(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['latest-prices'] });
       queryClient.invalidateQueries({ queryKey: ['item-price-history'] });

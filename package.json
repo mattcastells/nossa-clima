@@ -14,8 +14,14 @@
     "web": "expo start --web",
     "web:mobile": "node scripts/open-mobile-preview.mjs",
     "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit && tsc -p tools/supplier-survey/tsconfig.json",
+    "test": "vitest run",
+    "survey": "node --env-file-if-exists=.env tools/supplier-survey/cli.ts run",
+    "survey:update": "node --env-file-if-exists=.env tools/supplier-survey/cli.ts update",
+    "survey:discover": "node --env-file-if-exists=.env tools/supplier-survey/cli.ts discover",
+    "survey:import": "node --env-file-if-exists=.env tools/supplier-survey/cli.ts import",
+    "survey:snapshot": "node --env-file-if-exists=.env tools/supplier-survey/cli.ts snapshot",
+    "survey:report": "node --env-file-if-exists=.env tools/supplier-survey/cli.ts report"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",

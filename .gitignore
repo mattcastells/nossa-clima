@@ -15,3 +15,8 @@ yarn.lock
 
 # Estado local de la CLI de Supabase (link, versiones). No se versiona.
 supabase/.temp/
+
+# Salida del relevamiento de proveedores: SQL generado, reportes y cache HTTP.
+# El SQL se revisa y se corre, no se versiona. Las semillas y las consultas si.
+artifacts/
+tools/supplier-survey/.cache/
