@@ -150,12 +150,11 @@ export default function NewQuotePage() {
                 />
 
                 <MaterialsDraftSection
-                  storeSearch={materialDraft.storeSearch}
-                  setStoreSearch={materialDraft.setStoreSearch}
+                  stores={stores ?? []}
                   selectedStore={materialDraft.selectedStore}
                   setSelectedStoreId={materialDraft.setSelectedStoreId}
-                  filteredStores={materialDraft.filteredStores}
                   selectedStoreId={materialDraft.selectedStoreId}
+                  materialCountByStoreId={materialDraft.materialCountByStoreId}
                   materialSearch={materialDraft.materialSearch}
                   setMaterialSearch={materialDraft.setMaterialSearch}
                   selectedItem={materialDraft.selectedItem}

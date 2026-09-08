@@ -1,13 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView as RNScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, IconButton, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Card, Dialog, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
 import { AppScreen } from '@/components/AppScreen';
 import { AppDialog } from '@/components/AppDialog';
 import { useAppToast, useToastMessageEffect } from '@/components/AppToastProvider';
 import { LoadingOrError } from '@/components/LoadingOrError';
 import { SelectionPanel, SelectionRow } from '@/components/SelectionPanel';
+import { StorePicker } from '@/components/StorePicker';
 import { useItemMeasurements, useItems, useSaveItem } from '@/features/items/hooks';
 import { useLatestMeasurePrices, useLatestPrices } from '@/features/prices/hooks';
 import { useAddQuoteMaterialItem, useQuoteDetail, useUpdateQuoteMaterialItem, useDeleteQuoteMaterialItem } from '@/features/quotes/hooks';
@@ -63,7 +64,6 @@ export default function AddMaterialToQuotePage() {
   const [editingNotes, setEditingNotes] = useState('');
 
   const [entryMode, setEntryMode] = useState<MaterialEntryMode>('catalog');
-  const [storeSearch, setStoreSearch] = useState('');
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -132,17 +132,24 @@ export default function AddMaterialToQuotePage() {
   const measuredItemIds = useMemo(() => new Set(storeMeasureRows.map((row) => row.item_id)), [storeMeasureRows]);
   const directItemIds = useMemo(() => new Set(storeBaseRows.map((row) => row.item_id)), [storeBaseRows]);
 
-  const filteredStores = useMemo(() => {
-    const query = storeSearch.trim().toLowerCase();
-    if (!query) return availableStores;
+  /**
+   * Cuántos materiales con precio tiene cada tienda. El selector las ordena por
+   * esto y avisa cuáles no tienen ninguno: hay tiendas cargadas sin un solo
+   * precio, y elegirlas devolvía una lista vacía sin explicar por qué.
+   */
+  const materialCountByStoreId = useMemo(() => {
+    const materialIds = new Set(materialItems.map((item) => item.id));
+    const byStore = new Map<string, Set<string>>();
 
-    return availableStores.filter(
-      (store) =>
-        store.name.toLowerCase().includes(query) ||
-        (store.description ?? '').toLowerCase().includes(query) ||
-        (store.address ?? '').toLowerCase().includes(query),
-    );
-  }, [availableStores, storeSearch]);
+    for (const row of latestPricesQuery.data ?? []) {
+      if (!materialIds.has(row.item_id)) continue;
+      const current = byStore.get(row.store_id) ?? new Set<string>();
+      current.add(row.item_id);
+      byStore.set(row.store_id, current);
+    }
+
+    return new Map([...byStore].map(([storeId, itemIds]) => [storeId, itemIds.size] as const));
+  }, [latestPricesQuery.data, materialItems]);
 
   const catalogItems = useMemo(() => {
     if (!selectedStoreId) return [];
@@ -369,44 +376,14 @@ export default function AddMaterialToQuotePage() {
               <Card.Content style={styles.sectionContent}>
                 <View style={styles.sectionHeader}>
                   <Text variant="titleSmall">Tienda</Text>
-                  <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Se usa para traer el precio actual del material o de cada medida.</Text>
+                  <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>Define qué materiales podés elegir y con qué precio.</Text>
                 </View>
 
-                <Searchbar
-                  placeholder="Buscar tienda"
-                  value={storeSearch}
-                  onChangeText={setStoreSearch}
-                  inputStyle={styles.searchbarInput}
-                  style={[
-                    styles.searchbar,
-                    {
-                      backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
-                      borderColor: theme.colors.borderSoft,
-                    },
-                  ]}
-                />
-
-                {selectedStore ? (
-                  <View style={[styles.storeSelectedBanner, { backgroundColor: theme.colors.softBlue }]}>
-                    <Text style={[styles.storeSelectedText, { color: theme.colors.titleOnSoft }]}>✓ {selectedStore.name}</Text>
-                    <IconButton icon="close" size={18} onPress={() => setSelectedStoreId(null)} style={styles.storeClearBtn} />
-                  </View>
-                ) : null}
-
-                <SelectionPanel
-                  data={filteredStores}
-                  keyExtractor={(store) => store.id}
-                  emptyText="No se encontraron tiendas."
-                  maxHeight={230}
-                  renderItem={(store) => (
-                    <SelectionRow
-                      title={store.name}
-                      meta={store.address}
-                      selected={store.id === selectedStoreId}
-                      tone="blue"
-                      onPress={() => setSelectedStoreId(store.id)}
-                    />
-                  )}
+                <StorePicker
+                  stores={availableStores}
+                  selectedStoreId={selectedStoreId}
+                  onSelect={setSelectedStoreId}
+                  materialCountByStoreId={materialCountByStoreId}
                 />
               </Card.Content>
             </Card>
@@ -416,7 +393,7 @@ export default function AddMaterialToQuotePage() {
                 <View style={styles.sectionHeader}>
                   <Text variant="titleSmall">Material</Text>
                   <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-                    {selectedStoreId ? 'Se muestran solo materiales con precio disponible en la tienda.' : 'Primero selecciona una tienda.'}
+                    {selectedStore ? `Los que tiene ${selectedStore.name} con precio cargado.` : 'Elegí una tienda arriba.'}
                   </Text>
                 </View>
 
@@ -672,22 +649,6 @@ const styles = StyleSheet.create({
   },
   searchbarInput: {
     paddingLeft: 4,
-  },
-  storeSelectedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 10,
-    paddingLeft: 12,
-    paddingRight: 4,
-    paddingVertical: 2,
-  },
-  storeSelectedText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  storeClearBtn: {
-    margin: 0,
   },
   summaryCard: {
     gap: 4,

@@ -18,7 +18,6 @@ interface UseMaterialDraftOptions {
 }
 
 export function useMaterialDraft({ items, stores, latestPricesData, onError }: UseMaterialDraftOptions) {
-  const [storeSearch, setStoreSearch] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [materialSearch, setMaterialSearch] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -83,19 +82,25 @@ export function useMaterialDraft({ items, stores, latestPricesData, onError }: U
   const measuredItemIds = useMemo(() => new Set(storeMeasureRows.map((row) => row.item_id)), [storeMeasureRows]);
   const directItemIds = useMemo(() => new Set(storeBaseRows.map((row) => row.item_id)), [storeBaseRows]);
 
-  const filteredStores = useMemo(() => {
-    const query = storeSearch.trim().toLowerCase();
-    return (stores ?? [])
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .filter(
-        (s) =>
-          !query ||
-          s.name.toLowerCase().includes(query) ||
-          (s.address ?? '').toLowerCase().includes(query) ||
-          (s.description ?? '').toLowerCase().includes(query),
-      );
-  }, [storeSearch, stores]);
+  /**
+   * Cuántos materiales con precio tiene cada tienda.
+   * Lo usa el selector para ordenar y para avisar cuáles no tienen nada: hoy
+   * hay tiendas cargadas sin un solo precio, y elegirlas devolvía una lista
+   * vacía sin explicación.
+   */
+  const materialCountByStoreId = useMemo(() => {
+    const materialIds = new Set(materialItems.map((item) => item.id));
+    const byStore = new Map<string, Set<string>>();
+
+    for (const row of latestPricesData ?? []) {
+      if (!materialIds.has(row.item_id)) continue;
+      const current = byStore.get(row.store_id) ?? new Set<string>();
+      current.add(row.item_id);
+      byStore.set(row.store_id, current);
+    }
+
+    return new Map([...byStore].map(([storeId, itemIds]) => [storeId, itemIds.size] as const));
+  }, [latestPricesData, materialItems]);
 
   const filteredItems = useMemo(() => {
     if (!selectedStoreId) return [];
@@ -264,12 +269,10 @@ export function useMaterialDraft({ items, stores, latestPricesData, onError }: U
 
   return {
     // Store state
-    storeSearch,
-    setStoreSearch,
     selectedStoreId,
     setSelectedStoreId,
     selectedStore,
-    filteredStores,
+    materialCountByStoreId,
     // Item state
     materialSearch,
     setMaterialSearch,

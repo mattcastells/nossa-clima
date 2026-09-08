@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Card, Searchbar, Text, TextInput } from 'react-native-paper';
 
 import { SelectionPanel, SelectionRow } from '@/components/SelectionPanel';
+import { StorePicker } from '@/components/StorePicker';
 import { QuoteItemsSummary, type SummaryRow } from '@/features/quotes/components/QuoteItemsSummary';
 import { formatCurrencyArs } from '@/lib/format';
 import { formatItemDisplayName, formatMeasuredItemDisplayName, formatMeasurementDisplayLabel } from '@/lib/itemDisplay';
@@ -11,12 +12,11 @@ import type { Item, ItemMeasurement, Store } from '@/types/db';
 
 interface Props {
   // Store
-  storeSearch: string;
-  setStoreSearch: (v: string) => void;
+  stores: Store[];
   selectedStore: Store | null;
   setSelectedStoreId: (id: string | null) => void;
-  filteredStores: Store[];
   selectedStoreId: string | null;
+  materialCountByStoreId: Map<string, number>;
   // Item
   materialSearch: string;
   setMaterialSearch: (v: string) => void;
@@ -51,12 +51,11 @@ interface Props {
 }
 
 export function MaterialsDraftSection({
-  storeSearch,
-  setStoreSearch,
+  stores,
   selectedStore,
   setSelectedStoreId,
-  filteredStores,
   selectedStoreId,
+  materialCountByStoreId,
   materialSearch,
   setMaterialSearch,
   selectedItem,
@@ -94,7 +93,7 @@ export function MaterialsDraftSection({
         <View style={styles.sectionHeader}>
           <Text variant="titleMedium">Materiales</Text>
           <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-            Selecciona tienda y material para dejarlo listo desde esta pantalla.
+            {selectedStore ? `Materiales de ${selectedStore.name}.` : 'Elegí la tienda y después su material.'}
           </Text>
         </View>
 
@@ -107,50 +106,16 @@ export function MaterialsDraftSection({
           onDelete={handleDelete}
         />
 
-        <Searchbar
-          placeholder="Buscar tienda"
-          value={storeSearch}
-          onChangeText={setStoreSearch}
-          style={[
-            styles.searchbar,
-            {
-              backgroundColor: theme.dark ? theme.colors.background : theme.colors.surface,
-              borderColor: theme.colors.borderSoft,
-            },
-          ]}
-          inputStyle={styles.searchbarInput}
-        />
-
-        {selectedStore ? (
-          <View style={[styles.selectedBanner, { backgroundColor: theme.colors.softBlue }]}>
-            <Text style={[styles.selectedBannerText, { color: theme.colors.titleOnSoft }]} numberOfLines={1}>
-              Tienda: {selectedStore.name}
-            </Text>
-            <Button compact mode="text" onPress={() => setSelectedStoreId(null)} disabled={disabled}>
-              Quitar
-            </Button>
-          </View>
-        ) : null}
-
-        <SelectionPanel
-          data={filteredStores}
-          keyExtractor={(store) => store.id}
-          emptyText="No hay tiendas para mostrar."
-          maxHeight={230}
-          renderItem={(store) => (
-            <SelectionRow
-              title={store.name}
-              meta={store.address}
-              selected={store.id === selectedStoreId}
-              tone="blue"
-              disabled={disabled}
-              onPress={() => setSelectedStoreId(store.id)}
-            />
-          )}
+        <StorePicker
+          stores={stores}
+          selectedStoreId={selectedStoreId}
+          onSelect={setSelectedStoreId}
+          materialCountByStoreId={materialCountByStoreId}
+          disabled={disabled}
         />
 
         <Searchbar
-          placeholder={selectedStoreId ? 'Buscar material' : 'Selecciona una tienda primero'}
+          placeholder={selectedStoreId ? 'Buscar material' : 'Elegí una tienda primero'}
           value={materialSearch}
           onChangeText={setMaterialSearch}
           style={[
@@ -203,7 +168,7 @@ export function MaterialsDraftSection({
           />
         ) : (
           <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
-            Primero selecciona una tienda para ver materiales.
+            Elegí una tienda para ver sus materiales.
           </Text>
         )}
 
